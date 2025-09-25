@@ -27,3 +27,6 @@ venv/
 Thumbs.db
 repo-tree.txt
 scripts/*.bak.*
+packaging/
+repo-tree.txt
+scripts/*.bak.*
