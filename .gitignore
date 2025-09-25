@@ -25,3 +25,5 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+repo-tree.txt
+scripts/*.bak.*
