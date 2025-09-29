@@ -1,0 +1,54 @@
+
+== HEVC-GUI • Verifica non-distruttiva (Thu Sep 25 16:08:49 CEST 2025) ==
+
+== 1) Elenco file Python ==
+Totale: 38
+  ./__init__.py
+  ./hevc_gui/__init__.py
+  ./hevc_gui/core/__init__.py
+  ./hevc_gui/core/aspect.py
+  ./hevc_gui/core/audio_helpers.py
+  ./hevc_gui/core/audio_profiles.py
+  ./hevc_gui/core/chapter.py
+  ./hevc_gui/core/chapter_worker.py
+  ./hevc_gui/core/constants.py
+  ./hevc_gui/core/dblclick.py
+  ./hevc_gui/core/ffprobe_utils.py
+  ./hevc_gui/core/helpers.py
+  ./hevc_gui/core/loudness.py
+  ./hevc_gui/core/media_info_dialog.py
+  ./hevc_gui/core/processor.py
+  ./hevc_gui/core/progressbar_nozero.py
+  ./hevc_gui/core/queue.py
+  ./hevc_gui/core/subtitle_helper.py
+  ./hevc_gui/core/subtitle_manager.py
+  ./hevc_gui/core/upmix.py
+  ./hevc_gui/gui/__init__.py
+  ./hevc_gui/gui/appearance_dialog.py
+  ./hevc_gui/gui/appearance_settings.py
+  ./hevc_gui/gui/main_window.py
+  ./hevc_gui/gui/menubar.py
+  ./hevc_gui/gui/settings.py
+  ./hevc_gui/gui/test_opts_clean.py
+  ./hevc_gui/gui/test_standalone.py
+  ./hevc_gui/resources/doc/__init__.py
+  ./hevc_gui/resources/icons/__init__.py
+  ./hevc_gui/resources/icons_rc.py
+  ./main.py
+  ./scan_imports.py
+  ./scripts/__init__.py
+  ./scripts/audio_converter_from_AV_files_it.py
+  ./scripts/conversion_thread_external.py
+  ./scripts/log/__init__.py
+  ./scripts/oscilloscope_preview.py
+
+== 2) Controllo encoding/CRLF ==
+Riepilogo: UTF-16=0, CRLF=0
+
+== 3) Syntax check (py_compile) ==
+Esito: OK
+
+== 4) Ruff (solo errori critici) — report ONLY ==
+All checks passed!
+
+== FINE — report salvato in verify-report.txt ==

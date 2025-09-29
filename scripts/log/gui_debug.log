@@ -1,0 +1,21 @@
+2025-09-29 12:23:02,920 DEBUG    === Avvio applicazione: log ripulito ===
+2025-09-29 12:23:02,923 DEBUG    === Avvio applicazione: log ripulito ===
+2025-09-29 12:23:02,961 DEBUG    --> ENV QT_QPA_PLATFORMTHEME = qt5ct
+2025-09-29 12:23:02,961 DEBUG    --> ENV GTK_THEME           = None
+2025-09-29 12:23:02,961 DEBUG    --> QApp.style() name       = motif
+2025-09-29 12:23:02,974 DEBUG    [TMP] mode=ram • root=/dev/shm/hevc_gui • reason: OK: RAM total=31 GiB, avail=22 GiB, /dev/shm free=15 GiB, need≈1 GiB
+2025-09-29 12:23:03,090 DEBUG    Icona per 'open' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_open.png'
+2025-09-29 12:23:03,103 DEBUG    Icona per 'exit' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_exit.png'
+2025-09-29 12:23:03,118 DEBUG    Icona per 'convert' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_convert.png'
+2025-09-29 12:23:03,132 DEBUG    Icona per 'extract' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_extract.png'
+2025-09-29 12:23:03,145 DEBUG    Icona per 'subs' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_subs.png'
+2025-09-29 12:23:03,160 DEBUG    Icona per 'chapters' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_chapters.png'
+2025-09-29 12:23:03,175 DEBUG    Icona per 'queue_run' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_queue_run.png'
+2025-09-29 12:23:03,188 DEBUG    Icona per 'save' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_save.png'
+2025-09-29 12:23:03,208 DEBUG    Icona per 'edit_queue' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_edit_queue.png'
+2025-09-29 12:23:03,227 DEBUG    Icona per 'minfo' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_minfo.png'
+2025-09-29 12:23:03,240 DEBUG    Icona per 'preview' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_preview.png'
+2025-09-29 12:23:03,252 DEBUG    Icona per 'preview_filtered' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_preview_filtered.png'
+2025-09-29 12:23:03,269 DEBUG    Icona per 'asp' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_asp.png'
+2025-09-29 12:23:03,289 DEBUG    Icona per 'help' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_help.png'
+2025-09-29 12:23:03,293 DEBUG    Icona per 'info' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_info.png'

@@ -1,0 +1,15 @@
+[tool.ruff]
+target-version = "py39"
+line-length = 140
+extend-exclude = ["packaging", "_backup", "_export"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
+# oppure, se usi extend-ignore:
+# extend-ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"hevc_gui/gui/main_window.py" = ["E402"]
+"main.py" = ["E402"]
+"hevc_gui/core/loudness.py" = ["E741"]
