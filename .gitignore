@@ -39,3 +39,9 @@ Thumbs.db
 repo-tree.txt
 packaging/
 
+
+# Backup/editor junk
+*.bak*
+*~
+*.orig
+*.rej
