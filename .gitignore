@@ -25,8 +25,17 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Project backups / duplicati
+/backup/*        # ignora tutto dentro backup/
+!/backup/.keep   # ma NON ignorare questo file
+*.bak
+* (copia)
+* (copia).*
+* (un'altra copia).*
+*_.py   # es. file che finiscono con underscore prima di .py
+
+# Altri artefatti generati
 repo-tree.txt
-scripts/*.bak.*
 packaging/
-repo-tree.txt
-scripts/*.bak.*
+
