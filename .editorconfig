@@ -1,0 +1,5 @@
+# Applica a tutti i file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
