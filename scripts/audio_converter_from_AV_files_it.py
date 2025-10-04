@@ -37,7 +37,11 @@ from PyQt5.QtCore import Qt, pyqtSlot, QProcess, QTimer
 from PyQt5.QtGui import QFontMetrics
 from hevc_gui.core import constants as C
 from hevc_gui.core.audio_helpers import audio_tracks_with_title
-from conversion_thread_external import ConversionThreadExternal
+
+try:
+    from conversion_thread_external import ConversionThreadExternal
+except ModuleNotFoundError:
+    from scripts.conversion_thread_external import ConversionThreadExternal
 
 # --- Preview: import robusto (funziona con qualsiasi versione di scripts/preview.py) ---
 try:
