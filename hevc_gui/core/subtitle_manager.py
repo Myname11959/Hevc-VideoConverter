@@ -90,6 +90,18 @@ class SubtitleManager:
             listw.addItem(label)
         layout.addWidget(listw)
 
+        # NEW: doppio clic = conferma (OK)
+        def _on_dblclick(item):
+            # in MultiSelection, assicuriamoci che l’item doppio-cliccato risulti selezionato
+            try:
+                if item and not item.isSelected():
+                    item.setSelected(True)
+            except Exception:
+                pass
+            dlg.accept()
+
+        listw.itemDoubleClicked.connect(_on_dblclick)
+
         btns = QHBoxLayout()
         ok = QPushButton("OK")
         cancel = QPushButton("Annulla")

@@ -2,25 +2,16 @@
 # -*- coding: utf-8 -*-
 
 """
-Oscilloscopio multi-canale (verticale) per preview audio.
+Oscilloscopio multi-canale (verticale) per preview audio — grafica + avvio rapido.
 
-- Disposizione VERTICALE: un frame (label + onda) per canale, in colonna.
-- Dimensione finestra *dinamica* in base al numero di canali.
-- Barra bottoni a larghezza piena (Expanding).
+- Una riga per canale (etichetta sinistra + vasca).
+- Etichetta compatta a due elementi: NOME (dx) + PALLINO → pallini allineati verticalmente.
+- Spazio orizzontale etichetta↔vasca = spazio verticale tra vasche (di default).
+- Spazio NOME↔PALLINO = 5px (configurabile via env).
+- Nessuna scrollbar: la finestra si dimensiona in base ai canali.
+- Auto-fit: niente vuoti sotto le vasche; resize automatico 6ch↔2ch e alla prima apertura.
+- Priming muto del player per ridurre la latenza del primo Play (configurabile via env).
 - Nessun autoplay; stop certo e cleanup del WAV alla chiusura.
-
-API:
-    PreviewDialog(
-        audio_file: str,
-        parent=None,
-        *,
-        channel_layout: str | None = "stereo",
-        channel_names: list[str] | None = None,
-        auto_cleanup: bool = True,
-    )
-
-Nota: lo scope mostra i canali del WAV che gli passi. Se il tuo preview genera 5.0,
-passa channel_names=['L','R','C','SL','SR'] (o channel_layout='5.0' se usi la mappa sotto).
 """
 
 import os
@@ -31,7 +22,7 @@ import ctypes
 import numpy as np
 import pyqtgraph as pg
 
-from PyQt5.QtCore import Qt, QUrl
+from PyQt5.QtCore import Qt, QUrl, QTimer
 from PyQt5.QtWidgets import (
     QApplication,
     QDialog,
@@ -41,10 +32,40 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QSlider,
     QLabel,
-    QScrollArea,
     QSizePolicy,
 )
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QAudioProbe
+
+# ==================== Parametri UI/regolabili (via env) ====================
+# Spazio VERTICALE (in px) tra una “vasca” e la successiva
+ROW_SPACING  = int(os.getenv("HEVC_SCOPE_VSPACE",    "10"))
+
+# Spazio ORIZZONTALE (in px) tra etichetta e vasca (default = ROW_SPACING)
+_HSPACE_ENV  = os.getenv("HEVC_SCOPE_HSPACE", "").strip()
+HSPACE       = int(_HSPACE_ENV) if _HSPACE_ENV else ROW_SPACING
+
+# Spazio (in px) tra NOME canale e PALLINO nella colonna etichette
+NAME_DOT_SPACING = int(os.getenv("HEVC_SCOPE_NDSPACE", "5"))  # ← richiesto: da 4 a 5
+
+# Altezza target (in px) del riquadro nero per ogni waveform
+PLOT_H       = int(os.getenv("HEVC_SCOPE_WAVE_H",    "95"))
+
+# Larghezza (in px) della colonna etichette; 0 = calcolo dinamico
+_LABEL_W_ENV = os.getenv("HEVC_SCOPE_LABEL_W", "").strip()
+LABEL_W      = int(_LABEL_W_ENV) if _LABEL_W_ENV else 0
+
+# Altezza bottoni e slider
+BTN_H        = int(os.getenv("HEVC_SCOPE_BTN_H",     "32"))
+SLIDER_H     = int(os.getenv("HEVC_SCOPE_SLIDER_H",  "12"))
+
+# Larghezze finestra
+STEREO_DEF_W = int(os.getenv("HEVC_SCOPE_ST_W",      "580"))
+MULTI_DEF_W  = int(os.getenv("HEVC_SCOPE_MC_W",      "900"))
+
+# ====== Priming (riduzione latenza di Play) ======
+PRIME_ON     = os.getenv("HEVC_SCOPE_PRIME", "1") == "1"
+PRIME_MS     = max(0, int(os.getenv("HEVC_SCOPE_PRIME_MS", "80")))  # 60–120 ms ok
+# ==========================================================================
 
 # --- opzionale: directory temporanea per il test __main__
 try:
@@ -55,27 +76,26 @@ except Exception:
 # Proviamo a leggere layout/colori centralizzati; altrimenti fallback
 try:
     from hevc_gui.core import constants as C  # type: ignore
-
     _C_LAYOUTS = getattr(C, "CHANNEL_LAYOUTS", None)
-    _C_COLORS = getattr(C, "CHANNEL_COLORS", None)
+    _C_COLORS  = getattr(C, "CHANNEL_COLORS",  None)
 except Exception:
     _C_LAYOUTS = _C_COLORS = None
 
 # Fallback sicuri (aggiungo anche 5.0)
 _DEFAULT_LAYOUTS = {
-    "mono": ["M"],
+    "mono":   ["M"],
     "stereo": ["L", "R"],
-    "5.0": ["L", "R", "C", "SL", "SR"],
-    "5.1": ["L", "R", "C", "LFE", "SL", "SR"],
+    "5.0":    ["L", "R", "C", "SL", "SR"],
+    "5.1":    ["L", "R", "C", "LFE", "SL", "SR"],
 }
 _DEFAULT_COLORS = {
-    "M": "yellow",
-    "L": "yellow",
-    "R": "cyan",
-    "C": "orange",
+    "M":   "yellow",
+    "L":   "yellow",
+    "R":   "cyan",
+    "C":   "orange",
     "LFE": "magenta",
-    "SL": "green",
-    "SR": "pink",
+    "SL":  "green",
+    "SR":  "pink",
 }
 
 
@@ -85,7 +105,6 @@ def _layout_names(layout: str | None, names: list[str] | None) -> list[str]:
     L = _C_LAYOUTS or _DEFAULT_LAYOUTS
     if not layout:
         layout = "stereo"
-    # se non presente, ripiega su "stereo"
     return list(L.get(layout, L["stereo"]))
 
 
@@ -94,136 +113,139 @@ def _color_for(ch: str) -> str:
     return Cmap.get(ch, "white")
 
 
-class Oscilloscope(QWidget):
-    """
-    Oscilloscopio multi-canale con layout VERTICALE:
-    per ogni canale -> Label + PlotWidget in colonna.
-    """
+def _calc_label_width(names: list[str], widget: QWidget) -> int:
+    """Larghezza minima per la colonna etichette = larghezza(NOME più lungo) + spazio + larghezza('●') + padding."""
+    if LABEL_W > 0:
+        return LABEL_W
+    fm = widget.fontMetrics()
+    longest = max((n or "L") for n in names) if names else "L"
+    dot_w = fm.horizontalAdvance("●")
+    name_w = fm.horizontalAdvance(longest)
+    # + NAME_DOT_SPACING (richiesta 5px) + un piccolo padding per sicurezza
+    w = name_w + NAME_DOT_SPACING + dot_w + 6
+    return max(36, min(160, w))
 
-    # altezza “target” per un canale (label + plot + spazi)
-    PER_CH_HEIGHT = 120  # px circa
-    PLOT_MIN_H = 95
 
-    def __init__(
-        self,
-        parent=None,
-        *,
-        channel_layout: str | None = None,
-        channel_names: list[str] | None = None,
-    ):
+class _ChannelRow(QWidget):
+    """Una riga: colonna etichetta (NOME dx + PALLINO) + area plot."""
+    def __init__(self, ch_name: str, color: str, label_w: int, hspace: int, parent=None):
         super().__init__(parent)
+        hb = QHBoxLayout(self)
+        hb.setContentsMargins(6, 0, 6, 0)
+        hb.setSpacing(hspace)
 
-        # Determina i canali richiesti
+        # --- Colonna etichetta composta: [NOME(dx)]  (NAME_DOT_SPACING)  [●] ---
+        self.label_col = QWidget(self)
+        self.label_col.setMinimumWidth(label_w)
+        self.label_col.setMaximumWidth(label_w)
+        self.label_col.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        inner = QHBoxLayout(self.label_col)
+        inner.setContentsMargins(0, 0, 0, 0)
+        inner.setSpacing(NAME_DOT_SPACING)  # ← 5px di default
+
+        self.name_lbl = QLabel(ch_name, self.label_col)
+        self.name_lbl.setAlignment(Qt.AlignVCenter | Qt.AlignRight)  # ← allinea a dx: pallini in colonna
+        self.name_lbl.setStyleSheet("color:#000; font-weight:600; margin:0; padding:0;")
+
+        self.dot_lbl = QLabel("●", self.label_col)
+        self.dot_lbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+        self.dot_lbl.setStyleSheet(f"color:{color}; margin:0; padding:0;")
+
+        # opzionale: fissa la larghezza del pallino per una colonna perfetta
+        fm = self.dot_lbl.fontMetrics()
+        self.dot_lbl.setMinimumWidth(fm.horizontalAdvance("●"))
+        self.dot_lbl.setMaximumWidth(fm.horizontalAdvance("●"))
+
+        inner.addWidget(self.name_lbl, 1)
+        inner.addWidget(self.dot_lbl, 0)
+
+        # --- Plot (vasca) ---
+        self.plot = pg.PlotWidget(self)
+        self.plot.setBackground((24, 24, 24))
+        self.plot.setYRange(-1, 1)
+        self.plot.setMouseEnabled(False, False)
+        self.plot.hideAxis("bottom")
+        self.plot.hideAxis("left")
+        self.plot.plotItem.setClipToView(True)
+        self.plot.plotItem.setDownsampling(mode="peak")
+        self.plot.setStyleSheet("border:1px solid #666;")
+
+        self.curve = self.plot.plot(pen=pg.mkPen(color, width=1))
+        self.plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.plot.setMinimumHeight(PLOT_H)
+        self.plot.setMaximumHeight(PLOT_H)
+
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(PLOT_H + 2)
+
+        hb.addWidget(self.label_col)   # etichetta stretta
+        hb.addWidget(self.plot, 1)     # vasca larga
+
+
+class Oscilloscope(QWidget):
+    """Oscilloscopio multi-canale verticale (etichette a sinistra + vasche)."""
+    def __init__(self, parent=None, *, channel_layout: str | None = None, channel_names: list[str] | None = None):
+        super().__init__(parent)
         names = _layout_names(channel_layout, channel_names)
         self.channel_names = names
         self.nch = len(names)
 
-        # UI: scroll area verticale con una sezione per canale
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        self.label_w = _calc_label_width(names, self)
 
-        self.scroll = QScrollArea(self)
-        self.scroll.setWidgetResizable(True)
-        outer.addWidget(self.scroll, stretch=1)
+        self.vbox = QVBoxLayout(self)
+        self.vbox.setContentsMargins(8, 8, 8, 8)
+        self.vbox.setSpacing(ROW_SPACING)
 
-        content = QWidget(self.scroll)
-        self.scroll.setWidget(content)
-
-        vbox = QVBoxLayout(content)
-        vbox.setContentsMargins(8, 8, 8, 8)
-        vbox.setSpacing(10)
-
-        self.plots = []
+        self.rows: list[_ChannelRow] = []
         self.curves = []
         self.buffers = []
 
         for ch_name in names:
-            # Etichetta canale
             color = _color_for(ch_name)
-            lab = QLabel(f"◉ {ch_name}", alignment=Qt.AlignLeft)
-            vbox.addWidget(lab)
-
-            # Plot
-            pw = pg.PlotWidget(parent=self)
-            pw.setBackground((24, 24, 24))
-            pw.setYRange(-1, 1)
-            pw.setMouseEnabled(False, False)
-            pw.hideAxis("bottom")
-            pw.hideAxis("left")
-            pw.plotItem.setClipToView(True)
-            pw.plotItem.setDownsampling(mode="peak")
-            curve = pw.plot(pen=pg.mkPen(color, width=1))
-            curve.setClipToView(True)
-
-            # Ogni plot cresce in larghezza, ma ha altezza fissa “comoda”
-            pw.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            pw.setMinimumHeight(self.PLOT_MIN_H)
-
-            vbox.addWidget(pw)
-
-            self.plots.append(pw)
-            self.curves.append(curve)
+            row = _ChannelRow(ch_name, color, self.label_w, HSPACE, self)
+            self.vbox.addWidget(row)
+            self.rows.append(row)
+            self.curves.append(row.curve)
             self.buffers.append(np.zeros(1024, dtype=np.float32))
 
+    def channels_block_height(self) -> int:
+        if self.nch <= 0:
+            return 2 * PLOT_H
+        return self.nch * PLOT_H + (self.nch - 1) * ROW_SPACING
+
     def set_channel_layout(self, layout: str | None = None, names: list[str] | None = None):
-        """
-        Reimposta canali/etichette SENZA dover ricreare il widget esterno.
-        Se preferisci rimpiazzare il widget (come fa la PreviewDialog) va bene lo stesso.
-        """
         new_names = _layout_names(layout, names)
         self.channel_names = new_names
         self.nch = len(new_names)
+        self.label_w = _calc_label_width(new_names, self)
 
-        # Se il numero cambia, è più semplice ricostruire i plot
-        for pw in self.plots:
-            pw.setParent(None)
-            pw.deleteLater()
-        self.plots.clear()
+        for r in self.rows:
+            r.setParent(None)
+            r.deleteLater()
+        self.rows.clear()
         self.curves.clear()
         self.buffers.clear()
 
-        # Aggiungi nuovi plot
-        layout_obj = self.findChild(QScrollArea).widget().layout()  # layout del contenitore interno
         for ch_name in new_names:
             color = _color_for(ch_name)
-            lab = QLabel(f"◉ {ch_name}", alignment=Qt.AlignLeft)
-            layout_obj.addWidget(lab)
-
-            pw = pg.PlotWidget(parent=self)
-            pw.setBackground((24, 24, 24))
-            pw.setYRange(-1, 1)
-            pw.setMouseEnabled(False, False)
-            pw.hideAxis("bottom")
-            pw.hideAxis("left")
-            pw.plotItem.setClipToView(True)
-            pw.plotItem.setDownsampling(mode="peak")
-            curve = pw.plot(pen=pg.mkPen(color, width=1))
-            curve.setClipToView(True)
-
-            pw.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            pw.setMinimumHeight(self.PLOT_MIN_H)
-
-            layout_obj.addWidget(pw)
-
-            self.plots.append(pw)
-            self.curves.append(curve)
+            row = _ChannelRow(ch_name, color, self.label_w, HSPACE, self)
+            self.vbox.addWidget(row)
+            self.rows.append(row)
+            self.curves.append(row.curve)
             self.buffers.append(np.zeros(1024, dtype=np.float32))
-
-    def recommended_height(self) -> int:
-        """Altezza finestra consigliata per la sola parte di canali."""
-        return max(2 * self.PLOT_MIN_H, self.nch * self.PER_CH_HEIGHT)
 
     @staticmethod
     def _update_array(old: np.ndarray, new: np.ndarray) -> np.ndarray:
         n = len(new)
         if n >= len(old):
-            return new[-len(old) :]
+            return new[-len(old):]
         old = np.roll(old, -n)
         old[-n:] = new
         return old
 
     def update_buffer(self, buffer):
-        """QAudioProbe -> aggiorna i canali (PCM interlacciato)."""
+        """QAudioProbe -> aggiorna i canali (si aspetta PCM 16 bit interlacciato)."""
         try:
             ptr = buffer.constData()
             size = buffer.byteCount()
@@ -239,7 +261,6 @@ class Oscilloscope(QWidget):
             frames = arr.reshape(-1, 1)
             actual_ch = 1
 
-        # Mappa indici “standard”: FL FR FC LFE SL SR
         if actual_ch == 1:
             std_map = {"M": 0, "L": 0, "R": 0}
         elif actual_ch == 2:
@@ -247,7 +268,6 @@ class Oscilloscope(QWidget):
         elif actual_ch >= 6:
             std_map = {"L": 0, "R": 1, "C": 2, "LFE": 3, "SL": 4, "SR": 5}
         else:
-            # 3/4/5 canali: usa gli indici disponibili in ordine
             std_map = {name: min(i, actual_ch - 1) for i, name in enumerate(self.channel_names)}
 
         for i, name in enumerate(self.channel_names):
@@ -258,21 +278,9 @@ class Oscilloscope(QWidget):
 
 
 class PreviewDialog(QDialog):
-    """
-    Dialog di preview con player+probe e Oscilloscope multi-canale (verticale).
-    Nessun autoplay; stop certo alla chiusura; auto-cleanup del WAV.
-    Supporta resize dinamico via set_channel_layout().
-    """
-
-    def __init__(
-        self,
-        audio_file: str,
-        parent=None,
-        *,
-        channel_layout: str | None = None,
-        channel_names: list[str] | None = None,
-        auto_cleanup: bool = True,
-    ):
+    """Dialog di preview con player+probe e Oscilloscope multi-canale."""
+    def __init__(self, audio_file: str, parent=None, *, channel_layout: str | None = None,
+                 channel_names: list[str] | None = None, auto_cleanup: bool = True):
         super().__init__(parent)
         self.setWindowTitle("Preview Audio con Oscilloscopio")
         self.setAttribute(Qt.WA_DeleteOnClose, True)
@@ -280,16 +288,11 @@ class PreviewDialog(QDialog):
         self.audio_file = audio_file
         self._auto_cleanup = bool(auto_cleanup)
 
-        # Oscilloscopio verticale
-        self.osc = Oscilloscope(
-            self,
-            channel_layout=channel_layout,
-            channel_names=channel_names,
-        )
+        self.osc = Oscilloscope(self, channel_layout=channel_layout, channel_names=channel_names)
 
-        # Player & Probe (nessun autoplay)
         self.player = QMediaPlayer(self)
         self.player.setMedia(QMediaContent(QUrl.fromLocalFile(self.audio_file)))
+        self.player.setNotifyInterval(20)
         self.probe = QAudioProbe(self)
         self.probe.setSource(self.player)
         self.probe.audioBufferProbed.connect(self.osc.update_buffer)
@@ -304,66 +307,150 @@ class PreviewDialog(QDialog):
 
         self._apply_initial_size()
 
+        if PRIME_ON:
+            QTimer.singleShot(0, self._prime_pipeline)
+
     # ---------------- UI ----------------
 
     def _build_ui(self):
-        self._main = QVBoxLayout(self)  # memorizzo il layout per sostituzioni future
-        self._main.addWidget(self.osc, stretch=1)
+        self._main = QVBoxLayout(self)
+        self._main.setContentsMargins(8, 6, 8, 8)
+        self._main.setSpacing(6)
 
-        # Barra tempo + label
+        self.osc.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._main.addWidget(self.osc)
+
         bottom = QHBoxLayout()
+        bottom.setContentsMargins(0, 0, 0, 0)
+        bottom.setSpacing(8)
+
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setRange(0, 1)
+        self.slider.setFixedHeight(SLIDER_H)
+
         self.time_label = QLabel("00:00 / 00:00", self)
         self.time_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.time_label.setMinimumWidth(120)
+
         bottom.addWidget(self.slider, 1)
         bottom.addWidget(self.time_label, 0)
         self._main.addLayout(bottom)
 
-        # Bottoni (Expanding -> riempiono tutta la riga)
         btn_layout = QHBoxLayout()
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(8)
 
         def _btn(text):
             b = QPushButton(text, self)
             b.setAutoDefault(False)
-            b.setMinimumHeight(32)
+            b.setMinimumHeight(BTN_H)
             b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             return b
 
-        self.btn_play = _btn("Play")
+        self.btn_play  = _btn("Play")
         self.btn_pause = _btn("Pause")
-        self.btn_stop = _btn("Stop")
-        self.btn_prev = _btn('« 5"')
-        self.btn_next = _btn('5" »')
+        self.btn_stop  = _btn("Stop")
+        self.btn_prev  = _btn('« 5"')
+        self.btn_next  = _btn('5" »')
         self.btn_close = _btn("Chiudi")
 
-        for b in (
-            self.btn_play,
-            self.btn_pause,
-            self.btn_stop,
-            self.btn_prev,
-            self.btn_next,
-            self.btn_close,
-        ):
+        for b in (self.btn_play, self.btn_pause, self.btn_stop, self.btn_prev, self.btn_next, self.btn_close):
             btn_layout.addWidget(b, 1)
 
         self._main.addLayout(btn_layout)
 
     def _apply_initial_size(self):
-        ch_h = self.osc.recommended_height()
-        other = 48 + 56 + 32  # slider + label + bottoni
-        target_h = ch_h + other
-        target_w = 900 if self.osc.nch >= 2 else 720
+        self.setMinimumSize(0, 0)
+        self.setMaximumSize(16777215, 16777215)
+
+        nch = max(1, self.osc.nch)
+
+        m = self.osc.layout().contentsMargins()
+        osc_h = self.osc.channels_block_height() + m.top() + m.bottom()
+        self.osc.setFixedHeight(osc_h)
+
         try:
-            desk = QApplication.desktop()
-            avail = desk.availableGeometry(self)
-            target_w = min(avail.width() - 80, max(680, target_w))
-            target_h = min(avail.height() - 80, max(360, target_h))
+            self.layout().activate()
+            self.adjustSize()
         except Exception:
-            target_w = max(680, target_w)
-            target_h = max(360, target_h)
+            pass
+
+        target_w = (STEREO_DEF_W if nch == 2 else max(MULTI_DEF_W, 720))
+        try:
+            avail = QApplication.desktop().availableGeometry(self)
+            target_h = min(self.height(), avail.height() - 80)
+        except Exception:
+            target_h = self.height()
+
         self.resize(int(target_w), int(target_h))
 
+    # ------- AUTO-FIT dopo restoreGeometry esterno / prima apertura -------
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        QTimer.singleShot(0, self._auto_fit_after_restore)
+
+    def _auto_fit_after_restore(self):
+        try:
+            m = self.osc.layout().contentsMargins()
+            osc_h = self.osc.channels_block_height() + m.top() + m.bottom()
+            self.osc.setFixedHeight(osc_h)
+
+            self.setMinimumSize(0, 0)
+            self.setMaximumSize(16777215, 16777215)
+            self.layout().activate()
+            self.adjustSize()
+
+            try:
+                avail = QApplication.desktop().availableGeometry(self)
+                target_h = min(self.height(), avail.height() - 80)
+            except Exception:
+                target_h = self.height()
+
+            self.resize(self.width(), int(target_h))
+        except Exception:
+            pass
+
+    # ---------------- Priming per bassa latenza ----------------
+    def _prime_pipeline(self):
+        """Avvio muto e brevissimo per scaldare device/buffer → Play istantaneo."""
+        try:
+            self._prime_prev_muted = getattr(self.player, "isMuted", lambda: False)()
+            self._prime_prev_vol   = self.player.volume()
+        except Exception:
+            self._prime_prev_muted = False
+            self._prime_prev_vol   = 100
+
+        try:
+            if hasattr(self.player, "setMuted"):
+                self.player.setMuted(True)
+            else:
+                self.player.setVolume(0)
+        except Exception:
+            pass
+
+        try:
+            self.player.play()
+        except Exception:
+            self._finish_prime()
+            return
+
+        QTimer.singleShot(max(10, PRIME_MS), self._finish_prime)
+
+    def _finish_prime(self):
+        try:
+            self.player.pause()
+            self.player.setPosition(0)
+        except Exception:
+            pass
+        try:
+            if hasattr(self.player, "setMuted"):
+                self.player.setMuted(bool(self._prime_prev_muted))
+            else:
+                self.player.setVolume(int(self._prime_prev_vol))
+        except Exception:
+            pass
+
+    # --------------- Playback helpers ---------------
     def _connect_signals(self):
         self.btn_play.clicked.connect(self.player.play)
         self.btn_pause.clicked.connect(self.player.pause)
@@ -377,34 +464,6 @@ class PreviewDialog(QDialog):
         self.slider.sliderMoved.connect(lambda p: self.player.setPosition(p))
         self.slider.sliderReleased.connect(lambda: self.player.setPosition(self.slider.value()))
 
-    # --------- resize on-the-fly ----------
-    def set_channel_layout(self, layout: str | None = None, names: list[str] | None = None):
-        """Ricrea l'oscilloscopio con un nuovo layout (es. 'stereo' ↔ '5.1') e ridimensiona la finestra."""
-        # 1) Sgancia il probe dall'osc attuale
-        try:
-            self.probe.audioBufferProbed.disconnect(self.osc.update_buffer)
-        except Exception:
-            pass
-
-        # 2) Crea un nuovo Oscilloscope con il layout richiesto
-        new_osc = Oscilloscope(self, channel_layout=layout, channel_names=names)
-
-        # 3) Sostituisci il widget nel layout (stesso slot)
-        idx = self._main.indexOf(self.osc)
-        if idx < 0:
-            idx = 0
-        self._main.insertWidget(idx, new_osc, 1)
-        self._main.removeWidget(self.osc)
-        self.osc.setParent(None)
-        self.osc.deleteLater()
-
-        # 4) collega il probe al nuovo osc e applica nuova dimensione
-        self.osc = new_osc
-        self.probe.audioBufferProbed.connect(self.osc.update_buffer)
-        self._apply_initial_size()
-
-    # --------------- Playback helpers ---------------
-
     def _on_stop(self):
         try:
             self.player.stop()
@@ -417,7 +476,6 @@ class PreviewDialog(QDialog):
         self.close()
 
     def _hard_stop(self):
-        """Stop certo + rilascio media + auto-cleanup WAV."""
         try:
             self.player.stop()
         except Exception:
@@ -435,18 +493,14 @@ class PreviewDialog(QDialog):
                 if os.path.isfile(self.audio_file):
                     os.remove(self.audio_file)
             except Exception:
-                # un piccolo retry se il file fosse ancora impegnato
-                from PyQt5.QtCore import QTimer
-
-                QTimer.singleShot(200, lambda p=self.audio_file: (os.path.isfile(p) and os.remove(p)))
+                from PyQt5.QtCore import QTimer as _QT
+                _QT.singleShot(200, lambda p=self.audio_file: (os.path.isfile(p) and os.remove(p)))
 
     def closeEvent(self, ev):
-        # ferma il player
         try:
             self.player.stop()
         except Exception:
             pass
-        # elimina il WAV se richiesto
         if getattr(self, "_auto_cleanup", False):
             try:
                 if os.path.isfile(self.audio_file):
@@ -481,12 +535,10 @@ def _fmt_ms(ms: int) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
-# Test rapido
+# Test rapido (facoltativo)
 if __name__ == "__main__":
     import sys
-
     app = QApplication(sys.argv)
     wav = os.path.join(TEMP_DIR, "preview_scope.wav")
-    # prova con 5.0
     dlg = PreviewDialog(str(wav), None, channel_layout="5.0")
     dlg.exec_()

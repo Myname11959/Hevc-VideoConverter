@@ -1,0 +1,13 @@
+riga 1 - invariata;
+riga 2 - invariata;
+riga 3 - invariata;
+riga 4 - Bit-rate: (combo) --> Sample rate (Hz) (combo);
+riga 5 - (chekbox) Noise-Reduction --> Denoise nr. (text box);
+riga 6 - Bass (dB): (combo) --> Mid (dB): (combo) --> High (dB): -> (combo);
+riga 7 - Reverb: (combo) --> Stereo Enh: (combo) --> Compress: (combo);
+riga 8 - (chekbox) Auto-loudness (Dynaudnorm) --> (chekbox) Dialog Boost (+2 dB @ 2 KHz);
+riga 9 - (chekbox) Mantieni MONO se input mono (AAC 1.0) --> (chekbox) Evita clipping (limiter soft);
+riga 10 - mettere Start + Durata + bottone Preview; 
+riga 11 - Frame di testo dove si stampa la stringa  per ffmpeg command (abbassare in altezza per max due righe;
+
+il resto invariato tranne che per il pulsante 'Preview' che è stato spostato. I tre pulsanti rimanenti centrarli nella larghezza della finestra.

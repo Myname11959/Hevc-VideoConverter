@@ -1,47 +1,51 @@
-# Python
+# --- Python / build ---
 __pycache__/
 *.py[cod]
+*.pyo
 *.so
 *.pyd
-*.pyo
 *.egg-info/
 .build/
-dist/
 build/
+dist/
 
-# Virtual env
+# --- Virtual env ---
 .venv/
 venv/
 
-# Tools / cache
+# --- Tools / cache ---
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
 
-# IDE
+# --- IDE ---
 .idea/
 .vscode/
 
-# OS
+# --- OS ---
 .DS_Store
 Thumbs.db
+*.swp
 
-# Project backups / duplicati
-/backup/*        # ignora tutto dentro backup/
-!/backup/.keep   # ma NON ignorare questo file
+# --- Project logs / temp ---
+/logs/
+*.log
+/scripts/log/
+/tmp/
+/test/
+
+# --- Backups / duplicati locali ---
+/backup/*
+!/backup/.keep
 *.bak
-* (copia)
+*.orig
+*.rej
+*~
 * (copia).*
 * (un'altra copia).*
-*_.py   # es. file che finiscono con underscore prima di .py
+*_.py
 
-# Altri artefatti generati
+# --- Packaging / altri artefatti ---
 repo-tree.txt
 packaging/
 
-
-# Backup/editor junk
-*.bak*
-*~
-*.orig
-*.rej
