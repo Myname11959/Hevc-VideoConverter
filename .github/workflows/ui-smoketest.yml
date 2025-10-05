@@ -11,9 +11,6 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
-    env:
-      QT_QPA_PLATFORM: xcb
-      QT_DEBUG_PLUGINS: "0"   # metti "1" se vuoi log dettagliati di Qt
 
     steps:
       - name: Checkout
@@ -25,12 +22,18 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      - name: System deps (ffmpeg + xvfb + Qt/X11 libs)
+      - name: System deps (ffmpeg + xvfb + Qt/X11 libs per fallback)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            ffmpeg xvfb libgl1 libxkbcommon-x11-0 \
-            libxcb-xinerama0 libxcb-render-util0 libxcb-image0 libxcb-keysyms1
+            ffmpeg xvfb \
+            libgl1 libopengl0 \
+            libx11-6 libx11-xcb1 libxext6 libxi6 libxrender1 libxtst6 \
+            libxkbcommon-x11-0 libglib2.0-0 libfontconfig1 libfreetype6 \
+            libsm6 libice6 \
+            libxcb1 libxcb-shm0 libxcb-xfixes0 libxcb-icccm4 libxcb-randr0 \
+            libxcb-shape0 libxcb-render-util0 libxcb-image0 libxcb-keysyms1 \
+            libxcb-xinerama0 libxcb-cursor0 libxcb-util1
 
       - name: Python deps
         run: |
@@ -48,5 +51,11 @@ jobs:
         run: ruff check .
         continue-on-error: true
 
-      - name: Run UI smoketest (xvfb)
-        run: xvfb-run -a -s "-screen 0 1280x800x24" python tools/ui_smoketest_audio.py tests/assets/mono.wav --sb51
+      - name: Run UI smoketest (prefer offscreen, fallback xvfb/xcb)
+        shell: bash
+        run: |
+          set -e
+          echo "→ Tentativo #1: QT_QPA_PLATFORM=offscreen (senza X)…"
+          QT_QPA_PLATFORM=offscreen python tools/ui_smoketest_audio.py tests/assets/mono.wav --sb51 \
+          || { echo "↻ Fallback: xvfb + xcb…"; QT_QPA_PLATFORM=xcb xvfb-run -a -s "-screen 0 1280x800x24" \
+               python tools/ui_smoketest_audio.py tests/assets/mono.wav --sb51; }
