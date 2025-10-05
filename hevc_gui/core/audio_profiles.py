@@ -19,8 +19,8 @@ from typing import List, Dict, Any, Optional
 # ---- Profili esposti in GUI ----
 PROFILE_NONE = "Nessuno (default)"
 PROFILE_SOUNDBAR_STD = "Soundbar standard"
-PROFILE_SAMSUNG_HW_R450 = "Samsung TV J + HW-R450"      # Stereo ottimizzato (PCM 2.0)
-PROFILE_SAMSUNG_COMPLETO = "Samsung (completo)"         # 5.1 AC-3
+PROFILE_SAMSUNG_HW_R450 = "Samsung TV J + HW-R450"  # Stereo ottimizzato (PCM 2.0)
+PROFILE_SAMSUNG_COMPLETO = "Samsung (completo)"  # 5.1 AC-3
 
 ALL_PROFILES = [
     PROFILE_NONE,
@@ -60,11 +60,7 @@ def build_soundbar_filters(
     if output_channels == 2:
         if input_channels_hint >= 6:
             # Downmix 5.1 -> stereo con enfasi dialoghi
-            filters.append(
-                "pan=stereo|"
-                "FL=0.92*FL+0.70*FC+0.12*SL+0.08*LFE|"
-                "FR=0.92*FR+0.70*FC+0.12*SR+0.08*LFE"
-            )
+            filters.append("pan=stereo|FL=0.92*FL+0.70*FC+0.12*SL+0.08*LFE|FR=0.92*FR+0.70*FC+0.12*SR+0.08*LFE")
         elif input_channels_hint == 2 and profile_name == PROFILE_SAMSUNG_HW_R450:
             # Crossfeed leggero L↔R (Samsung stereo)
             filters.append("pan=stereo|c0=0.85*c0+0.15*c1|c1=0.15*c0+0.85*c1")
@@ -120,7 +116,7 @@ def plan_encode_for_profile(
         "ac": 2,
         "ar": None,
         "bitrate": None,
-        "bitrate_fallback": "128k",        # default fallback per Stereo neutro
+        "bitrate_fallback": "128k",  # default fallback per Stereo neutro
         "force_ar_if_gui_original": None,  # per Samsung stereo -> 48000
         "keep_codec": True,
     }
@@ -135,7 +131,7 @@ def plan_encode_for_profile(
             "codec": "ac3",
             "ac": 6,
             "ar": 48000,
-            "bitrate": "640k",             # cambia a "448k" se preferisci
+            "bitrate": "640k",  # cambia a "448k" se preferisci
             "bitrate_fallback": None,
             "force_ar_if_gui_original": None,
             "keep_codec": False,
@@ -153,7 +149,7 @@ def apply_export_overrides_from_plan(
     plan: Dict[str, Any],
     *,
     gui_bitrate: Optional[str],  # "160k"/"192k"/"256k" oppure None se combo vuota
-    gui_sr_hz: Optional[int],    # 44100/48000, oppure None se SR=Originale/Auto
+    gui_sr_hz: Optional[int],  # 44100/48000, oppure None se SR=Originale/Auto
 ) -> List[str]:
     """
     Applica il piano al cmd:
@@ -167,6 +163,7 @@ def apply_export_overrides_from_plan(
           -ar: se gui_sr_hz è None e plan['force_ar_if_gui_original'] è impostato;
           -b:a: se assente, usa gui_bitrate o plan['bitrate'] o plan['bitrate_fallback'].
     """
+
     def _has_opt(lst: List[str], key: str) -> bool:
         try:
             lst.index(key)
@@ -190,9 +187,12 @@ def apply_export_overrides_from_plan(
     if not plan.get("keep_codec", True) and plan.get("codec") == "ac3":
         base = _strip(cmd, ("-c:a", "-ac", "-ar", "-b:a"))
         out = base + [
-            "-c:a", "ac3",
-            "-ac", str(plan.get("ac", 6)),
-            "-ar", str(plan.get("ar", 48000)),
+            "-c:a",
+            "ac3",
+            "-ac",
+            str(plan.get("ac", 6)),
+            "-ar",
+            str(plan.get("ar", 48000)),
         ]
         br = plan.get("bitrate")
         if br:

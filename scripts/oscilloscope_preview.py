@@ -38,33 +38,33 @@ from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QAudioProbe
 
 # ==================== Parametri UI/regolabili (via env) ====================
 # Spazio VERTICALE (in px) tra una “vasca” e la successiva
-ROW_SPACING  = int(os.getenv("HEVC_SCOPE_VSPACE",    "10"))
+ROW_SPACING = int(os.getenv("HEVC_SCOPE_VSPACE", "10"))
 
 # Spazio ORIZZONTALE (in px) tra etichetta e vasca (default = ROW_SPACING)
-_HSPACE_ENV  = os.getenv("HEVC_SCOPE_HSPACE", "").strip()
-HSPACE       = int(_HSPACE_ENV) if _HSPACE_ENV else ROW_SPACING
+_HSPACE_ENV = os.getenv("HEVC_SCOPE_HSPACE", "").strip()
+HSPACE = int(_HSPACE_ENV) if _HSPACE_ENV else ROW_SPACING
 
 # Spazio (in px) tra NOME canale e PALLINO nella colonna etichette
 NAME_DOT_SPACING = int(os.getenv("HEVC_SCOPE_NDSPACE", "5"))  # ← richiesto: da 4 a 5
 
 # Altezza target (in px) del riquadro nero per ogni waveform
-PLOT_H       = int(os.getenv("HEVC_SCOPE_WAVE_H",    "95"))
+PLOT_H = int(os.getenv("HEVC_SCOPE_WAVE_H", "95"))
 
 # Larghezza (in px) della colonna etichette; 0 = calcolo dinamico
 _LABEL_W_ENV = os.getenv("HEVC_SCOPE_LABEL_W", "").strip()
-LABEL_W      = int(_LABEL_W_ENV) if _LABEL_W_ENV else 0
+LABEL_W = int(_LABEL_W_ENV) if _LABEL_W_ENV else 0
 
 # Altezza bottoni e slider
-BTN_H        = int(os.getenv("HEVC_SCOPE_BTN_H",     "32"))
-SLIDER_H     = int(os.getenv("HEVC_SCOPE_SLIDER_H",  "12"))
+BTN_H = int(os.getenv("HEVC_SCOPE_BTN_H", "32"))
+SLIDER_H = int(os.getenv("HEVC_SCOPE_SLIDER_H", "12"))
 
 # Larghezze finestra
-STEREO_DEF_W = int(os.getenv("HEVC_SCOPE_ST_W",      "580"))
-MULTI_DEF_W  = int(os.getenv("HEVC_SCOPE_MC_W",      "900"))
+STEREO_DEF_W = int(os.getenv("HEVC_SCOPE_ST_W", "580"))
+MULTI_DEF_W = int(os.getenv("HEVC_SCOPE_MC_W", "900"))
 
 # ====== Priming (riduzione latenza di Play) ======
-PRIME_ON     = os.getenv("HEVC_SCOPE_PRIME", "1") == "1"
-PRIME_MS     = max(0, int(os.getenv("HEVC_SCOPE_PRIME_MS", "80")))  # 60–120 ms ok
+PRIME_ON = os.getenv("HEVC_SCOPE_PRIME", "1") == "1"
+PRIME_MS = max(0, int(os.getenv("HEVC_SCOPE_PRIME_MS", "80")))  # 60–120 ms ok
 # ==========================================================================
 
 # --- opzionale: directory temporanea per il test __main__
@@ -76,26 +76,27 @@ except Exception:
 # Proviamo a leggere layout/colori centralizzati; altrimenti fallback
 try:
     from hevc_gui.core import constants as C  # type: ignore
+
     _C_LAYOUTS = getattr(C, "CHANNEL_LAYOUTS", None)
-    _C_COLORS  = getattr(C, "CHANNEL_COLORS",  None)
+    _C_COLORS = getattr(C, "CHANNEL_COLORS", None)
 except Exception:
     _C_LAYOUTS = _C_COLORS = None
 
 # Fallback sicuri (aggiungo anche 5.0)
 _DEFAULT_LAYOUTS = {
-    "mono":   ["M"],
+    "mono": ["M"],
     "stereo": ["L", "R"],
-    "5.0":    ["L", "R", "C", "SL", "SR"],
-    "5.1":    ["L", "R", "C", "LFE", "SL", "SR"],
+    "5.0": ["L", "R", "C", "SL", "SR"],
+    "5.1": ["L", "R", "C", "LFE", "SL", "SR"],
 }
 _DEFAULT_COLORS = {
-    "M":   "yellow",
-    "L":   "yellow",
-    "R":   "cyan",
-    "C":   "orange",
+    "M": "yellow",
+    "L": "yellow",
+    "R": "cyan",
+    "C": "orange",
     "LFE": "magenta",
-    "SL":  "green",
-    "SR":  "pink",
+    "SL": "green",
+    "SR": "pink",
 }
 
 
@@ -128,6 +129,7 @@ def _calc_label_width(names: list[str], widget: QWidget) -> int:
 
 class _ChannelRow(QWidget):
     """Una riga: colonna etichetta (NOME dx + PALLINO) + area plot."""
+
     def __init__(self, ch_name: str, color: str, label_w: int, hspace: int, parent=None):
         super().__init__(parent)
         hb = QHBoxLayout(self)
@@ -179,12 +181,13 @@ class _ChannelRow(QWidget):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setFixedHeight(PLOT_H + 2)
 
-        hb.addWidget(self.label_col)   # etichetta stretta
-        hb.addWidget(self.plot, 1)     # vasca larga
+        hb.addWidget(self.label_col)  # etichetta stretta
+        hb.addWidget(self.plot, 1)  # vasca larga
 
 
 class Oscilloscope(QWidget):
     """Oscilloscopio multi-canale verticale (etichette a sinistra + vasche)."""
+
     def __init__(self, parent=None, *, channel_layout: str | None = None, channel_names: list[str] | None = None):
         super().__init__(parent)
         names = _layout_names(channel_layout, channel_names)
@@ -239,7 +242,7 @@ class Oscilloscope(QWidget):
     def _update_array(old: np.ndarray, new: np.ndarray) -> np.ndarray:
         n = len(new)
         if n >= len(old):
-            return new[-len(old):]
+            return new[-len(old) :]
         old = np.roll(old, -n)
         old[-n:] = new
         return old
@@ -279,8 +282,16 @@ class Oscilloscope(QWidget):
 
 class PreviewDialog(QDialog):
     """Dialog di preview con player+probe e Oscilloscope multi-canale."""
-    def __init__(self, audio_file: str, parent=None, *, channel_layout: str | None = None,
-                 channel_names: list[str] | None = None, auto_cleanup: bool = True):
+
+    def __init__(
+        self,
+        audio_file: str,
+        parent=None,
+        *,
+        channel_layout: str | None = None,
+        channel_names: list[str] | None = None,
+        auto_cleanup: bool = True,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Preview Audio con Oscilloscopio")
         self.setAttribute(Qt.WA_DeleteOnClose, True)
@@ -347,11 +358,11 @@ class PreviewDialog(QDialog):
             b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             return b
 
-        self.btn_play  = _btn("Play")
+        self.btn_play = _btn("Play")
         self.btn_pause = _btn("Pause")
-        self.btn_stop  = _btn("Stop")
-        self.btn_prev  = _btn('« 5"')
-        self.btn_next  = _btn('5" »')
+        self.btn_stop = _btn("Stop")
+        self.btn_prev = _btn('« 5"')
+        self.btn_next = _btn('5" »')
         self.btn_close = _btn("Chiudi")
 
         for b in (self.btn_play, self.btn_pause, self.btn_stop, self.btn_prev, self.btn_next, self.btn_close):
@@ -375,7 +386,7 @@ class PreviewDialog(QDialog):
         except Exception:
             pass
 
-        target_w = (STEREO_DEF_W if nch == 2 else max(MULTI_DEF_W, 720))
+        target_w = STEREO_DEF_W if nch == 2 else max(MULTI_DEF_W, 720)
         try:
             avail = QApplication.desktop().availableGeometry(self)
             target_h = min(self.height(), avail.height() - 80)
@@ -415,10 +426,10 @@ class PreviewDialog(QDialog):
         """Avvio muto e brevissimo per scaldare device/buffer → Play istantaneo."""
         try:
             self._prime_prev_muted = getattr(self.player, "isMuted", lambda: False)()
-            self._prime_prev_vol   = self.player.volume()
+            self._prime_prev_vol = self.player.volume()
         except Exception:
             self._prime_prev_muted = False
-            self._prime_prev_vol   = 100
+            self._prime_prev_vol = 100
 
         try:
             if hasattr(self.player, "setMuted"):
@@ -494,6 +505,7 @@ class PreviewDialog(QDialog):
                     os.remove(self.audio_file)
             except Exception:
                 from PyQt5.QtCore import QTimer as _QT
+
                 _QT.singleShot(200, lambda p=self.audio_file: (os.path.isfile(p) and os.remove(p)))
 
     def closeEvent(self, ev):
@@ -538,6 +550,7 @@ def _fmt_ms(ms: int) -> str:
 # Test rapido (facoltativo)
 if __name__ == "__main__":
     import sys
+
     app = QApplication(sys.argv)
     wav = os.path.join(TEMP_DIR, "preview_scope.wav")
     dlg = PreviewDialog(str(wav), None, channel_layout="5.0")

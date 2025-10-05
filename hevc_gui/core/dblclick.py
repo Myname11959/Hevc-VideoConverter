@@ -103,6 +103,7 @@ def enable_list_doubleclick_accept(container: QWidget) -> None:
     Da usare nel costruttore del dialog di scelta sottotitoli,
     subito dopo aver creato e popolato i widget di lista.
     """
+
     def _connect_accept(emitter: QWidget, signal_name: str) -> None:
         dlg = _find_parent_dialog(emitter)
         if not dlg:

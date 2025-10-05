@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Any, Optional, List
 
-from PyQt5.QtCore import Qt, QProcess, QEventLoop, QTimer, QSettings, QByteArray
+from PyQt5.QtCore import Qt, QProcess, QEventLoop, QSettings
 from PyQt5.QtWidgets import QProgressDialog, QMessageBox
 
 # --- Scope dialog (UI player+oscillo) ---
@@ -22,22 +22,23 @@ except Exception:
 
 # -------------------- Opzioni runtime / path --------------------
 USE_PROGRESS = os.getenv("HEVC_PREVIEW_PROGRESS", "1") == "1"
-USE_POPUPS   = os.getenv("HEVC_PREVIEW_POPUPS", "0") == "1"
-TMP_BASE     = Path(os.getenv("HEVC_PREVIEW_TMP", "/dev/shm")).expanduser()
+USE_POPUPS = os.getenv("HEVC_PREVIEW_POPUPS", "0") == "1"
+TMP_BASE = Path(os.getenv("HEVC_PREVIEW_TMP", "/dev/shm")).expanduser()
 
-FFMPEG  = os.environ.get("FFMPEG", "/usr/bin/ffmpeg")
+FFMPEG = os.environ.get("FFMPEG", "/usr/bin/ffmpeg")
 FFPROBE = os.environ.get("FFPROBE", "/usr/bin/ffprobe")
 
 # Persistenza geometria finestra scope (solo fallback + restore; il layout è nello scope)
-SCOPE_APP   = "LorisPaganiniHomeStudio"
-SCOPE_NAME  = "HEVC-GUI"
-SCOPE_KEY   = "scope"
+SCOPE_APP = "LorisPaganiniHomeStudio"
+SCOPE_NAME = "HEVC-GUI"
+SCOPE_KEY = "scope"
 # ==================== Parametri UI regolabili (via env) ====================
 # Larghezza/Altezza finestra di default all’avvio (fallback alla prima apertura).
 # La finestra si ridimensiona automaticamente in base ai canali (logica nello scope).
 SCOPE_DEF_W = int(os.getenv("HEVC_SCOPE_DEF_W", "560"))  # fallback prima apertura
 SCOPE_DEF_H = int(os.getenv("HEVC_SCOPE_DEF_H", "318"))  # fallback prima apertura
 # ==========================================================================
+
 
 # ======================================================================
 # Helpers base
@@ -46,6 +47,7 @@ def _log(msg: str) -> None:
     sys.stdout.write(msg.rstrip() + "\n")
     sys.stdout.flush()
 
+
 def _warn_console(title: str, message: str, parent=None) -> None:
     _log(f"[WARN] {title}: {message}")
     if USE_POPUPS:
@@ -53,6 +55,7 @@ def _warn_console(title: str, message: str, parent=None) -> None:
             QMessageBox.warning(parent, title, message)
         except Exception:
             pass
+
 
 def _which(p: str) -> str:
     pp = Path(p)
@@ -64,12 +67,15 @@ def _which(p: str) -> str:
             return str(cand)
     return p
 
+
 def _ensure_tmp_dir(base: Path) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     return base
 
+
 def _clean(s: str) -> str:
     return str(s).strip().strip('"').strip("'")
+
 
 # ======================================================================
 # ffprobe helpers
@@ -77,9 +83,9 @@ def _clean(s: str) -> str:
 def count_audio_streams(src: str) -> int:
     try:
         p = subprocess.run(
-            [_which(FFPROBE), "-v", "error", "-select_streams", "a",
-             "-show_entries", "stream=index", "-of", "csv=p=0", src],
-            capture_output=True, text=True,
+            [_which(FFPROBE), "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", src],
+            capture_output=True,
+            text=True,
         )
         if p.returncode != 0:
             return 0
@@ -87,13 +93,24 @@ def count_audio_streams(src: str) -> int:
     except Exception:
         return 0
 
+
 def probe_stream_info(src: str, track_idx: int) -> dict:
     try:
         p = subprocess.run(
-            [_which(FFPROBE), "-v", "error", "-select_streams", f"a:{int(track_idx)}",
-             "-show_entries", "stream=channels,sample_rate,channel_layout",
-             "-of", "json", src],
-            capture_output=True, text=True,
+            [
+                _which(FFPROBE),
+                "-v",
+                "error",
+                "-select_streams",
+                f"a:{int(track_idx)}",
+                "-show_entries",
+                "stream=channels,sample_rate,channel_layout",
+                "-of",
+                "json",
+                src,
+            ],
+            capture_output=True,
+            text=True,
         )
         if p.returncode != 0:
             return {}
@@ -103,12 +120,13 @@ def probe_stream_info(src: str, track_idx: int) -> dict:
             return {}
         st = ss[0]
         return {
-            "channels":     int(st.get("channels") or 0),
-            "sample_rate":  int(st.get("sample_rate") or 0),
+            "channels": int(st.get("channels") or 0),
+            "sample_rate": int(st.get("sample_rate") or 0),
             "channel_layout": (st.get("channel_layout") or None),
         }
     except Exception:
         return {}
+
 
 # ======================================================================
 # Risoluzione sorgente/GUI
@@ -126,9 +144,21 @@ def resolve_source(ac: Any) -> Optional[str]:
         pass
 
     # attributi tipici del file interno
-    for n in ("file", "_current_file", "current_file", "src", "src_path",
-              "_src", "_src_path", "_infile", "input_path", "_input",
-              "source", "srcfile", "src_file"):
+    for n in (
+        "file",
+        "_current_file",
+        "current_file",
+        "src",
+        "src_path",
+        "_src",
+        "_src_path",
+        "_infile",
+        "input_path",
+        "_input",
+        "source",
+        "srcfile",
+        "src_file",
+    ):
         v = getattr(ac, n, None)
         if not v:
             continue
@@ -153,6 +183,7 @@ def resolve_source(ac: Any) -> Optional[str]:
         pass
     return None
 
+
 def resolve_track_index(ac) -> int:
     w = getattr(ac, "cmb_track", None)
     if not (w and hasattr(w, "currentIndex")):
@@ -168,10 +199,12 @@ def resolve_track_index(ac) -> int:
             if isinstance(d0, int) and d0 >= 0:
                 return int(d0)
             m = re.search(r"a:(\d+)", str(d0))
-            if m: return int(m.group(1))
+            if m:
+                return int(m.group(1))
         if isinstance(data, str):
             m = re.search(r"a:(\d+)", data)
-            if m: return int(m.group(1))
+            if m:
+                return int(m.group(1))
     except Exception:
         pass
     # fallback: indice visivo (con placeholder alla posizione 0)
@@ -182,6 +215,7 @@ def resolve_track_index(ac) -> int:
         return max(0, idx - 1) if (idx > 0 and has_ph) else max(0, idx)
     except Exception:
         return 0
+
 
 def resolve_preview_seconds(ac: Any) -> Optional[int]:
     w = getattr(ac, "cmb_prev", None)
@@ -205,6 +239,7 @@ def resolve_preview_seconds(ac: Any) -> Optional[int]:
             pass
     return None
 
+
 def resolve_preview_start(ac: Any) -> int:
     w = getattr(ac, "te_prev_start", None)
     if w is not None and hasattr(w, "time"):
@@ -214,6 +249,7 @@ def resolve_preview_start(ac: Any) -> int:
         except Exception:
             pass
     return 0
+
 
 # ======================================================================
 # AF/Output dalla GUI (robusto ma non invasivo)
@@ -274,13 +310,14 @@ def _af_from_ui(ac: Any, in_channels: int) -> tuple[Optional[str], Optional[int]
 
     return af_chain, out_ac, force_sr
 
+
 # ======================================================================
 # Runner
 # ======================================================================
 class AudioPreview:
     def __init__(self, ac: Any):
         self.ac = ac
-        self.ffmpeg  = _which(FFMPEG)
+        self.ffmpeg = _which(FFMPEG)
         self.ffprobe = _which(FFPROBE)
 
     def _run_ffmpeg_with_qprocess(self, cmd: list[str], total_secs: int | None) -> int:
@@ -306,8 +343,10 @@ class AudioPreview:
         def _parse_sec(line: str):
             line = (line or "").strip()
             if line.startswith("out_time_ms="):
-                try: return float(line.split("=", 1)[1]) / 1_000_000.0
-                except Exception: return None
+                try:
+                    return float(line.split("=", 1)[1]) / 1_000_000.0
+                except Exception:
+                    return None
             if line.startswith("out_time="):
                 try:
                     t = line.split("=", 1)[1]
@@ -363,12 +402,12 @@ class AudioPreview:
         # durata/offset
         ts = resolve_preview_seconds(self.ac)
         total_secs = ts if (isinstance(ts, int) and ts > 0) else None  # None = tutto file
-        start_off  = max(0, int(resolve_preview_start(self.ac)))
-        _log(f"[PREVIEW] Durata: {'ALL' if total_secs is None else str(total_secs)+'s'}")
+        start_off = max(0, int(resolve_preview_start(self.ac)))
+        _log(f"[PREVIEW] Durata: {'ALL' if total_secs is None else str(total_secs) + 's'}")
         _log(f"[PREVIEW] Start:  {start_off}s")
 
         # probe input
-        info  = probe_stream_info(src, track_idx)
+        info = probe_stream_info(src, track_idx)
         in_ch = int(info.get("channels") or 0) or 2
         _log(f"[PREVIEW] Info traccia: {info or 'n/d'}")
 
@@ -386,13 +425,10 @@ class AudioPreview:
             pass
 
         # ffmpeg (seek PRIMA di -i, progress su stdout)
-        cmd = [ _which(FFMPEG), "-hide_banner", "-nostdin",
-                "-progress", "pipe:1", "-nostats", "-y" ]
+        cmd = [_which(FFMPEG), "-hide_banner", "-nostdin", "-progress", "pipe:1", "-nostats", "-y"]
         if start_off > 0:
             cmd += ["-ss", str(int(start_off))]
-        cmd += [ "-i", src, "-vn", "-sn", "-dn",
-                 "-map", f"0:a:{int(track_idx)}",
-                 "-loglevel", "error" ]
+        cmd += ["-i", src, "-vn", "-sn", "-dn", "-map", f"0:a:{int(track_idx)}", "-loglevel", "error"]
         if af_chain:
             cmd += ["-af", af_chain]
         cmd += ["-c:a", "pcm_s16le"]
@@ -479,6 +515,7 @@ class AudioPreview:
         except Exception as e:
             _warn_console("Oscilloscopio", f"Impossibile aprire lo scope: {e}", self.ac)
 
+
 def _scope_names_from_gui(af_chain: Optional[str], out_ac: Optional[int], in_ch: int) -> List[str]:
     joined = (af_chain or "").lower()
 
@@ -491,11 +528,16 @@ def _scope_names_from_gui(af_chain: Optional[str], out_ac: Optional[int], in_ch:
         return ["L", "R"]
 
     ch = int(out_ac or in_ch or 2)
-    if ch <= 1:  return ["M"]
-    if ch == 2:  return ["L", "R"]
-    if ch == 5:  return ["L", "R", "C", "SL", "SR"]
-    if ch >= 6:  return ["L", "R", "C", "LFE", "SL", "SR"]
-    return [f"Ch{i+1}" for i in range(ch)]
+    if ch <= 1:
+        return ["M"]
+    if ch == 2:
+        return ["L", "R"]
+    if ch == 5:
+        return ["L", "R", "C", "SL", "SR"]
+    if ch >= 6:
+        return ["L", "R", "C", "LFE", "SL", "SR"]
+    return [f"Ch{i + 1}" for i in range(ch)]
+
 
 # ======================================================================
 # Entry points
@@ -503,6 +545,7 @@ def _scope_names_from_gui(af_chain: Optional[str], out_ac: Optional[int], in_ch:
 def start_preview(ac: Any) -> None:
     _log("[PREVIEW] start_preview()")
     AudioPreview(ac).start()
+
 
 def run_preview(ac: Any) -> None:
     _log("[PREVIEW] run_preview()")
