@@ -13,7 +13,7 @@ jobs:
       cancel-in-progress: true
     env:
       QT_QPA_PLATFORM: xcb
-      QT_DEBUG_PLUGINS: "0"  # metti "1" se vuoi log diagnostici Qt
+      QT_DEBUG_PLUGINS: "0"   # metti "1" se vuoi log dettagliati di Qt
 
     steps:
       - name: Checkout
