@@ -15,7 +15,7 @@ def main():
     sys.path[:0] = [os.getcwd(), os.path.join(os.getcwd(), "scripts")]
     from scripts.string_audio_generator import AudioConverter
 
-    app = QApplication(sys.argv)
+    _ = QApplication(sys.argv)
     w = AudioConverter(auto=args.src)
 
     # 1) Titolo/Footer
