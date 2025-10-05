@@ -29,7 +29,7 @@ if str(scripts_dir) not in sys.path:
     sys.path.insert(0, str(scripts_dir))
 
 # Ora possiamo importare AudioConverter direttamente
-from audio_converter_from_AV_files_it import AudioConverter
+from string_audio_generator import AudioConverter
 
 from typing import Dict, Union
 

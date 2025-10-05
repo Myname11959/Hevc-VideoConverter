@@ -10,7 +10,7 @@ def main():
 
     # importa sia come package sia con import “piatti”
     sys.path[:0] = [os.getcwd(), os.path.join(os.getcwd(), "scripts")]
-    from scripts.audio_converter_from_AV_files_it import AudioConverter
+    from scripts.string_audio_generator import AudioConverter
 
     app = QApplication(sys.argv)
     w = AudioConverter(auto=args.src)
