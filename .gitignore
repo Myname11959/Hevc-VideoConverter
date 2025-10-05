@@ -49,3 +49,47 @@ Thumbs.db
 repo-tree.txt
 packaging/
 
+# === Backup / temporanei ===
+backup/
+*.bak
+*.bak.*
+*.old
+*.orig
+*.rej
+*.tmp
+*~
+*.swp
+*.swo
+
+# === Log ===
+logs/
+*.log
+scripts/log/*.log
+
+# === Python cache / tooling ===
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# === Env / IDE ===
+.venv/
+venv/
+.vscode/
+.idea/
+
+# === Build / dist / egg ===
+build/
+dist/
+*.egg-info/
+
+# === Coverage ===
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# === Test assets generabili (tieni solo il segnaposto) ===
+tests/assets/*
+!tests/assets/.gitkeep
