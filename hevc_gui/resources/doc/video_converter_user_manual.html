@@ -1,0 +1,431 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head>
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+  <title>user_manual</title>
+
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+/* Reset base */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+max-width: 960px;
+margin: 2rem auto;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+background: #fefefe;
+color: #222;
+line-height: 1.6;
+padding: 0 1rem;
+}
+h1, h2, h3 {
+font-weight: 700;
+color: #004080;
+margin-bottom: 0.5rem;
+}
+nav {
+background: #e6f0ff;
+border-left: 5px solid #004080;
+padding: 1rem 1.5rem;
+margin-bottom: 2rem;
+border-radius: 6px;
+}
+nav a {
+color: #004080;
+font-weight: 600;
+text-decoration: none;
+margin-right: 1.25rem;
+font-size: 1rem;
+}
+nav a:hover {
+text-decoration: underline;
+}
+section {
+margin-bottom: 3rem;
+background: white;
+box-shadow: 0 0 10px #ddd;
+padding: 2rem;
+border-radius: 8px;
+}
+code, pre {
+background: #f3f4f6;
+border-radius: 4px;
+font-family: Consolas, monospace;
+font-size: 0.95rem;
+}
+pre {
+overflow-x: auto;
+padding: 1rem;
+margin: 1rem 0;
+}
+ul, ol {
+margin-left: 1.25rem;
+margin-bottom: 1rem;
+}
+li {
+margin-bottom: 0.5rem;
+}
+.btn-print {
+display: inline-block;
+background-color: #004080;
+color: white;
+padding: 0.6rem 1.2rem;
+font-size: 1rem;
+border-radius: 6px;
+border: none;
+cursor: pointer;
+margin-bottom: 2rem;
+transition: background-color 0.3s ease;
+}
+.btn-print:hover {
+background-color: #002e5b;
+}
+dl dt {
+font-weight: 700;
+margin-top: 1rem;
+color: #004080;
+}
+dl dd {
+margin-left: 1rem;
+margin-bottom: 0.75rem;
+}
+footer {
+text-align: center;
+margin: 3rem 0 1rem 0;
+color: #555;
+font-size: 0.9rem;
+}
+a {
+color: #004080;
+}
+a:hover {
+text-decoration: underline;
+}
+  </style>
+</head><body>
+<br>
+
+<script>
+function printManual() {
+window.print();
+}
+</script>
+<h1>Manuale Utente HEVC-Video Converter</h1>
+
+<a href="#introduzione">Introduzione</a><br>
+
+<a href="#requisiti">Requisiti</a> <br>
+
+<a href="#interfaccia">Interfaccia</a> <br>
+
+<a href="#uso">Come Usare</a> <br>
+
+<a href="#audio">Modulo Audio</a> <br>
+
+<a href="#coda">Gestione Coda</a> <br>
+
+<a href="#faq">FAQ</a> <br>
+
+<a href="#info">Info e Contatti</a> <br>
+
+<a href="#note-legali">Note Legali</a>
+<br>
+
+<br>
+
+<button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF</button><br>
+
+<br>
+
+<h2 id="introduzione">1. Introduzione</h2>
+
+<p><strong>HEVC-Video Converter</strong> è un convertitore video open
+source
+pensato per facilitare la conversione in formato HEVC (H.265) con la
+massima qualità e configurabilità. La GUI intuitiva nasconde la
+complessità di FFmpeg, consentendo di gestire facilmente conversioni
+video e audio, filtri, sottotitoli, capitoli e altro.</p>
+
+<p>Il software è stato progettato per offrire un workflow efficace sia
+a utenti esperti che a principianti. È ideale per chi vuole convertire
+video con controllo preciso su bitrate, preset, filtri di immagine,
+gestione audio multitraccia e muxing finale.</p>
+
+<p><em>Nota:</em> trattandosi di progetto open source, <strong>non
+viene fornito supporto ufficiale</strong> per modifiche o usi impropri
+del codice. L’autore declina ogni responsabilità per danni diretti o
+indiretti.</p>
+
+<br>
+
+<h2 id="requisiti">2. Requisiti di Sistema e Installazione</h2>
+
+<h3 id="requisiti_os">2.1 Sistemi Operativi Supportati</h3>
+
+<ul>
+
+<li><strong>Linux</strong> (Mint, Ubuntu e derivate)</li>
+<li><strong>macOS</strong></li>
+<li><strong>Windows</strong> (uso possibile ma con funzionalità
+limitate; FFmpeg deve essere installato separatamente)</li>
+</ul>
+
+<h3 id="requisiti_dipendenze">2.2 Dipendenze Software</h3>
+
+<ul>
+
+<li><strong>Python 3.8+</strong></li>
+<li><strong>PyQt5</strong> per l’interfaccia grafica</li>
+<li><strong>FFmpeg e FFprobe</strong> installati e accessibili via
+PATH</li>
+</ul>
+
+<h3 id="requisiti_installazione">2.3 Installazione</h3>
+
+<ol>
+
+<li>Scarica o clona il repository, o il file .deb HEVC-Video
+Converter.</li>
+<li>Installa dipendenze Python con il comando: <code>pip install -r
+requirements.txt</code></li>
+<li>Verifica l’installazione di FFmpeg digitando <code>ffmpeg
+-version</code> e <code>ffprobe -version</code> nel terminale.</li>
+<li>Avvia il programma con <code>python main_window.py</code>.</li>
+</ol>
+
+<h2 id="interfaccia">3. Panoramica Interfaccia Principale</h2>
+
+<p>Al primo avvio, la finestra principale mostra i seguenti elementi
+chiave:</p>
+
+<ul>
+
+<li><strong>Barra Menu e Toolbar:</strong> accesso rapido alle
+funzioni di apertura file, gestione coda, conversione e manuale.</li>
+<li><strong>Campo di inserimento percorso video:</strong> trascina un
+file video o usa il pulsante "Apri video…" per selezionare il file da
+convertire.</li>
+<li><strong>Impostazioni di conversione video:</strong> scegli tra <em>Bitrate</em>
+o <em>CRF</em> (controllo qualità), seleziona il preset di codifica,
+livelli di sharpness, smoothness e risoluzione di output.</li>
+<li><strong>Impostazioni frame rate:</strong> seleziona modalità
+automatica o costante con valore personalizzato.</li>
+<li><strong>Opzioni colore:</strong> video a colori o in bianco e
+nero (B&amp;W), con filtro deinterlacciamento attivabile.</li>
+<li><strong>Pulsanti dedicati:</strong> <em>Estrai audio</em>, <em>Sottotitoli</em>,
+<em>Capitoli</em>, <em>Preview</em> e <em>Preview filtrata</em>
+per gestione avanzata dei media.</li>
+<li><strong>Log output:</strong> area testuale dove vengono mostrati
+i dettagli tecnici e lo stato di conversione.</li>
+<li><strong>Controlli di stato e progressione:</strong> barra di
+progresso, tempo trascorso, tempo stimato rimanente.</li>
+<li><strong>Pulsanti azione:</strong> <em>Converti</em>, <em>Salva
+Coda</em>, <em>Gestisci Coda</em>, <em>Elabora Coda</em>, <em>MediaInfo</em>,
+<em>Directory Output</em>, <em>Copia Log</em>, <em>Pausa</em>, <em>Interrompi</em>,
+<em>Reset GUI</em>, <em>Esci</em>, <em>Info</em>.</li>
+</ul>
+
+<h2 id="uso">4. Come Usare HEVC-Video Converter per la Conversione Video</h2>
+
+<h3 id="uso_selezione_file">4.1 Selezione File Video</h3>
+
+<p>Puoi aprire il video da convertire trascinandolo nell'apposito campo
+o premendo il pulsante <em>Apri video…</em>. Il programma verificherà
+automaticamente il file e abiliterà le opzioni successive.</p>
+
+<h3 id="uso_configurazione_video">4.2 Configurazione Video</h3>
+
+<ul>
+
+<li><strong>Bitrate o CRF:</strong> seleziona se impostare un
+valore fisso di bitrate o il parametro CRF per la qualità (CRF
+predefinito è consigliato per bilanciare qualità/dimensione).</li>
+<li><strong>Preset:</strong> da ultrafast a slower, influenza la
+velocità e qualità di codifica.</li>
+<li><strong>Filtri:</strong> scegli livello di sharpness e
+smoothness, ridimensiona l’output scegliendo risoluzione.</li>
+<li><strong>Frame Rate:</strong> imposta modalità automatica o
+costante con valore personalizzato.</li>
+<li><strong>Colori:</strong> video a colori o in bianco e nero.</li>
+<li><strong>Deinterlacciamento:</strong> attiva se il video di
+partenza è interlacciato (es. TV o registrazioni vecchie).</li>
+</ul>
+
+<h3 id="uso_audio">4.3 Estrazione e Gestione Tracce Audio</h3>
+
+<p>Premi il pulsante <em>Estrai audio</em> per aprire il modulo audio
+integrato che consente di estrarre, modificare e convertire le tracce
+audio interne o esterne. Puoi applicare filtri di equalizzazione, noise
+reduction, gain, riverbero e stereo widening.</p>
+
+<h3 id="uso_subtitle_chapter">4.4 Gestione Sottotitoli e Capitoli</h3>
+
+<p>Usa i pulsanti <em>Sottotitoli</em> e <em>Capitoli</em> per
+gestire
+i sottotitoli interni o esterni e i capitoli video. Puoi scegliere di
+includerli nel file finale o rigenerarli automaticamente tramite scene
+detection.</p>
+
+<h3 id="uso_preview">4.5 Anteprima Video e Filtrata</h3>
+
+<p>I pulsanti <em>Preview</em> e <em>Preview filtrata</em> lanciano
+una riproduzione rapida con ffplay, utile per verificare la qualità
+video prima della conversione definitiva.</p>
+
+<h3 id="uso_conversione">4.6 Conversione</h3>
+
+<ol>
+
+<li>Premi <em>Converti</em> per iniziare la conversione. Se non hai
+estratto tracce audio, verrà mostrato un avviso per il video senza
+audio.</li>
+<li>Scegli il percorso di output e il nome del file risultante.</li>
+<li>La
+barra di progresso mostrerà lo stato della conversione video, seguito
+dalla ricodifica audio in parallelo e infine dal muxing finale (unione
+di video, audio, sottotitoli, capitoli).</li>
+<li>Al termine, riceverai una notifica di successo o errore.</li>
+</ol>
+
+<h3 id="uso_coda">4.7 Salvataggio e Gestione Coda</h3>
+
+<p>HEVC-Video Converter supporta conversioni batch tramite la <em>coda</em>
+di comandi:</p>
+
+<ul>
+
+<li><em>Salva Coda:</em> salva i comandi di conversione senza
+eseguirli.</li>
+<li><em>Gestisci Coda:</em> apri un editor per modificare manualmente
+i comandi.</li>
+<li><em>Elabora Coda:</em> avvia l’esecuzione sequenziale di tutti i
+comandi in coda.</li>
+</ul>
+
+<p>Questa funzione permette di automatizzare conversioni multiple in
+sequenza senza interventi manuali.</p>
+
+<h3 id="uso_controlli">4.8 Controlli di Conversione</h3>
+
+<ul>
+
+<li><strong>Pausa:</strong> sospende temporaneamente il processo di
+conversione (solo su Linux/macOS).</li>
+<li><strong>Interrompi:</strong> ferma la conversione corrente e
+cancella i file temporanei e la coda.</li>
+<li><strong>Reset GUI:</strong> ripristina la finestra alle
+impostazioni iniziali senza chiudere il programma.</li>
+</ul>
+
+<h2 id="audio">5. Dettagli Modulo Audio</h2>
+
+<p>Il modulo audio integrato offre funzioni avanzate di estrazione,
+conversione e miglioramento tracce audio:</p>
+
+<ul>
+
+<li>Importazione tracce audio interne ed esterne.</li>
+<li>Impostazione codec (AAC), bitrate, sample rate e canali.</li>
+<li>Filtri
+di gain, noise reduction (fino a -30 dB), equalizzazione con 3 bande
+(bass, mid, treble), riverbero, stereo widening e panning.</li>
+<li>Anteprima audio in formato WAV con visualizzatore oscilloscopio.</li>
+<li>Gestione metadati come titolo e lingua da assegnare alle tracce
+audio.</li>
+</ul>
+
+<p>Il risultato audio viene codificato e preparato per il muxing finale
+con il video convertito e gli altri elementi multimediali.</p>
+
+<br>
+
+<h2 id="coda">6. Gestione Avanzata Coda di Conversione</h2>
+
+<p>La coda permette di salvare, modificare e processare batch multipli
+di conversioni, garantendo:</p>
+
+<ul>
+
+<li>Salvataggio persistente su file JSON.</li>
+<li>Modifica manuale tramite editor integrato (modifica linea per
+linea i comandi FFmpeg).</li>
+<li>Elaborazione sequenziale automatica tramite terminale esterno
+(es. GNOME Terminal).</li>
+</ul>
+
+<p>Se avvii una nuova conversione con coda attiva, puoi scegliere di
+aggiungere i nuovi comandi alla coda o eseguire solo il singolo job.</p>
+
+<br>
+
+<h2 id="faq">7. FAQ - Domande Frequenti</h2>
+
+<dl>
+
+<dt>Quali formati video sono supportati?</dt>
+<dd>Tutti i formati supportati da FFmpeg installato nel sistema (MP4,
+MKV, MOV, AVI, M4V, TS e altri).</dd>
+<dt>Posso convertire più video in batch?</dt>
+<dd>Sì, usando la funzione coda è possibile elaborare file multipli
+in sequenza automaticamente.</dd>
+<dt>Come scelgo la traccia audio da includere?</dt>
+<dd>Premi <em>Estrai audio</em> per selezionare le tracce interne o
+caricare tracce audio esterne, impostando parametri e filtri desiderati.</dd>
+<dt>È possibile annullare una conversione in corso?</dt>
+<dd>Sì, premi <em>Interrompi</em>. Il programma fermerà FFmpeg,
+cancellerà temporanei e resetterà la GUI.</dd>
+<dt>Come applico i filtri video?</dt>
+<dd>Seleziona
+i livelli di sharpness, smoothness e resize nella sezione filtri. Puoi
+anche attivare il bianco e nero e il deinterlacciamento.</dd>
+<dt>Come stampo o salvo il manuale utente?</dt>
+<dd>Dal
+manuale stesso puoi usare il pulsante “📄 Stampa / Esporta PDF” che
+apre la finestra di stampa del browser per salvare o stampare
+facilmente.</dd>
+</dl>
+
+<br>
+
+<h2 id="info">8. Informazioni sul Progetto e Contatti</h2>
+
+<p><strong>HEVC-Video Converter - versione 2.0.0 - 2025<br>
+</strong></p>
+
+<p>Creato e mantenuto da <strong></strong>(<span style="font-weight: bold;">LorisPaganiniHomeStudio</span>).</p>
+
+<p>Per informazioni, bug report o suggerimenti contattare:</p>
+
+<p> <a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a>
+</p>
+
+<p>Logo e risorse sono inclusi con licenza open source.</p>
+
+<br>
+
+<h2 id="note-legali">9. Note Legali e Disclaimer</h2>
+
+<p style="font-weight: bold; color: rgb(252, 0, 0);">HEVC-Video
+Converter è fornito "così com’è" senza garanzie di alcun tipo.</p>
+
+<p style="font-weight: bold; color: rgb(252, 0, 0);">L’autore non è
+responsabile per danni diretti o indiretti derivanti dall’uso del
+software.</p>
+
+<p>FFmpeg e altri componenti terzi mantengono le loro rispettive
+licenze.</p>
+
+<p>È responsabilità dell’utente verificare la conformità alle leggi
+locali relative a copyright e uso dei codec.</p>
+
+<button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF</button><br>
+
+<div style="text-align: center;"><footer><small>© 2025
+LorisPaganiniHomeStudio - HEVC-Video Converter v2.0.0</small></footer></div>
+
+<footer>
+</footer>
+</body></html>
