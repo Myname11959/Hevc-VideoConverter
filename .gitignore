@@ -141,3 +141,8 @@ tests/assets/*
 # Logs
 log.txt
 *.log
+
+# Logs
+log.txt
+*.log
+
