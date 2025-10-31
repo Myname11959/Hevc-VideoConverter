@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Audio-Extractor + Preview per HEVC-GUI"""
+# -*- coding: utf-8 -*-
+"""Audio-Extractor + Preview per HEVC-GUI (versione con lingua solo da combo UI)"""
 
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSlot, QProcess, QTimer
 from PyQt5.QtGui import QFontMetrics
+
 from hevc_gui.core import constants as C
 from hevc_gui.core.audio_helpers import audio_tracks_with_title
 
@@ -55,23 +57,19 @@ def run_preview(ac):
     Wrapper robusto: chiama ciò che è disponibile nel modulo preview.
     Priorità: run_preview → start_preview → AudioPreview(...).start()
     """
-    # 1) funzione run_preview
     fn = getattr(_preview_mod, "run_preview", None)
     if callable(fn):
         print("[UI] run_preview(mod.run_preview) …", flush=True)
         return fn(ac)
-    # 2) funzione start_preview
     fn = getattr(_preview_mod, "start_preview", None)
     if callable(fn):
         print("[UI] run_preview(mod.start_preview) …", flush=True)
         return fn(ac)
-    # 3) classe AudioPreview
     cls = getattr(_preview_mod, "AudioPreview", None)
     if cls is not None:
         print("[UI] run_preview(AudioPreview.start) …", flush=True)
         obj = cls(ac)
         return obj.start()
-    # Se arrivi qui, il modulo non espone nulla utilizzabile
     raise ImportError(
         f"preview.py non espone run_preview/start_preview/AudioPreview. File caricato: {getattr(_preview_mod, '__file__', '?')}"
     )
@@ -80,44 +78,33 @@ def run_preview(ac):
 class Batch:
     def __init__(self, video_file: str | None = None):
         """
-        video_file: percorso del file video originale, usato per
-        rimuovere solo quelle coppie '-i <video_originale>' in flush().
-        Se None, siamo in modalità audio esterno.
+        video_file: percorso del file video originale, usato per rimuovere solo
+        quelle coppie '-i <video_originale>' in flush(). Se None → audio esterno.
         """
         self.items: list[list[str]] = []
         self.file: str | None = video_file
 
     def set_video_file(self, video_file: str):
-        """Permette di impostare o cambiare il file video di input."""
         self.file = video_file
 
     def add(self, seg: list[str]):
-        """Aggiunge un segmento (lista di flag/argomenti ffmpeg) alla batch."""
         self.items.append(seg)
 
     def flush(self):
         """
-        - Togli 'ffmpeg' o C.FFMPEG_BIN e '-y'
+        - Togli 'ffmpeg'/C.FFMPEG_BIN e '-y'
         - Se self.file è definito, rimuove solo '-i <video_originale>'
-        - Altrimenti (audio esterno), riscrive ogni '-map N:a:X' in '-map 1:X'
+        - Se audio esterno (file=None) riscrive '-map N:a:X' → '-map 1:X'
         - Stampa il JSON risultante
         """
         cleaned = []
-        video_in = self.file  # se None, siamo in audio esterno
-
-        # 1) Pulizia base di ogni segmento
+        video_in = self.file
         for seg in self.items:
             opts = seg.copy()
-
-            # a) strip 'ffmpeg' o binario custom
             while opts and opts[0] in (C.FFMPEG_BIN, "ffmpeg"):
                 opts.pop(0)
-
-            # b) strip '-y'
             if opts and opts[0] == "-y":
                 opts.pop(0)
-
-            # c) se ho un video_in valido, rimuovo solo '-i <video_in>'
             if video_in:
                 i = 0
                 while i < len(opts) - 1:
@@ -126,60 +113,22 @@ class Batch:
                         opts.pop(i)
                     else:
                         i += 1
-
             cleaned.append(opts)
 
-        # 2) Se audio esterno, correggo tutte le map
         if video_in is None:
-            import re
-
             for opts in cleaned:
                 for i in range(len(opts) - 1):
                     if opts[i] == "-map":
                         m = re.match(r"\d+:a:(\d+)", opts[i + 1])
                         if m:
-                            # riscrivo "0:a:X" o "1:a:X" → "1:X"
                             opts[i + 1] = f"1:{m.group(1)}"
 
-        # 3) Serializzo in JSON
         print(json.dumps(cleaned, ensure_ascii=False))
-        # (facoltativo) svuoto self.items se ti serve
-        # self.items.clear()
-
-
-class TagDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Tag lingua mancante")
-        self.setModal(True)
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Seleziona la lingua della traccia:"))
-
-        self.cmb = QComboBox(self)
-        self.cmb.setToolTip("Scegli la lingua della traccia audio selezionata (codice ISO)")
-        self.cmb.addItems(sorted(C.LANGUAGE_NAMES.keys()))
-        if "ITA" in C.LANGUAGE_NAMES:
-            self.cmb.setCurrentText("ITA")
-        layout.addWidget(self.cmb)
-
-        btns = QHBoxLayout()
-        ok = QPushButton("OK", self)
-        cancel = QPushButton("Annulla", self)
-        btns.addStretch()
-        btns.addWidget(ok)
-        btns.addWidget(cancel)
-        layout.addLayout(btns)
-
-        ok.clicked.connect(self.accept)
-        cancel.clicked.connect(self.reject)
-
-    def selected(self) -> str:
-        return self.cmb.currentText()
+        # self.items.clear()  # opzionale
 
 
 def get_media_duration_seconds(file_path: str) -> float:
-    """Estrae durata media in secondi con ffprobe"""
+    """Estrae durata media in secondi con ffprobe."""
     try:
         cmd = [
             "ffprobe",
@@ -192,8 +141,7 @@ def get_media_duration_seconds(file_path: str) -> float:
             file_path,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        duration = float(result.stdout.strip())
-        return duration
+        return float(result.stdout.strip())
     except Exception:
         return 0.0
 
@@ -207,19 +155,12 @@ class PreviewProgressDialog(QDialog):
         self.resize(520, 140)
 
         v = QVBoxLayout(self)
-
-        # Nome file sopra la barra
         self.lbl_file = QLabel("", self)
         self.lbl_file.setTextInteractionFlags(Qt.TextSelectableByMouse)
-
-        # Stato/progress text
         self.lbl = QLabel("Inizializzazione…", self)
-
-        # Barra
         self.bar = QProgressBar(self)
-        self.bar.setRange(0, 0)  # indeterminate finché non sappiamo la durata
+        self.bar.setRange(0, 0)
 
-        # Pulsante Annulla
         hb = QHBoxLayout()
         self.btn_cancel = QPushButton("Annulla")
         hb.addStretch(1)
@@ -237,7 +178,6 @@ class PreviewProgressDialog(QDialog):
 
         self.btn_cancel.clicked.connect(self._on_cancel)
 
-    # — utils —
     @staticmethod
     def _hms(sec: int | float | None) -> str:
         if sec is None or sec < 0:
@@ -248,24 +188,13 @@ class PreviewProgressDialog(QDialog):
         s = sec % 60
         return f"{h:02d}:{m:02d}:{s:02d}"
 
-    # — wiring —
-    def attach_process(
-        self,
-        proc: QProcess,
-        *,
-        total_secs: int | None,
-        display_name: str,
-        full_path: str = "",
-    ):
-        """Collega il QProcess e imposta durata/nome file."""
+    def attach_process(self, proc: QProcess, *, total_secs: int | None, display_name: str, full_path: str = ""):
         self._proc = proc
         self._total_secs = total_secs
         self._fname = display_name
-
         self.lbl_file.setText(f"File: {display_name}")
         if full_path:
             self.lbl_file.setToolTip(full_path)
-
         if total_secs and total_secs > 0:
             self.bar.setRange(0, 100)
             self.bar.setValue(0)
@@ -295,8 +224,6 @@ class PreviewProgressDialog(QDialog):
         except Exception:
             return
 
-        # Cerca time=hh:mm:ss.xx
-
         m = re.search(r"time=(\d+):(\d+):(\d+)(?:\.(\d+))?", chunk)
         if not m:
             return
@@ -312,12 +239,10 @@ class PreviewProgressDialog(QDialog):
             self.bar.setValue(pct)
             self.lbl.setText(f"Elaborazione… {pct}% ({self._hms(cur)} / {self._hms(tot)})  •  ETA ~ {self._hms(rem)}")
         else:
-            # Indeterminata: mostriamo solo il tempo trascorso
             self.lbl.setText(f"Elaborazione… {self._hms(cur)}")
 
     def _on_finished(self, code, _status):
         if code == 0 and not self._cancelled:
-            # porta al 100% per un attimo, se determinata
             if self.bar.maximum() == 100:
                 self.bar.setValue(100)
                 self.lbl.setText("Completato.")
@@ -327,24 +252,27 @@ class PreviewProgressDialog(QDialog):
             QTimer.singleShot(1200, self.reject)
 
 
+# =============================== DIALOG PRINCIPALE ===============================
+
+
 class AudioConverter(QDialog):
     def __init__(self, auto: str, parent=None):
         super().__init__(parent)
 
         # finestra
         self.setWindowTitle("String Audio Generator")
-        self.resize(480, 400)
-        self.setAcceptDrops(True)  # drag&drop su tutta la finestra
+        self.resize(560, 680)
+        self.setAcceptDrops(True)
 
         # stato interno
         self.batch = Batch()
         self._closing_via_finish = False
         self.file: Path | None = None
         self._orig_bitrates: dict[int, str] = {}
+        self._orig_channels: dict[int, int] = {}
 
         self.audio_externo = False
         self.external_audio_file: str | None = None
-        self.external_audio_lang: str | None = None
         self.conv_thread_external: ConversionThreadExternal | None = None
         self.external_audio_duration = 0.0
 
@@ -353,91 +281,132 @@ class AudioConverter(QDialog):
         self._wire_doubleclick_shortcuts()
         self._ensure_preview_wiring()
         self._connect_pan_preset_signals()
-        # prima valutazione
         self._update_pan_preset_label()
 
-        # progress bar (inizialmente nascosta)
+        # progress bar nascosta
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.layout().addWidget(self.progress_bar)
         self.progress_bar.hide()
-        """
-        # pulsante carica audio esterno (inserito subito dopo path)
-        self.btn_load_external_audio = QPushButton("Carica traccia audio esterna", self)
-        self.layout().insertWidget(1, self.btn_load_external_audio)
-        self.btn_load_external_audio.hide()
-        """
+
         # connessioni base
         self.btn_ok.clicked.connect(self.finish)
         self.btn_load_external_audio.clicked.connect(self.load_external_audio)
         self.cmb_track.currentIndexChanged.connect(self._on_track_changed)
         self.cmb_br.currentTextChanged.connect(self._update_track_title)
 
-        # caricamento iniziale del file
+        # caricamento iniziale
         self.load_file(auto)
+
+    # === Helpers lingua (unica fonte = combo UI) ==================================
+    def _lang_choices(self):
+        """
+        Restituisce [(code, name)].
+        Priorità: C.LANG_CHOICES → derivazione da C.LANGUAGE_NAMES → fallback minimo.
+        """
+        try:
+            if hasattr(C, "LANG_CHOICES"):
+                return list(C.LANG_CHOICES)
+        except Exception:
+            pass
+        try:
+            if hasattr(C, "LANGUAGE_NAMES") and isinstance(C.LANGUAGE_NAMES, dict):
+                out = []
+                for k, v in C.LANGUAGE_NAMES.items():
+                    code = str(k).lower()
+                    if len(code) == 3:
+                        out.append((code, v))
+                if out:
+                    return sorted(out, key=lambda x: (x[1] or "").lower())
+        except Exception:
+            pass
+        return [
+            ("und", "Sconosciuta"),
+            ("ita", "Italiano"),
+            ("eng", "Inglese"),
+            ("fra", "Francese"),
+            ("deu", "Tedesco"),
+            ("spa", "Spagnolo"),
+        ]
+
+    def _lang_code_from_combo(self) -> str:
+        try:
+            code = self.cmb_lang.currentData()
+            if code:
+                return str(code).strip().lower()
+        except Exception:
+            pass
+        return "und"
+
+    def _lang_human(self, code: str | None) -> str:
+        if not code:
+            return "—"
+        code = str(code).strip()
+        try:
+            return (
+                C.LANGUAGE_NAMES.get(code, None)
+                or C.LANGUAGE_NAMES.get(code.upper(), None)
+                or C.LANGUAGE_NAMES.get(code.lower(), None)
+                or code
+            )
+        except Exception:
+            return code
 
     def _build_ui(self):
         """
         UI piatta a coordinate, tutta ancorata a sinistra.
-        R0  Input track + path (prima riga)
-        R1  Tratta come muto + [Carica traccia audio esterna] (stessa riga)
+        R0  Input track + path
+        R1  Tratta come muto + [Carica traccia audio esterna]
         R2  Traccia (combo) — stessa larghezza del path
+        R2b Lingua (combo unica)
         R3  Bit-rate + Sample rate
-        R4  Noise-Reduction + Denoise nr + Gain (Denoise PRIMA di Gain)
-        R5  EQ Bass/Mid/High (una riga)
-        R6  Reverb / Stereo Enh / Compr (una riga)
+        R4  Noise-Reduction + Denoise + Gain
+        R5  EQ Bass/Mid/High
+        R6  Reverb / Stereo Enh / Compr
         R7  Auto-loudness + Dialog Boost
         R8  Mantieni MONO + Evita clipping
         R9  Preview: Start + Durata + [Preview]
-        R10 Textarea ffmpeg (larghezza/righe regolabili)
+        R10 Lista comandi
         R11 Stereo (downmix)
-        R12 Profilo soundbar: (label)
-        R13 Samsung — Stereo  +  Samsung — 5.1 (stessa riga)
+        R12 Profilo soundbar (label)
+        R13 Samsung — Stereo + Samsung — 5.1
         R14 Footer: Pan preset + Agg. traccia / Cancel / OK
         """
-
-        # ---------- METRICHE ----------
         M = {
-            "WIN_W": 560,  # <— LARGHEZZA FISSA FINESTRA
-            "WIN_H": 640,  # <— ALTEZZA  FISSA FINESTRA
+            "WIN_W": 560,
+            "WIN_H": 680,
             "MARG": 8,
             "ROW_H": 26,
             "VSP": 10,
-            "L2F_GAP": 6,  # gap label→campo
-            "HGAP": 14,  # gap orizzontale tra coppie sulla stessa riga
+            "L2F_GAP": 6,
+            "HGAP": 14,
             "X0": 16,
-            "W_MED": 136,  # Bit-rate / Sample-rate
-            "W_FX": 110,  # Reverb / Stereo Enh / Compr
-            "W_NUM": 70,  # EQ / Gain / Denoise
-            "W_TIME": 110,  # HH:MM:SS
-            "W_DUR": 84,  # combo Durata
-            "W_BTN": 98,  # pulsante Preview
+            "W_MED": 136,
+            "W_FX": 110,
+            "W_NUM": 70,
+            "W_TIME": 110,
+            "W_DUR": 84,
+            "W_BTN": 98,
             "H_EDIT": 24,
             "H_BTN": 32,
         }
         CANVAS_W = M["WIN_W"] - 2 * M["MARG"]
-
-        # ---------- Finestra (dimensioni FISSE) ----------
-        self.setWindowTitle("String Audio Generator")
-        self.setFixedSize(M["WIN_W"], M["WIN_H"])  # <— fisso W × H
+        self.setFixedSize(M["WIN_W"], M["WIN_H"])
         self.setAcceptDrops(True)
-
         vmain = QVBoxLayout(self)
         vmain.setContentsMargins(M["MARG"], M["MARG"], M["MARG"], M["MARG"])
         vmain.setSpacing(6)
 
-        # ---------- Manopole globali ----------
-        W_TRACK_REQ = 470  # larghezza desiderata per Path e combo "Traccia"
-        W_LIST = 520  # larghezza textarea ffmpeg
-        LIST_ROWS = 2  # righe visibili textarea
+        W_TRACK_REQ = 470
+        W_LIST = 520
+        LIST_ROWS = 2
 
-        # R1: parametri per checkbox + bottone
-        BTN_SHRINK = 120  # 0 = stessa larghezza della combo "Traccia"; >0 accorcia da destra (px)
-        FORCE_MUTE_W = 154  # larghezza "Tratta come muto" (area riservata)
-        EXTRA_GAP = 8  # aria extra tra checkbox e bottone (px)
+        BTN_SHRINK = 120
+        FORCE_MUTE_W = 154
+        EXTRA_GAP = 8
 
-        # ---------- R0: Input track (PRIMA riga) ----------
+        # ---------- R0 ----------
         path_row = QWidget(self)
         hl = QHBoxLayout(path_row)
         hl.setContentsMargins(0, 0, 0, 0)
@@ -450,20 +419,17 @@ class AudioConverter(QDialog):
         hl.addStretch(1)
         vmain.addWidget(path_row, 0, Qt.AlignLeft)
 
-        # ---------- CANVAS a coordinate per il resto ----------
+        # ---------- Canvas ----------
         self.canvas = QWidget(self)
         self.canvas.setFixedWidth(CANVAS_W)
         vmain.addWidget(self.canvas, 0, Qt.AlignLeft)
 
-        # --- Calcolo larghezza effettiva W_TRACK (clamp sul canvas) ---
         fm = QFontMetrics(self.font())
-        LW_TRACCIA = fm.horizontalAdvance("Traccia:")  # larghezza testo label (NO ghost label)
+        LW_TRACCIA = fm.horizontalAdvance("Traccia:")
         W_TRACK_MAX = max(160, CANVAS_W - M["X0"] - LW_TRACCIA - M["L2F_GAP"] - 8)
         W_TRACK = max(160, min(W_TRACK_REQ, W_TRACK_MAX))
-        # applica a self.path (riga R0)
         self.path.setFixedWidth(W_TRACK)
 
-        # ---------- Helpers di posizionamento ----------
         y = 6
 
         def new_line(extra=0):
@@ -503,29 +469,17 @@ class AudioConverter(QDialog):
             x += wdt + M["HGAP"]
             return widget
 
-        # ---------- R1: Tratta come muto + bottone esterno (stessa riga) ----------
+        # ---------- R1: Tratta come muto + bottone ----------
         x = M["X0"]
-
-        # checkbox
         self.chk_force_mute = QCheckBox("Tratta come muto", self)
         place(self.chk_force_mute, x, FORCE_MUTE_W, M["H_EDIT"])
-
-        # x del bottone (qualche px dopo la checkbox)
         x_btn = x + FORCE_MUTE_W + M["HGAP"] + EXTRA_GAP
-
-        # larghezza bottone = W_TRACK - BTN_SHRINK (clamp su canvas e minimo 120)
-        ext_btn_w = W_TRACK - BTN_SHRINK
-        ext_btn_w = min(ext_btn_w, CANVAS_W - x_btn - 4)
-        ext_btn_w = max(120, ext_btn_w)
-
-        # bottone (crea o riusa)
+        ext_btn_w = max(120, min(W_TRACK - BTN_SHRINK, CANVAS_W - x_btn - 4))
         btn_ext = getattr(self, "btn_load_external_audio", None)
         if not isinstance(btn_ext, QPushButton):
             self.btn_load_external_audio = QPushButton("Carica traccia audio esterna", self)
         else:
             self.btn_load_external_audio.setParent(self.canvas)
-
-        self.btn_load_external_audio.setText("Carica traccia audio esterna")
         self.btn_load_external_audio.setFixedSize(ext_btn_w, M["H_BTN"])
         place(self.btn_load_external_audio, x_btn, ext_btn_w, M["H_BTN"])
         self.btn_load_external_audio.hide()
@@ -533,7 +487,6 @@ class AudioConverter(QDialog):
             self.btn_load_external_audio.clicked.connect(self.load_external_audio)
         except Exception:
             pass
-
         new_line()
 
         # ---------- R2: Traccia ----------
@@ -546,6 +499,26 @@ class AudioConverter(QDialog):
         pairL("Traccia:", self.cmb_track, W_TRACK)
         new_line()
 
+        # ---------- R2b: Lingua (combo unica) ----------
+        x = M["X0"]
+        self.cmb_lang = QComboBox(self)
+        for code, name in self._lang_choices():
+            self.cmb_lang.addItem(f"{name} ({code})", code)
+
+        # default
+        def _select_default_lang():
+            idx_und = self.cmb_lang.findData("und")
+            if idx_und >= 0:
+                self.cmb_lang.setCurrentIndex(idx_und)
+                return
+            idx_ita = self.cmb_lang.findData("ita")
+            if idx_ita >= 0:
+                self.cmb_lang.setCurrentIndex(idx_ita)
+
+        _select_default_lang()
+        pairL("Lingua:", self.cmb_lang, max(180, int(W_TRACK * 0.55)))
+        new_line()
+
         # ---------- R3: Bit-rate + Sample rate ----------
         x = M["X0"]
         self.cmb_br = QComboBox(self)
@@ -556,7 +529,7 @@ class AudioConverter(QDialog):
         pairL("Sample rate (Hz):", self.cmb_sr, M["W_MED"])
         new_line()
 
-        # ---------- R4: NR (Denoise PRIMA) + Gain ----------
+        # ---------- R4: NR + Gain ----------
         x = M["X0"]
         self.chk_nr = lone(QCheckBox("Noise-Reduction", self), 170)
         self.in_nr = QLineEdit(self)
@@ -570,7 +543,7 @@ class AudioConverter(QDialog):
         pairL("Gain (dB):", self.cmb_gain, M["W_NUM"])
         new_line()
 
-        # ---------- R5: EQ (una riga) ----------
+        # ---------- R5: EQ ----------
         x = M["X0"]
         self.cmb_eq_bass = QComboBox(self)
         self.cmb_eq_bass.addItems(getattr(C, "AUD_EQ_DB_CHOICES", ["0"]))
@@ -604,18 +577,16 @@ class AudioConverter(QDialog):
         pairL("Compr.", self.cmb_comp_soft, M["W_FX"])
         new_line()
 
-        # ---------- R7: Auto-loudness + Dialog Boost (stessa riga) ----------
+        # ---------- R7: Auto-loudness + Dialog Boost ----------
         x = M["X0"]
-        self.chk_dyn = lone(QCheckBox("Auto-loudness (DynAudNorm)", self))  # niente prefer_w
-
+        self.chk_dyn = lone(QCheckBox("Auto-loudness (DynAudNorm)", self))
         old_gap = M["HGAP"]
-        M["HGAP"] = 6  # gap più stretto solo tra questi due
+        M["HGAP"] = 6
         self.chk_dialog_boost = lone(QCheckBox("Dialog Boost (+2 dB @ 2 kHz)", self))
         M["HGAP"] = old_gap
-
         new_line()
 
-        # ---------- R8: Mantieni MONO + Evita clipping ----------
+        # ---------- R8 ----------
         x = M["X0"]
         self.chk_keep_mono = lone(QCheckBox("Mantieni MONO se input mono (AAC 1.0)", self), 310)
         self.chk_anticlip = lone(QCheckBox("Evita clipping", self), 170)
@@ -639,29 +610,21 @@ class AudioConverter(QDialog):
             self.cmb_prev.addItem(label, seconds)
         pairL("Durata:", self.cmb_prev, M["W_DUR"])
 
-        # === height equalization (motif fix) ======================================
-        # Forziamo il calcolo della geometria della combo e prendiamo l'altezza reale
         self.cmb_prev.ensurePolished()
         self.cmb_prev.adjustSize()
-        combo_h = max(self.cmb_prev.height(), M["H_EDIT"])  # es. 24 px
-
-        # Tweak visivo per motif: +2 px in altezza e -1 px in Y
-        BTN_H_FIX = 2  # aumenta se ti serve un filo più alto
-        BTN_Y_FIX = -1  # alza di un pixel il bottone
-
+        combo_h = max(self.cmb_prev.height(), M["H_EDIT"])
+        BTN_H_FIX = 2
+        BTN_Y_FIX = -1
         self.btn_prev = QPushButton("Preview", self)
         btn_w = max(M["W_BTN"], self.btn_prev.sizeHint().width() + 20)
-
-        # Posizionamento manuale con altezza identica alla combo (più fix)
         self.btn_prev.setParent(self.canvas)
         self.btn_prev.setGeometry(int(x), int(y + BTN_Y_FIX), int(btn_w), int(combo_h + BTN_H_FIX))
-        # ==========================================================================
-
         new_line()
 
-        # ---------- R10: Textarea ffmpeg (W_LIST × LIST_ROWS) ----------
+        # ---------- R10: Lista comandi ----------
         x = M["X0"]
         self.list = QListWidget(self)
+        self.list_tracks = self.list  # alias compat
         self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         fm_list = self.list.fontMetrics()
@@ -674,6 +637,7 @@ class AudioConverter(QDialog):
         # ---------- R11: Stereo (downmix) ----------
         x = M["X0"]
         self.chk_force_stereo = lone(QCheckBox("Stereo (downmix 2ch)", self), 220)
+        self.chk_force_stereo.setObjectName("chk_downmix")
         new_line()
 
         # ---------- R12: Profilo soundbar ----------
@@ -682,7 +646,7 @@ class AudioConverter(QDialog):
         place(lbl_sb, M["X0"], CANVAS_W - 2 * M["X0"])
         new_line()
 
-        # ---------- R13: Samsung ×2 (stessa riga) ----------
+        # ---------- R13: Samsung ----------
         x = M["X0"]
         self.chk_sb_stereo = QCheckBox("Samsung — Stereo (TV J + HW-R450)", self)
         self.chk_sb_stereo.setObjectName("chk_sb_stereo")
@@ -704,9 +668,8 @@ class AudioConverter(QDialog):
         for b in (self.btn_add, self.btn_cancel, self.btn_ok):
             b.setFixedHeight(M["H_BTN"])
 
-        BTN_GAP = 8  # spazio tra i bottoni
-        BTN_SHIFT_RIGHT = 12  # px di “respiro” dal bordo destro (aumenta per spostarli un po' a sinistra)
-
+        BTN_GAP = 8
+        BTN_SHIFT_RIGHT = 12
         fm_btn = self.fontMetrics()
 
         def fit_btn(text, minw=88, pad=28):
@@ -715,20 +678,22 @@ class AudioConverter(QDialog):
         w_add = fit_btn(self.btn_add.text())
         w_cancel = fit_btn(self.btn_cancel.text())
         w_ok = fit_btn(self.btn_ok.text())
-
         total_btn_w = w_add + w_cancel + w_ok + 2 * BTN_GAP
-        x_btn_grp = CANVAS_W - total_btn_w - BTN_SHIFT_RIGHT  # <-- ancorati a destra
+        x_btn_grp = CANVAS_W - total_btn_w - BTN_SHIFT_RIGHT
+
+        def place_btn(btn, xx):
+            place(btn, xx, fit_btn(btn.text()), M["H_BTN"])
 
         place(self.btn_add, x_btn_grp, w_add, M["H_BTN"])
         place(self.btn_cancel, x_btn_grp + w_add + BTN_GAP, w_cancel, M["H_BTN"])
         place(self.btn_ok, x_btn_grp + w_add + BTN_GAP + w_cancel + BTN_GAP, w_ok, M["H_BTN"])
 
-        # ---------- Canvas height per finestra FISSA ----------
+        # Canvas height
         path_h = path_row.sizeHint().height()
         avail_h = M["WIN_H"] - (M["MARG"] * 2 + path_h + vmain.spacing())
         self.canvas.setFixedHeight(max(120, avail_h))
 
-        # ---------- Anti-troncatura combo ----------
+        # Anti-troncatura combo
         def _fix_combo(w, minw):
             try:
                 w.setMinimumWidth(minw)
@@ -747,97 +712,58 @@ class AudioConverter(QDialog):
             _fix_combo(w, M["W_MED"])
         _fix_combo(self.cmb_prev, M["W_DUR"])
 
-        # ---------- Wiring base ----------
+        # Wiring base
         self.btn_prev.clicked.connect(self.make_preview)
         self.btn_add.clicked.connect(self.add_seg)
         self.btn_cancel.clicked.connect(self._reset_defaults)
         self.chk_force_mute.toggled.connect(self._on_force_mute_toggled)
-        self.cmb_track.currentIndexChanged.connect(self._refresh_filter_availability)
+        self.cmb_track.currentIndexChanged.connect(self._on_track_changed)
+        # reagisci al toggle “Mantieni MONO…”
+        self.chk_keep_mono.toggled.connect(self._refresh_filter_availability)
+        self.chk_keep_mono.toggled.connect(self._update_pan_preset_label)
 
-        def _select_profile(which: str):
-            if which == "sb_tvj":
-                self._active_profile = "sb_tvj"
-                self._soundbar_profile = "samsung_stereo"
-            elif which == "sb_51":
-                self._active_profile = "sb_51"
-                self._soundbar_profile = "samsung_5_1_ac3"
-            else:
-                self._active_profile = which
-                self._soundbar_profile = "none"
-            try:
-                self._update_pan_preset_label()
-            except Exception:
-                pass
-            self._refresh_filter_availability()
-
-        self.chk_force_stereo.toggled.connect(
-            lambda t: _select_profile("downmix")
-            if t
-            else (not (self.chk_sb_stereo.isChecked() or self.chk_sb_51.isChecked()) and _select_profile("none"))
-        )
-        self.chk_sb_stereo.toggled.connect(
-            lambda t: _select_profile("sb_tvj")
-            if t
-            else (not (self.chk_force_stereo.isChecked() or self.chk_sb_51.isChecked()) and _select_profile("none"))
-        )
-        self.chk_sb_51.toggled.connect(
-            lambda t: _select_profile("sb_51")
-            if t
-            else (not (self.chk_force_stereo.isChecked() or self.chk_sb_stereo.isChecked()) and _select_profile("none"))
-        )
-
-        try:
-            self._connect_pan_preset_signals()
-            self._update_pan_preset_label()
-        except Exception:
-            pass
+        # Mutua esclusione
+        for _cb_name in ("chk_force_stereo", "chk_sb_stereo", "chk_sb_51"):
+            cb = getattr(self, _cb_name, None)
+            if cb is not None:
+                try:
+                    cb.toggled.disconnect()
+                except Exception:
+                    pass
+        self._setup_exclusive_audio_profiles()
+        self._connect_pan_preset_signals()
+        self._update_pan_preset_label()
 
     def dragEnterEvent(self, event):
-        """
-        Accetta il drag se contiene almeno un URL (file).
-        """
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
         else:
             super().dragEnterEvent(event)
 
     def dropEvent(self, event):
-        """
-        Gestisce il drop dei file:
-        - Se siamo in “muto forzato” o audio_externo=True, tratta il file
-          come sorgente audio esterno (load_external_audio).
-        - Altrimenti lo carica normalmente come input video/audio (load_file).
-        """
         urls = event.mimeData().urls()
         if not urls:
             return super().dropEvent(event)
-
         file_path = urls[0].toLocalFile()
-
         if self.chk_force_mute.isChecked() or self.audio_externo:
-            # drag&drop in modalità “muto forzato” o esterno
             self.load_external_audio(file_path)
         else:
-            # drag&drop normale
             self.load_file(file_path)
-
         event.acceptProposedAction()
 
     def _normalize_eq_combo(self, cmb: QComboBox):
-        # oggi le combo EQ non sono editabili; funzione lasciata per eventuale futuro switch
         s = (cmb.currentText() or "").strip().replace(",", ".")
         try:
             v = float(s)
         except Exception:
             v = 0.0
-        v = max(-18.0, min(18.0, v))  # clamp
+        v = max(-18.0, min(18.0, v))
         txt = f"{v:.2f}".rstrip("0").rstrip(".")
         if txt in ("-0", "+0", ""):
             txt = "0"
         cmb.setCurrentText(txt)
 
     def _ensure_preview_wiring(self):
-        """Collega qualsiasi bottone/azione 'Preview' a run_preview(self)."""
         from PyQt5.QtWidgets import QPushButton
 
         wired = 0
@@ -858,7 +784,6 @@ class AudioConverter(QDialog):
             btn = getattr(self, name, None)
             if isinstance(btn, QPushButton):
                 _bind_btn(btn)
-
         act = getattr(self, "actionPreview", None)
         try:
             if act and hasattr(act, "triggered"):
@@ -870,32 +795,19 @@ class AudioConverter(QDialog):
                 wired += 1
         except Exception:
             pass
-
         print(f"[UI] _ensure_preview_wiring: collegati {wired} trigger Preview", flush=True)
 
     def _wire_doubleclick_shortcuts(self):
         """
-        Inietta la riga 'Profilo soundbar' e compatta il box comandi.
-        Il doppio-click → Preview è DISATTIVATO di default; per attivarlo:
-          HEVC_PREVIEW_DBLCLICK=1
-        Quando attivo reagisce solo se il widget è abilitato.
+        Inserisce (se serve) la riga profilo soundbar e compattazioni varie.
+        Doppio-click → Preview solo se HEVC_PREVIEW_DBLCLICK=1.
         """
         import os
         from PyQt5.QtCore import QObject, QEvent
-        from PyQt5.QtWidgets import (
-            QWidget,
-            QLabel,
-            QCheckBox,
-            QHBoxLayout,
-            QVBoxLayout,
-            QGridLayout,
-            QBoxLayout,
-        )
+        from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QHBoxLayout, QVBoxLayout, QGridLayout, QBoxLayout
 
-        # flag: abilita doppio-click → preview solo via env var
         self._allow_dblclick_preview = os.getenv("HEVC_PREVIEW_DBLCLICK", "0") == "1"
 
-        # ---------- helpers layout ----------
         def _top_layout(widget: QWidget):
             lay = getattr(widget, "layout", lambda: None)()
             if lay:
@@ -909,7 +821,6 @@ class AudioConverter(QDialog):
             return best
 
         def _find_stereo_enh_anchor():
-            # prova a trovare la label "Stereo Enh:" o la combo relativa
             for lab in self.findChildren(QLabel):
                 try:
                     if str(lab.text()).strip().lower().startswith("stereo enh"):
@@ -955,23 +866,17 @@ class AudioConverter(QDialog):
             tl = _top_layout(self)
             return tl, self, None
 
-        # ---------- inserisce riga profilo soundbar + label pan ----------
         def _insert_soundbar_row():
             if getattr(self, "_soundbar_injected", False):
                 return True
-
             anchor = _find_stereo_enh_anchor()
             lay, container, pos = _layout_of(anchor or self)
 
-            # etichetta a sinistra (Form/Grid) o riga di titolo (Box)
             row_label = QLabel("Profilo soundbar", container)
-
-            # box con i due checkbox + label pan
             row_box = QWidget(container)
             vb = QVBoxLayout(row_box)
             vb.setContentsMargins(0, 0, 0, 0)
             vb.setSpacing(4)
-
             hb = QHBoxLayout()
             hb.setContentsMargins(0, 0, 0, 0)
             hb.setSpacing(6)
@@ -980,24 +885,19 @@ class AudioConverter(QDialog):
             cb_51 = QCheckBox("Samsung — 5.1 AC-3 (48 kHz)", row_box)
             cb_st.setObjectName("chk_sb_stereo")
             cb_51.setObjectName("chk_sb_51")
-
             hb.addWidget(cb_st)
             hb.addWidget(cb_51)
             hb.addStretch(1)
             vb.addLayout(hb)
 
-            # label pan (crea se manca)
             if not getattr(self, "lbl_pan_preset", None):
                 self.lbl_pan_preset = QLabel("Pan preset: nessuno (input stereo/mono o profili spenti)", row_box)
                 self.lbl_pan_preset.setStyleSheet("color: #777;")
             vb.addWidget(self.lbl_pan_preset)
 
-            # stato interno
             self._soundbar_profile = "none"
             self.chk_sb_stereo = cb_st
             self.chk_sb_51 = cb_51
-
-            # esclusività con "Stereo (downmix 2ch)"
             stereo_candidates = [getattr(self, "chk_force_stereo", None)]
             group = [cb_st, cb_51] + [w for w in stereo_candidates if w is not None]
 
@@ -1035,11 +935,9 @@ class AudioConverter(QDialog):
 
             cb_st.toggled.connect(_on_stereo)
             cb_51.toggled.connect(_on_51)
-            # aggiorna la disponibilità dei controlli quando cambi profilo soundbar
             cb_st.toggled.connect(lambda _: self._refresh_filter_availability())
             cb_51.toggled.connect(lambda _: self._refresh_filter_availability())
 
-            # se abiliti il downmix esterno, spegni i profili
             for w in stereo_candidates:
                 if w is None:
                     continue
@@ -1059,7 +957,6 @@ class AudioConverter(QDialog):
                 except Exception:
                     pass
 
-            # inserimento nel layout
             try:
                 if isinstance(lay, QFormLayout):
                     ins_row = (pos + 1) if (pos is not None) else lay.rowCount()
@@ -1093,7 +990,6 @@ class AudioConverter(QDialog):
             self._refresh_filter_availability()
             return True
 
-        # ---------- compattazione del box comandi ----------
         def _shrink_cmd_box(max_lines: int = 2):
             try:
                 candidates = []
@@ -1105,7 +1001,7 @@ class AudioConverter(QDialog):
                     except Exception:
                         pass
                     name = ed.objectName() if hasattr(ed, "objectName") else ""
-                    if any(k in name.lower() for k in ("cmd", "command", "preview", "ffmpeg")):
+                    if any(k in (name or "").lower() for k in ("cmd", "command", "preview", "ffmpeg")):
                         score += 3
                     score += max(ed.maximumHeight(), ed.height())
                     candidates.append((score, ed))
@@ -1122,7 +1018,6 @@ class AudioConverter(QDialog):
             except Exception:
                 pass
 
-        # ---------- (opzionale) doppio-click → preview ----------
         def _find_preview_target():
             for name in ("btn_prev", "btn_preview", "btn_preview_filtered", "actionPreview"):
                 obj = getattr(self, name, None)
@@ -1150,7 +1045,6 @@ class AudioConverter(QDialog):
 
             def eventFilter(self, obj, ev):
                 if ev.type() == QEvent.MouseButtonDblClick:
-                    # solo se abilitato e widget attivo
                     if not getattr(self._parent, "_allow_dblclick_preview", False):
                         return False
                     if hasattr(obj, "isEnabled") and not obj.isEnabled():
@@ -1167,13 +1061,12 @@ class AudioConverter(QDialog):
                 return
             try:
                 f = _DoubleClickFilter(self, cb)
-                setattr(w, "_dblclick_filter_", f)  # evita GC
+                setattr(w, "_dblclick_filter_", f)
                 w.installEventFilter(f)
             except Exception:
                 pass
 
         def _wire_doubleclick():
-            # se non attivo via env var, non cabliamo nulla
             if not self._allow_dblclick_preview:
                 return
             names = ("cmb_eq_bass", "cmb_eq_mid", "cmb_eq_treb", "cmb_comp_soft", "cmb_stereo")
@@ -1182,7 +1075,6 @@ class AudioConverter(QDialog):
                 if w is not None and hasattr(w, "installEventFilter"):
                     _enable_dblclick(w, _trigger_preview)
 
-        # ======= blocco da mantenere identico =======
         def _do_all():
             ok = _insert_soundbar_row()
             _shrink_cmd_box(max_lines=2)
@@ -1192,34 +1084,26 @@ class AudioConverter(QDialog):
         if not _do_all():
             QTimer.singleShot(120, _do_all)
 
-    def _fmt_track_label(self, idx: int, lang: str, br: str) -> str:
+    def _fmt_track_label(self, idx: int, lang: str | None, br: str) -> str:
         """
-        Etichetta combo tracce con badge [M]/[S]/[MC] + lingua + info br/SR quando disponibili.
+        Etichetta combo tracce con badge [M]/[S]/[MC] + lingua (da combo UI) + BR/SR.
         """
-        # lingua “umana”
-        from hevc_gui.core import constants as C
-
-        lang_full = C.LANGUAGE_NAMES.get(lang, lang) if lang else "—"
-
-        # sample-rate selezionato in GUI (solo info, non probiamo SR input qui)
+        lang = self._lang_code_from_combo()
+        lang_full = self._lang_human(lang)
         sr = self.cmb_sr.currentText() if getattr(self, "cmb_sr", None) else "Nessuno"
 
-        # canali da cache (o probing last-minute se mancano)
-        ch = None
-        try:
-            ch = self._orig_channels.get(idx) if hasattr(self, "_orig_channels") else None
-            if ch is None:
-                # come fallback, prova a leggere ora
+        ch = self._orig_channels.get(idx)
+        if ch is None:
+            try:
                 if self.audio_externo and self.external_audio_file:
                     ch = self._probe_audio_channels(self.external_audio_file, int(str(idx).split(":")[-1]))
                 elif self.file:
                     ch = self._probe_audio_channels(str(self.file), int(str(idx).split(":")[-1]))
-        except Exception:
-            ch = None
+            except Exception:
+                ch = None
 
         badge = self._badge_from_channels(int(ch)) if ch else ""
         pieces = [f"{badge} Traccia {idx}"]
-
         if lang_full and lang_full != "—":
             pieces.append(lang_full)
         if br and br != "Nessuno":
@@ -1230,85 +1114,157 @@ class AudioConverter(QDialog):
                     pieces.append(f"{int(sr)}Hz")
             except Exception:
                 pass
-
         return " – ".join(pieces)
 
-    def _fmt_audio_title_from_flags(self, *, lang: str, codec: str, ac: int, ar: int | None, br: str | None) -> str:
+    def _badge_from_channels(self, ch: int) -> str:
+        if ch <= 1:
+            return "[M]"
+        elif ch == 2:
+            return "[S]"
+        else:
+            return "[MC]"
+
+    def _probe_audio_channels(self, path: str, a_idx: int) -> int:
+        """Ritorna #canali dell'audio stream a_idx, 0 se non trovabile."""
+        try:
+            from hevc_gui.core.ffprobe_utils import probe_audio_stream
+
+            info = probe_audio_stream(path, stream_index=int(a_idx)) or {}
+            ch = int(info.get("channels") or 0)
+            return ch if ch > 0 else 0
+        except Exception:
+            return 0
+
+    @pyqtSlot(str)
+    def load_file(self, p: str):
         """
-        Costruisce il title stream coerente coi flag che stiamo davvero usando.
-        Esempio: 'Italiano • AC-3 5.1 • 48 kHz • 448 kb/s'
+        Carica file come sorgente; popola cmb_track con (idx, lang=<combo>, br or 'Nessuno').
+        Nessun dialog lingua.
         """
-        lang_full = C.LANGUAGE_NAMES.get(lang, lang)
-        codec_lbl = {
-            "aac": "AAC",
-            "libfdk_aac": "AAC",
-            "ac3": "AC-3",
-            "eac3": "E-AC-3",
-        }.get(str(codec).lower(), str(codec).upper())
-        ch_lbl = {1: "1.0", 2: "2.0", 6: "5.1"}.get(int(ac), f"{ac}ch")
-        sr_lbl = (
-            f"{int(ar) // 1000 * 1} kHz"
-            if ar
-            else (
-                f"{int(self.cmb_sr.currentText()) // 1000 * 1} kHz"
-                if getattr(self, "cmb_sr", None) and self.cmb_sr.currentText().isdigit()
-                else None
-            )
-        )
-        br_lbl = None
-        if br:
+        if not hasattr(self, "_orig_channels"):
+            self._orig_channels: dict[int, int] = {}
+        self.file = Path(p)
+        # FIX: informa la Batch del video, così flush NON tratta come “audio esterno”
+        try:
+            self.batch.set_video_file(str(self.file))
+        except Exception:
+            pass
+
+        self._orig_bitrates.clear()
+        self._orig_channels.clear()
+
+        self.cmb_track.clear()
+        self.cmb_track.addItem("Seleziona traccia…", (-1, None, None))
+
+        # Modalità "muto" → audio esterno guidato
+        if getattr(self, "chk_force_mute", None) and self.chk_force_mute.isChecked():
+            self.audio_externo = True
+            self.external_audio_file = str(self.file)
             try:
-                v = int(str(br).lower().replace("k", "").replace("kb/s", "").replace("kbps", "").replace("kbit/s", ""))
-                br_lbl = f"{v} kb/s"
+                self.path.setText(f"Trattato come muto: {self.file}")
             except Exception:
-                br_lbl = str(br)
-        parts = [lang_full, f"{codec_lbl} {ch_lbl}"]
-        if sr_lbl:
-            parts.append(sr_lbl)
-        if br_lbl:
-            parts.append(br_lbl)
-        return " • ".join(parts)
+                pass
+            self.cmb_track.clear()
+            self.cmb_track.addItem("File muto → carica audio esterno…", (-1, None, None))
+            self.cmb_track.setEnabled(False)
+            self.btn_load_external_audio.show()
+            self.btn_add.setEnabled(False)
+            return
+
+        tracks = list(audio_tracks_with_title(str(self.file)))
+        if not tracks:
+            self.audio_externo = True
+            self.external_audio_file = None
+            self.path.clear()
+            self.btn_load_external_audio.show()
+            self.cmb_track.setEnabled(False)
+            self.btn_add.setEnabled(False)
+        else:
+            self.audio_externo = False
+            self.btn_load_external_audio.hide()
+            self.path.setText(str(self.file))
+            self.cmb_track.setEnabled(True)
+            cur_lang = self._lang_code_from_combo()
+            for pos, (idx_raw, title) in enumerate(tracks):
+                a_idx = self._norm_audio_index(idx_raw, pos)
+                br_lbl = self._probe_audio_bitrate_label(str(self.file), a_idx)
+                if br_lbl:
+                    self._orig_bitrates[a_idx] = br_lbl
+                ch = self._probe_audio_channels(str(self.file), a_idx)
+                if ch:
+                    self._orig_channels[a_idx] = ch
+                label = self._fmt_track_label(a_idx, cur_lang, br_lbl or "Nessuno")
+                if title:
+                    label += f" – {title}"
+                self.cmb_track.addItem(label, (a_idx, cur_lang, br_lbl or "Nessuno"))
+            self.btn_add.setEnabled(False)
+
+        self.cmb_track.setCurrentIndex(0)
+        try:
+            print("[DEBUG] Combo tracce:")
+            for i in range(self.cmb_track.count()):
+                print(f"  {i:02d}: text='{self.cmb_track.itemText(i)}' data={self.cmb_track.itemData(i)}")
+        except Exception:
+            pass
 
     @pyqtSlot()
     def load_external_audio(self, file_path: str | None = None):
         """
-        Carica/aggancia una traccia audio esterna.
-        Popola cmb_track con indici reali + badge [M]/[S]/[MC] e bitrate se trovabile.
+        Carica una traccia **esterna** e popola cmb_track con:
+          (idx, lang=<combo UI>, br) — NESSUN dialog lingua.
+        Imposta Batch in modalità 'esterno' (Batch.file=None) per la flush corretta.
         """
+        # init cache
         if not hasattr(self, "_orig_channels"):
             self._orig_channels: dict[int, int] = {}
+        if not hasattr(self, "_orig_bitrates"):
+            self._orig_bitrates: dict[int, str] = {}
 
-        # Se non arriva un path, chiedilo all'utente (cartella del file corrente se disponibile)
+        # Se non arriva un path → apri file dialog
         if not file_path:
             start_dir = str(self.file.parent) if getattr(self, "file", None) else os.path.expanduser("~")
             filters = (
                 "Audio (*.wav *.flac *.aac *.m4a *.mp3 *.ogg *.ac3 *.eac3);;Video con audio (*.mkv *.mp4 *.mov *.avi);;Tutti i file (*)"
             )
-            file_path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Seleziona traccia audio esterna",
-                start_dir,
-                filters,
-            )
+            file_path, _ = QFileDialog.getOpenFileName(self, "Seleziona traccia audio esterna", start_dir, filters)
             if not file_path:
                 return  # annullato
 
-        # Stato esterno attivo
+        # Stato esterno ON
         self.external_audio_file = file_path
         self.audio_externo = True
+
+        # Batch: segnala che NON c'è un video file (così flush fa 0:a:x → 1:x)
+        try:
+            self.batch.set_video_file(None)
+        except Exception:
+            pass
+
+        # Lingua: SOLO dalla combo UI
+        try:
+            # usa helper se presente
+            cur_lang = self._lang_code_from_combo()
+        except Exception:
+            # fallback: prova cmb_lang, altrimenti 'und'
+            try:
+                idx = self.cmb_lang.currentIndex()
+                cur_lang = (self.cmb_lang.itemData(idx) or self.cmb_lang.currentText() or "und").strip() or "und"
+            except Exception:
+                cur_lang = "und"
+        self.external_audio_lang = cur_lang
+
+        # UI path
         try:
             self.path.setText(f"Audio esterno: {file_path}")
         except Exception:
             pass
 
-        # Popola la combo tracce con indici reali e bitrate/canali misurati
+        # Lettura tracce e probing
         try:
             tracks = list(audio_tracks_with_title(file_path))
         except Exception:
             tracks = []
 
-        self._orig_bitrates = getattr(self, "_orig_bitrates", {})
-        self._orig_channels = getattr(self, "_orig_channels", {})
         self._orig_bitrates.clear()
         self._orig_channels.clear()
 
@@ -1325,28 +1281,31 @@ class AudioConverter(QDialog):
                 ch = self._probe_audio_channels(file_path, a_idx)
                 if ch:
                     self._orig_channels[a_idx] = ch
-                label = self._fmt_track_label(a_idx, None, br_lbl or "Nessuno")
+
+                label = self._fmt_track_label(a_idx, cur_lang, br_lbl or "Nessuno")
                 if title:
                     label += f" – {title}"
-                self.cmb_track.addItem(label, (a_idx, None, br_lbl or "Nessuno"))
-            # salta il placeholder
+                # itemData = (indice reale, lingua da combo, bitrate reale|Nessuno)
+                self.cmb_track.addItem(label, (a_idx, cur_lang, br_lbl or "Nessuno"))
+
+            # seleziona la prima traccia reale se presente
             self.cmb_track.setCurrentIndex(1 if self.cmb_track.count() > 1 else 0)
         else:
-            # fallback (file con 1 pista “mutizzata”)
-            self.cmb_track.addItem(self._fmt_track_label(0, None, "Nessuno"), (0, None, "Nessuno"))
+            # fallback: file con una singola pista “mutizzata”
+            self.cmb_track.addItem(self._fmt_track_label(0, cur_lang, "Nessuno"), (0, cur_lang, "Nessuno"))
             self.cmb_track.setCurrentIndex(1 if self.cmb_track.count() > 1 else 0)
 
         self.cmb_track.setEnabled(True)
         self.cmb_track.blockSignals(False)
 
-        # UI di contesto
+        # Bottoni e visibilità
         try:
             self.btn_add.setEnabled(False)
             self.btn_load_external_audio.show()
         except Exception:
             pass
 
-        # Debug
+        # Debug elenco
         try:
             print("[DEBUG] Combo tracce (esterne):")
             for i in range(self.cmb_track.count()):
@@ -1354,27 +1313,14 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
-        # Aggiorna availability/label
+        # Refresh abilitazioni/label
         try:
             self._refresh_filter_availability()
             self._update_pan_preset_label()
         except Exception:
             pass
 
-    # ── Alias retro-compatibile: rimuovibile quando ti va ─────────────────
-    def _load_external_audio(self, file_path: str):
-        """Compat: instrada al nuovo load_external_audio()."""
-        return self.load_external_audio(file_path)
-
     def _norm_audio_index(self, idx, pos_fallback: int) -> int:
-        """
-        Ritorna l'indice audio 0-based per -map 0:a:N.
-
-        Regole:
-        - Se idx è stringa tipo 'a:N' o '0:a:N' → usa N (già 0-based per -map 0:a:N).
-        - In TUTTI gli altri casi (int, ecc.) → usa SEMPRE pos_fallback (0-based dall'enumerazione).
-          Motivo: molte funzioni upstream passano 1-based (1,2,3...), mentre -map 0:a:N è 0-based.
-        """
         s = str(idx)
         if "a:" in s:
             try:
@@ -1384,13 +1330,6 @@ class AudioConverter(QDialog):
         return int(pos_fallback)
 
     def _probe_audio_bitrate_label(self, path: str, a_idx: int) -> str | None:
-        """
-        '192k' con il bitrate REALE della traccia a_idx (ffprobe).
-        Se non trovabile (VBR senza bit_rate), torna None.
-        """
-        import json
-        import subprocess
-
         ffprobe = shutil.which("ffprobe") or "ffprobe"
         try:
             cmd = [
@@ -1427,12 +1366,18 @@ class AudioConverter(QDialog):
     @pyqtSlot(bool)
     def _on_force_mute_toggled(self, checked: bool):
         """
-        Se attivo: passiamo in modalità 'audio esterno'. La combo tracce interne viene disabilitata
-        e compare il bottone 'Carica traccia audio esterna'. Se disattivo, ripristina la UI.
+        Switch tra modalità 'muto/esterno' e 'interna'.
+        Aggiorna anche Batch.file così flush() si comporta correttamente.
         """
         if checked:
+            # → Modalità audio esterno
             self.audio_externo = True
             self.external_audio_file = None
+            # Batch: nessun video di riferimento (attiva path "esterno")
+            try:
+                self.batch.set_video_file(None)
+            except Exception:
+                pass
             try:
                 self.path.setText("Trattato come muto: in attesa di audio esterno…")
             except Exception:
@@ -1443,9 +1388,15 @@ class AudioConverter(QDialog):
             self.btn_load_external_audio.show()
             self.btn_add.setEnabled(False)
         else:
+            # → Torna a modalità interna (usa il file video caricato)
             self.audio_externo = False
+            self.external_audio_file = None
+            # Batch: ripristina il video se noto (disattiva path "esterno")
+            try:
+                self.batch.set_video_file(str(self.file) if self.file else None)
+            except Exception:
+                pass
             self.btn_load_external_audio.hide()
-            # ricarica elenco tracce dal file corrente (se presente)
             if self.file:
                 self.load_file(str(self.file))
             else:
@@ -1453,488 +1404,117 @@ class AudioConverter(QDialog):
                 self.cmb_track.addItem("Seleziona traccia…", (-1, None, None))
                 self.cmb_track.setEnabled(False)
             self.btn_add.setEnabled(False)
-        # aggiorna label pan se presente
+
+        # Aggiorna label e abilitazioni correlate
         try:
+            self._refresh_filter_availability()
             self._update_pan_preset_label()
         except Exception:
             pass
 
-    def _badge_from_channels(self, ch: int) -> str:
-        if ch <= 1:
-            return "[M]"
-        elif ch == 2:
-            return "[S]"
-        else:
-            return "[MC]"
-
-    def _probe_audio_channels(self, path: str, a_idx: int) -> int:
-        """Ritorna #canali dell'audio stream a_idx, 0 se non trovabile."""
-        try:
-            from hevc_gui.core.ffprobe_utils import probe_audio_stream
-
-            info = probe_audio_stream(path, stream_index=int(a_idx)) or {}
-            ch = int(info.get("channels") or 0)
-            return ch if ch > 0 else 0
-        except Exception:
-            return 0
-
-    @pyqtSlot(str)
-    def load_file(self, p: str):
+    @pyqtSlot(int)
+    def _on_track_changed(self, combo_idx: int):
         """
-        Carica un file (video o audio) come sorgente per l'estrazione.
-        Popola cmb_track con (a_idx, lang=None, bitrate_reale | 'Nessuno') e badge [M]/[S]/[MC].
+        Cambio traccia:
+          - NIENTE dialog lingua: usiamo self.cmb_lang
+          - Aggiorna etichetta/itemData con la lingua corrente
+          - Abilita 'Agg. traccia'
+          - Defer dei refresh pesanti
         """
-        # cache canali/bitrate per le etichette
-        if not hasattr(self, "_orig_channels"):
-            self._orig_channels: dict[int, int] = {}
-        self.file = Path(p)
-        self._orig_bitrates.clear()
-        self._orig_channels.clear()
-
-        self.cmb_track.clear()
-        self.cmb_track.addItem("Seleziona traccia…", (-1, None, None))
-
-        # Modalità "Tratta come muto" → audio esterno
-        if getattr(self, "chk_force_mute", None) and self.chk_force_mute.isChecked():
-            self.audio_externo = True
-            self.external_audio_file = str(self.file)
-            self.path.setText(f"Trattato come muto: {self.file}")
-            self.cmb_track.clear()
-            self.cmb_track.addItem("File muto → carica audio esterno…", (-1, None, None))
-            self.cmb_track.setEnabled(False)
-            self.btn_load_external_audio.show()
+        data = self.cmb_track.itemData(combo_idx)
+        if not data:
+            self.btn_add.setEnabled(False)
+            return
+        idx, _lang_old, br = data
+        if idx is None or idx < 0:
             self.btn_add.setEnabled(False)
             return
 
-        tracks = list(audio_tracks_with_title(str(self.file)))
-        if not tracks:
-            # nessuna traccia interna → audio esterno
-            self.audio_externo = True
-            self.external_audio_file = None
-            self.path.clear()
-            self.btn_load_external_audio.show()
-            self.cmb_track.setEnabled(False)
-            self.btn_add.setEnabled(False)
-        else:
-            # tracce interne
-            self.audio_externo = False
-            self.btn_load_external_audio.hide()
-            self.path.setText(str(self.file))
-            self.cmb_track.setEnabled(True)
+        lang = self._lang_code_from_combo()
+        label = self._fmt_track_label(idx, lang, br)
+        self.cmb_track.setItemText(combo_idx, label)
+        self.cmb_track.setItemData(combo_idx, (idx, lang, br))
+        self.btn_add.setEnabled(True)
+        QTimer.singleShot(0, self._after_track_change_refresh_safe)
 
-            for pos, (idx_raw, title) in enumerate(tracks):
-                a_idx = self._norm_audio_index(idx_raw, pos)
-                # bitrate reale (se disponibile)
-                br_lbl = self._probe_audio_bitrate_label(str(self.file), a_idx)
-                if br_lbl:
-                    self._orig_bitrates[a_idx] = br_lbl
-                # canali reali → badge
-                ch = self._probe_audio_channels(str(self.file), a_idx)
-                if ch:
-                    self._orig_channels[a_idx] = ch
-
-                label = self._fmt_track_label(a_idx, None, br_lbl or "Nessuno")
-                if title:
-                    label += f" – {title}"
-                self.cmb_track.addItem(label, (a_idx, None, br_lbl or "Nessuno"))
-
-            self.btn_add.setEnabled(False)
-
-        self.cmb_track.setCurrentIndex(0)
-
-        # Debug mappa (opzionale)
+    def _after_track_change_refresh_safe(self):
         try:
-            print("[DEBUG] Combo tracce:")
-            for i in range(self.cmb_track.count()):
-                print(f"  {i:02d}: text='{self.cmb_track.itemText(i)}' data={self.cmb_track.itemData(i)}")
+            self._refresh_filter_availability()
         except Exception:
             pass
+        for maybe in (
+            "_update_example_preview_cmd",
+            "update_ffmpeg_preview",
+            "_update_ffmpeg_textarea",
+            "_refresh_preview_and_cmd",
+            "on_audio_params_changed",
+        ):
+            fn = getattr(self, maybe, None)
+            if callable(fn):
+                try:
+                    fn()
+                except Exception:
+                    pass
+                break
+
+    @pyqtSlot(str)
+    def _update_track_title(self, new_br: str):
+        combo_idx = self.cmb_track.currentIndex()
+        data = self.cmb_track.itemData(combo_idx)
+        if not data:
+            return
+        idx, lang, _ = data
+        if idx < 0:
+            return
+        br = new_br if new_br != "Nessuno" else self._orig_bitrates.get(idx, "Nessuno")
+        label = self._fmt_track_label(idx, lang, br)
+        self.cmb_track.setItemText(combo_idx, label)
+        self.cmb_track.setItemData(combo_idx, (idx, lang, new_br))
+        QTimer.singleShot(0, getattr(self, "_after_track_change_refresh_safe", lambda: None))
 
     @pyqtSlot()
-    def add_seg(self):
-        """
-        Aggiunge **una** traccia audio alla batch da passare alla MainWindow.
+    def make_preview(self):
+        import traceback
 
+        try:
+            print("[UI] make_preview() chiamata → run_preview(self)", flush=True)
+            run_preview(self)
+            print("[UI] make_preview() OK (run_preview ha terminato)", flush=True)
+        except Exception as e:
+            print("[UI][ERRORE] make_preview():", e, flush=True)
+            print(traceback.format_exc(), flush=True)
+
+    def _effective_output_is_stereo(self, in_ch: int) -> bool:
+        """
+        Ritorna True se l'OUTPUT effettivo sarà stereo.
         Regole:
-          - Se audio esterno: usa l’unica traccia 0:a:0 del file caricato.
-          - Se interno: usa l’indice reale scelto nella combo (0:a:{idx}).
-          - Filtri: _build_filters_chain_from_ui(for_preview=False, channels_hint=detected_ch).
-          - Codec/canali:
-              • profilo soundbar 5.1 attivo → AC-3 5.1 @ 48 kHz, 448k di default
-              • altrimenti: AAC stereo 2ch (o MONO 1ch se input mono + “Mantieni MONO”)
-          - Bitrate:
-              • se combo bitrate ≠ “Nessuno” → usa quello scelto dall’utente
-              • se combo “Nessuno”:
-                  - stereo → max(originale, 128k) (se originale non leggibile → 128k)
-                  - mono   → 96k
-                  - AC-3 5.1 → 448k
-          - Title: **sempre** costruito da _fmt_audio_title_from_flags(...)
-          - Metadata: language=<lang>, title=<title>.
+          - MONO + 'Mantieni MONO' spuntato  → False (resta 1.0)
+          - MONO + (non mantieni)            → True (facciamo pseudo-stereo)
+          - Sorgente stereo                  → True
+          - Multicanale                      → True solo se downmix forzato/Samsung stereo
         """
-
-        # --- 1) Sorgente e scelta utente ------------------------------------------------
-        is_ext = bool(self.audio_externo)
-        if is_ext:
-            if not self.external_audio_file:
-                QMessageBox.warning(self, "Audio esterno", "Nessun file audio esterno caricato.")
-                return
-            src_path = str(self.external_audio_file)
-            sidx = 0
-            map_str = "0:a:0"
-            lang = self.external_audio_lang or "und"
-            _ = "Nessuno"
-            idx_for_orig = 0  # per probing originale
-        else:
-            data = self.cmb_track.currentData()
-            if not isinstance(data, (tuple, list)) or len(data) < 3:
-                QMessageBox.warning(self, "Audio", "Seleziona una traccia valida.")
-                return
-            idx, lang, br = data
-            if idx < 0:
-                QMessageBox.warning(self, "Audio", "Seleziona una traccia valida.")
-                return
-            # se manca la lingua, chiedila adesso
-            if lang is None:
-                dlg = TagDialog(self)
-                if dlg.exec_() != QDialog.Accepted:
-                    return
-                lang = dlg.selected()
-                # fallback bitrate: originale se lo avevamo misurato
-                _ = self._orig_bitrates.get(idx, "Nessuno")
-
-            src_path = str(self.file)
-            sidx = int(str(idx).split(":")[-1])
-            map_str = f"0:a:{sidx}"
-            idx_for_orig = idx
-
-        # --- 2) Rileva canali in ingresso (per catena filtri coerente) -------------------
-        detected_ch = 2
         try:
-            from hevc_gui.core.ffprobe_utils import probe_audio_stream
-
-            info = probe_audio_stream(src_path, stream_index=sidx) or {}
-            detected_ch = int(info.get("channels") or 2)
+            keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
         except Exception:
-            pass
+            keep_mono = False
 
-        # === NEW: se fai upmix MONO→STEREO (Mantieni MONO OFF) neutralizza i profili Samsung
-        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
-        if detected_ch == 1 and not keep_mono:
-            try:
-                self._soundbar_profile = "none"
-            except Exception:
-                pass
-
-        # --- 3) Profilo 5.1 sì/no (rispetta eventuale "Stereo (downmix 2ch)") -----------
-        prof = getattr(self, "_soundbar_profile", "none")
-        force_stereo = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
-        wants_51 = (prof == "samsung_5_1_ac3") and (not force_stereo)
-
-        # --- 4) Costruisci catena filtri e (eventuale) loudnorm 2-pass -------------------
-        filters = self._build_filters_chain_from_ui(for_preview=False, channels_hint=detected_ch)
-
-        # Loudnorm 2-pass in encode reale (se selezionato)
-        try:
-            from hevc_gui.core.loudness import NORM_LOUDNORM2
-        except Exception:
-            NORM_LOUDNORM2 = None
-
-        try:
-            if NORM_LOUDNORM2 is not None and getattr(self, "cmb_norm", None) and self.cmb_norm.currentText() == NORM_LOUDNORM2:
-                try:
-                    from hevc_gui.core.loudness import (
-                        measure_loudnorm_smart,
-                        build_second_pass_filter_from_json,
-                    )
-
-                    stats = measure_loudnorm_smart(src_path, a_stream_idx=sidx, t=120)
-                    if stats:
-                        filters += build_second_pass_filter_from_json(stats, anticlipping=False)
-                except Exception:
-                    from hevc_gui.core.loudness import DEFAULT_I, DEFAULT_TP, DEFAULT_LRA
-
-                    filters.append(f"loudnorm=I={DEFAULT_I}:TP={DEFAULT_TP}:LRA={DEFAULT_LRA}")
-        except Exception:
-            pass
-
-        af_chain = ",".join(filters) if filters else None
-
-        # --- Helpers bitrate --------------------------------------------------------------
-        def _parse_kbps(s: str | None) -> int | None:
-            if not s:
-                return None
-            txt = str(s).lower().strip()
-            # prendi solo cifre
-            digs = "".join(ch for ch in txt if ch.isdigit())
-            if not digs:
-                return None
-            try:
-                return int(digs)
-            except Exception:
-                return None
-
-        # bitrate scelto dall'utente nella combo (se diverso da "Nessuno")
-        user_br_txt = None
-        try:
-            if getattr(self, "cmb_br", None):
-                ct = (self.cmb_br.currentText() or "").strip()
-                if ct and ct.lower() != "nessuno":
-                    user_br_txt = ct
-        except Exception:
-            pass
-
-        # bitrate originale misurato (se disponibile)
-        orig_br_txt = None
-        try:
-            if is_ext:
-                orig_br_txt = self._probe_audio_bitrate_label(src_path, 0)
-            else:
-                orig_br_txt = self._orig_bitrates.get(idx_for_orig) or self._probe_audio_bitrate_label(str(self.file), sidx)
-        except Exception:
-            orig_br_txt = None
-        orig_kbps = _parse_kbps(orig_br_txt)
-
-        # --- 5) Codec / canali / sample-rate / bitrate -----------------------------------
-        sr_sel = self.cmb_sr.currentText() if getattr(self, "cmb_sr", None) else "Nessuno"
-        ar = int(sr_sel) if (sr_sel and sr_sel != "Nessuno" and sr_sel.isdigit()) else None
-
-        if wants_51:
-            codec, ac = "ac3", 6
-            if not ar:
-                ar = 48000
-            # bitrate: preferisci scelta utente; altrimenti 448k
-            if user_br_txt:
-                br_eff = user_br_txt
-            else:
-                br_eff = "448k"
-        else:
-            if detected_ch == 1 and keep_mono:
-                codec, ac = "aac", 1
-                # MONO: scelta utente > default 96k
-                if user_br_txt:
-                    br_eff = user_br_txt
-                else:
-                    br_eff = "96k"
-            else:
-                # STEREO (origine stereo oppure upmix da mono)
-                codec, ac = "aac", 2
-                if user_br_txt:
-                    # utente ha scelto → usa
-                    br_eff = user_br_txt
-                else:
-                    # combo “Nessuno”: applichiamo il floor a 128k
-                    if orig_kbps is None:
-                        br_eff = "128k"  # non sappiamo l'originale → vai di 128
-                    elif orig_kbps < 128:
-                        br_eff = "128k"  # originale più basso → alza a 128
-                    else:
-                        br_eff = f"{orig_kbps}k"  # altrimenti mantieni l'originale
-
-        # --- 6) Title SEMPRE derivato dai flag -------------------------------------------
-        try:
-            title = self._fmt_audio_title_from_flags(lang=lang, codec=codec, ac=ac, ar=ar, br=br_eff)
-        except Exception:
-            from hevc_gui.core import constants as C
-
-            parts = [C.LANGUAGE_NAMES.get(lang, lang)]
-            parts.append("AC-3 5.1" if (codec == "ac3" and ac == 6) else f"AAC {ac}ch")
-            if ar:
-                parts.append(f"{ar // 1000} kHz")
-            if br_eff:
-                parts.append(str(br_eff))
-            title = " • ".join(parts)
-
-        # --- 7) Segmento ffmpeg finale ----------------------------------------------------
-        tag = len(self.batch.items)
-        seg: list[str] = ["-i", src_path, "-map", map_str, "-vn"]
-        if af_chain:
-            seg += ["-af", af_chain]
-        seg += [f"-c:a:{tag}", codec, f"-ac:{tag}", str(ac)]
-        if ar:
-            seg += [f"-ar:{tag}", str(ar)]
-        if br_eff:
-            seg += [f"-b:a:{tag}", str(br_eff)]
-        seg += [
-            f"-metadata:s:a:{tag}",
-            f"language={lang}",
-            f"-metadata:s:a:{tag}",
-            f"title={title}",
-        ]
-
-        self.batch.add(seg)
-        badge = "  [🔊 5.1]" if (codec == "ac3" and ac == 6) else ""
-        self.list.addItem(" ".join(shlex.quote(a) for a in seg) + badge)
-
-        if not is_ext:
-            self.btn_add.setEnabled(False)
-
-    def _build_filters_chain_from_ui(self, *, for_preview: bool, channels_hint: int) -> list[str]:
-        from hevc_gui.core import constants as C
-
-        filters: list[str] = []
-
-        def _has_pan(fs: list[str]) -> bool:
-            j = ",".join(fs).lower()
-            return ("pan=stereo" in j) or ("pan=2c" in j)
-
-        # Stato profilo Samsung
+        force_st = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
         prof = getattr(self, "_soundbar_profile", "none")
         is_samsung_stereo = prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo")
 
-        # === MONO → STEREO se "Mantieni MONO" è OFF (pseudo-stereo; niente dual-mono)
-        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
-        pseudo_applied = False
-        if channels_hint == 1 and not keep_mono:
-            filters.append(
-                "asplit=2[a][b];[b]adelay=12:all=1,equalizer=f=3000:t=q:w=1.2:g=-1.5[br];[a][br]join=inputs=2:channel_layout=stereo"
-            )
-            pseudo_applied = True
+        if in_ch <= 0:
+            in_ch = 2
 
-        # 1) Gain (pre)
-        try:
-            gtxt = (self.cmb_gain.currentText() or "").strip()
-            if gtxt and gtxt not in ("0", "0dB", "Nessuno"):
-                g = float(gtxt[:-2]) if gtxt.lower().endswith("db") else float(gtxt)
-                if abs(g) > 0.0001:
-                    filters.append(f"volume={g}dB")
-        except Exception:
-            pass
-
-        # 2) Noise Reduction
-        try:
-            if getattr(self, "chk_nr", None) and self.chk_nr.isChecked():
-                nr_txt = (self.in_nr.text() or "").strip()
-                if nr_txt:
-                    val = float(nr_txt.replace(",", "."))
-                    if 1 <= val <= 30:
-                        filters.append(f"afftdn=nf=-{val:.1f}")
-        except Exception:
-            pass
-
-        # 3) EQ (combo ±dB)
-        def _eq_piece(cmb, freq: int):
-            try:
-                txt = (cmb.currentText() or "").strip().replace(",", ".")
-                if not txt or txt.lower() == "nessuno":
-                    return
-                v = float(txt)
-                if abs(v) > 0.0001:
-                    filters.append(f"equalizer=f={freq}:t=q:w=1:g={v}")
-            except Exception:
-                pass
-
-        _eq_piece(self.cmb_eq_bass, 60)
-        _eq_piece(self.cmb_eq_mid, 1000)
-        _eq_piece(self.cmb_eq_treb, 3000)
-
-        # 4) Downmix 5.1 → 2.0 se l’utente ha spuntato "Stereo (downmix 2ch)"
-        force_st = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
-        need_downmix = bool(force_st and (channels_hint and channels_hint > 2) and not _has_pan(filters))
-        if need_downmix:
-            pan = C.AUD_PAN_PRESETS.get("stereo_samsung_r450" if is_samsung_stereo else "stereo_tv_generic")
-            if pan:
-                filters.append(pan)
-
-        # 4.1) Crossfeed "soft" solo se INPUT è già STEREO (non su mono, non su pseudo)
-        if is_samsung_stereo and (channels_hint == 2) and (not _has_pan(filters)) and (not pseudo_applied):
-            filters.append("pan=stereo|c0=0.92*c0+0.08*c1|c1=0.92*c1+0.08*c0")
-
-        # 5) Dialog Boost
-        try:
-            if getattr(self, "chk_dialog_boost", None) and self.chk_dialog_boost.isChecked():
-                stereo_out = self._effective_output_is_stereo(channels_hint)
-                if (not stereo_out) and (channels_hint and channels_hint >= 6):
-                    filters.append("pan=5.1(side)|FL=c0+0.06*c2|FR=c1+0.06*c2|FC=1.5*c2|LFE=c3|SL=c4|SR=c5")
-                else:
-                    filters.append("equalizer=f=2000:t=q:w=1.2:g=2")
-        except Exception:
-            pass
-
-        # 6) Stereo enhancement (se effettivamente 2ch ora)
-        try:
-            enh = (self.cmb_stereo.currentText() or "").strip()
-            if enh and enh.lower() != "nessuno":
-                enh_map = getattr(C, "AUD_STEREO_ENHANCERS", None) or {}
-                f = enh_map.get(enh)
-                if f:
-                    is_now_stereo = pseudo_applied or need_downmix or (channels_hint == 2)
-                    if is_now_stereo:
-                        filters.append(f)
-        except Exception:
-            pass
-
-        # 7) Reverb
-        try:
-            rev_key = (self.cmb_rev.currentText() or "").strip()
-        except Exception:
-            rev_key = ""
-        if rev_key and rev_key.lower() != "nessuno":
-            try:
-                rev = getattr(C, "AUD_REVERB_MAP", {}).get(rev_key)
-            except Exception:
-                rev = None
-            if rev:
-                filters.append(rev)
-
-        # 7.5) DynAudNorm
-        try:
-            if getattr(self, "chk_dyn", None) and self.chk_dyn.isChecked():
-                filters.append("dynaudnorm=f=250:g=31:p=0.95:m=50")
-        except Exception:
-            pass
-
-        # 8) Compressore
-        comp_str = None
-        try:
-            comp_sel = (self.cmb_comp_soft.currentText() or "").strip().lower()
-        except Exception:
-            comp_sel = "nessuno"
-
-        if comp_sel in ("leggero", "medio", "forte"):
-            if comp_sel == "leggero":
-                P = dict(threshold="-12dB", ratio=2.5, attack=12, release=220, knee=6, detection="rms", link="average", makeup=4)
-            elif comp_sel == "medio":
-                P = dict(threshold="-18dB", ratio=3.0, attack=10, release=280, knee=6, detection="rms", link="average", makeup=5)
-            else:
-                P = dict(threshold="-22dB", ratio=4.0, attack=8, release=350, knee=8, detection="rms", link="average", makeup=6)
-
-            dyn_on = bool(getattr(self, "chk_dyn", None) and self.chk_dyn.isChecked())
-            if dyn_on:
-                P["makeup"] = 1
-
-            P["knee"] = max(1, min(8, int(P["knee"])))
-            P["makeup"] = max(1, min(64, int(P["makeup"])))
-            P["attack"] = max(1, int(P["attack"]))
-            P["release"] = max(20, int(P["release"]))
-
-            comp_str = (
-                "acompressor="
-                f"threshold={P['threshold']}:ratio={P['ratio']}:attack={P['attack']}:release={P['release']}:"
-                f"knee={P['knee']}:link={P['link']}:detection={P['detection']}:makeup={P['makeup']}"
-            )
-            filters.append(comp_str)
-
-        # 9) Limiter (ultimo). Se NON c'è comp/dyn → piccolo boost prima
-        limiter_str = None
-        try:
-            if getattr(self, "chk_anticlip", None) and self.chk_anticlip.isChecked():
-                limiter_str = "alimiter=limit=0.965:attack=12:release=300"
-        except Exception:
-            pass
-
-        if limiter_str:
-            dyn_on = bool(getattr(self, "chk_dyn", None) and self.chk_dyn.isChecked())
-            if not comp_str and not dyn_on:
-                filters.append("volume=3dB")
-            filters.append(limiter_str)
-
-        return filters
+        if in_ch == 1:
+            # Se mantieni mono → output mono; altrimenti pseudo-stereo o downmix forzato
+            return (not keep_mono) or force_st or is_samsung_stereo
+        elif in_ch == 2:
+            return True
+        else:
+            # >2 canali: serve un downmix esplicito
+            return force_st or is_samsung_stereo
 
     def _current_detected_channels(self) -> int:
-        """
-        Rileva i canali della sorgente selezionata (traccia corrente).
-        Robusto per input interno/esterno.
-        """
         try:
             from hevc_gui.core.ffprobe_utils import probe_audio_stream
 
@@ -1952,73 +1532,68 @@ class AudioConverter(QDialog):
         except Exception:
             return 2
 
-    def _effective_output_is_stereo(self, in_ch: int) -> bool:
-        """
-        Dice se l’audio *in uscita* è (o sarà) stereo:
-          - già mono/stereo in ingresso  → True
-          - forzi "Stereo (downmix 2ch)" → True
-          - profilo Samsung stereo       → True
-          - altrimenti (5.1 senza downmix) → False
-        """
-        from hevc_gui.core import constants as C
-
-        force_st = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
-        prof = getattr(self, "_soundbar_profile", "none")
-        is_samsung_stereo = prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo")
-        if in_ch <= 2:
-            return True
-        return bool(force_st or is_samsung_stereo)
-
     def _refresh_filter_availability(self, *_):
         """
-        Abilita/disabilita i controlli in base all'input corrente.
-        Su input MONO: profili Samsung e 'Stereo (downmix 2ch)' vengono spenti e disabilitati.
+        Abilitazioni/disabilitazioni dinamiche in base a canali, profili e 'Mantieni MONO'.
+        Novità: con input MONO le checkbox restano abilitate, a meno che 'Mantieni MONO' sia spuntato.
         """
         try:
             in_ch = self._current_detected_channels()
+        except Exception:
+            in_ch = 2
+
+        # Stato widget
+        sb_st = getattr(self, "chk_sb_stereo", None)
+        sb_51 = getattr(self, "chk_sb_51", None)
+        force_st = getattr(self, "chk_force_stereo", None)
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+
+        # 1) Gestione MONO + Mantieni MONO
+        if in_ch == 1 and keep_mono:
+            # Monocanale “puro”: spegni e blocca i profili stereo/downmix
+            for w in (sb_st, sb_51, force_st):
+                if w is not None:
+                    try:
+                        w.blockSignals(True)
+                        w.setChecked(False)
+                        w.setEnabled(False)
+                        w.blockSignals(False)
+                    except Exception:
+                        pass
+            try:
+                self._soundbar_profile = "none"
+            except Exception:
+                pass
+        else:
+            # Tutto il resto: lascia scegliere liberamente
+            for w in (sb_st, sb_51, force_st):
+                if w is not None:
+                    try:
+                        w.setEnabled(True)
+                    except Exception:
+                        pass
+
+        # 2) Stereo Enh attivo solo se l'output effettivo è stereo
+        try:
             stereo_out = self._effective_output_is_stereo(in_ch)
+        except Exception:
+            stereo_out = in_ch >= 2 and not keep_mono
 
-            # GUARD MONO: su input mono spegni/disable Samsung + downmix 2ch
-            guard_mono = in_ch == 1
-
-            sb_st = getattr(self, "chk_sb_stereo", None)  # "Samsung — Stereo"
-            sb_51 = getattr(self, "chk_sb_51", None)  # "Samsung — 5.1 AC-3"
-            force_st = getattr(self, "chk_force_stereo", None)  # "Stereo (downmix 2ch)"
-
-            if guard_mono:
-                for w in (sb_st, sb_51, force_st):
-                    if w is not None:
-                        try:
-                            w.blockSignals(True)
-                            w.setChecked(False)
-                            w.setEnabled(False)
-                            w.blockSignals(False)
-                        except Exception:
-                            pass
-                try:
-                    self._soundbar_profile = "none"
-                except Exception:
-                    pass
-            else:
-                for w in (sb_st, sb_51, force_st):
-                    if w is not None:
-                        try:
-                            w.setEnabled(True)
-                        except Exception:
-                            pass
-
-            # --- Stereo Enhancer: attivo solo quando l'uscita è stereo ---
-            if getattr(self, "cmb_stereo", None):
-                self.cmb_stereo.setEnabled(stereo_out)
+        if getattr(self, "cmb_stereo", None):
+            try:
+                self.cmb_stereo.setEnabled(bool(stereo_out))
                 tip = "Attivo solo quando l’uscita è stereo." if not stereo_out else "Enhancer stereo."
                 self.cmb_stereo.setToolTip(tip)
+            except Exception:
+                pass
 
-            # --- Aggiorna label "Pan preset" se presente ---
+        # 3) Aggiorna label “Pan preset”
+        try:
             if getattr(self, "lbl_pan_preset", None):
-                from hevc_gui.core import constants as C
-
                 prof = getattr(self, "_soundbar_profile", "none")
-                if in_ch > 2 and stereo_out:
+                if in_ch == 1 and keep_mono:
+                    self.lbl_pan_preset.setText("Pan preset: — (input MONO mantenuto)")
+                elif in_ch > 2 and stereo_out:
                     preset = "Samsung R450" if prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo") else "TV generico"
                     self.lbl_pan_preset.setText(f"Pan preset: {preset} (downmix 5.1→2.0)")
                 else:
@@ -2026,54 +1601,30 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
+        # 4) Chiudi aggiornando lo stato sintetico
         self._update_pan_preset_label()
 
     def _active_pan_preset_key(self) -> str | None:
-        """
-        Usa i CONTROLLI REALI di questa finestra:
-          - 'samsung'  → quando è attivo il profilo 'Samsung — Stereo (TV J + HW-R450)'
-          - 'generic'  → quando è spuntato "Stereo (downmix 2ch)" e l'input ha >2 canali
-          - None       → altrimenti
-        """
-        # Profilo impostato da _wire_doubleclick_shortcuts()
         prof = getattr(self, "_soundbar_profile", "none")
         if prof == "samsung_stereo":
             return "samsung"
-
         try:
             in_ch = self._current_input_channels_hint()
         except Exception:
             in_ch = 2
-
         if in_ch > 2 and bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked()):
             return "generic"
-
         return None
 
     def _build_forced_pan_if_needed(self, nch: int) -> str | None:
-        """
-        Se input è stereo e il preset attivo è 'Samsung', applica un crossfeed leggero.
-        Altrimenti non forza nulla.
-        """
         key = getattr(self, "_active_pan_preset_key", lambda: None)()
         if nch == 2 and key == "samsung":
-            # crossfeed leggero L<->R
             return "pan=stereo|c0=0.92*c0+0.08*c1|c1=0.92*c1+0.08*c0"
         return None
 
     def _update_pan_placeholder(self, nch: int, forced: bool = False) -> None:
-        """
-        Aggiorna l’etichetta “Pan preset”:
-          - verde = downmix attivo (input > 2 canali)
-          - rosso = crossfeed forzato (stereo + preset Samsung)
-          - default = nessun pan
-        Cerca la QLabel sia per objectName 'lbl_pan_preset' sia per testo 'Pan preset'.
-        """
-        # 1) trova la QLabel
         lbl = getattr(self, "lbl_pan_preset", None)
         if lbl is None:
-            from PyQt5.QtWidgets import QLabel
-
             for w in self.findChildren(QLabel):
                 try:
                     t = (w.text() or "").lower()
@@ -2083,28 +1634,20 @@ class AudioConverter(QDialog):
                 except Exception:
                     pass
         if lbl is None:
-            return  # non c’è nessuna label in questa GUI: esci silenziosamente
-
-        # 2) calcola stato in base al flag 'forced' e ai canali
-        key = getattr(self, "_active_pan_preset_key", lambda: None)()
-
-        if forced:  # forzato su stereo (Samsung)
-            lbl.setText("Pan preset: Samsung (crossfeed)")
-            lbl.setStyleSheet("color: #e11d48;")  # rosso
             return
-
+        key = getattr(self, "_active_pan_preset_key", lambda: None)()
+        if forced:
+            lbl.setText("Pan preset: Samsung (crossfeed)")
+            lbl.setStyleSheet("color: #e11d48;")
+            return
         if nch > 2 and key:
             lbl.setText("Pan preset: downmix attivo")
-            lbl.setStyleSheet("color: #10b981;")  # verde
+            lbl.setStyleSheet("color: #10b981;")
         else:
             lbl.setText("Pan preset: — (nessun downmix)")
             lbl.setStyleSheet("")
 
     def _current_input_channels_hint(self) -> int:
-        """
-        Ritorna una stima dei canali della traccia selezionata (per la label).
-        Non influenza l'encode: è solo per debug/UX.
-        """
         try:
             data = self.cmb_track.currentData()
             if not isinstance(data, (tuple, list)) or not data:
@@ -2127,25 +1670,72 @@ class AudioConverter(QDialog):
 
     @pyqtSlot()
     def _update_pan_preset_label(self) -> None:
-        # stato attuale canali in ingresso (hint) e preset scelto
-        nch = self._current_input_channels_hint()
-        key = self._active_pan_preset_key()
+        """
+        Aggiorna SEMPRE la label nel footer in base a:
+          - canali input reali
+          - 'Mantieni MONO'
+          - profilo attivo (Samsung stereo / 5.1 / downmix)
+          - output effettivo (pseudo-stereo da MONO, downmix da multicanale, crossfeed Samsung)
+        """
+        # 1) Raccogli stato corrente
+        in_ch = self._current_input_channels_hint()
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+        downmix_on = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
 
-        # forziamo il pan SOLO se profilo "Samsung" ed ingresso stereo
-        forced = nch == 2 and key == "samsung"
+        prof = getattr(self, "_soundbar_profile", "none")
+        samsung_stereo = prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo")
+        samsung_51 = prof == "samsung_5_1_ac3"
 
-        # delega alla routine già esistente che colora placeholder:
-        # - verde se downmix (nch>2)
-        # - rosso se pan forzato su stereo
-        # - grigio altrimenti
-        self._update_pan_placeholder(nch, forced)
+        # 2) Calcola se l'OUTPUT sarà stereo (es. MONO→pseudo-stereo quando NON mantieni mono)
+        try:
+            eff_stereo = self._effective_output_is_stereo(in_ch)
+        except Exception:
+            eff_stereo = in_ch >= 2 and not keep_mono
+
+        # 3) Trova la label (quella creata in R14)
+        lbl = getattr(self, "lbl_pan_preset", None)
+        if lbl is None:
+            for w in self.findChildren(QLabel):
+                try:
+                    if "pan preset" in (w.text() or "").lower():
+                        lbl = w
+                        break
+                except Exception:
+                    pass
+            if lbl is None:
+                return
+
+        # 4) Casi espliciti (ordine di priorità pensato per non “rimbalzare” lo stato)
+        # 4a) MONO mantenuto: nessun preset, messaggio chiaro
+        if in_ch == 1 and keep_mono:
+            lbl.setText("Pan preset: — (input MONO mantenuto)")
+            lbl.setStyleSheet("")
+            return
+
+        # 4b) Multicanale + downmix forzato → 5.1→2.0 con preset TV o Samsung
+        if in_ch > 2 and downmix_on:
+            which = "Samsung R450" if samsung_stereo else "TV generico"
+            lbl.setText(f"Pan preset: {which} (downmix 5.1→2.0)")
+            lbl.setStyleSheet("color: #10b981;")  # verde “attivo”
+            return
+
+        # 4c) Output stereo + profilo Samsung stereo → crossfeed (vale anche da MONO→pseudo-stereo)
+        if eff_stereo and samsung_stereo:
+            lbl.setText("Pan preset: Samsung (crossfeed)")
+            lbl.setStyleSheet("color: #e11d48;")  # accento per evidenziare il profilo
+            return
+
+        # 4d) Profilo Samsung 5.1: niente pan preset (si esce in 5.1)
+        if samsung_51:
+            lbl.setText("Pan preset: — (Uscita 5.1)")
+            lbl.setStyleSheet("color: #2563eb;")
+            return
+
+        # 4e) Default: nessun downmix/crossfeed attivo
+        lbl.setText("Pan preset: — (Stereo downmix 2.0)")
+        lbl.setStyleSheet("color: #3b82f6;")
 
     def _connect_pan_preset_signals(self):
-        """
-        Aggiorna la label quando cambia qualcosa di rilevante.
-        Nota: i due checkbox profilo soundbar (chk_sb_stereo/chk_sb_51) sono
-        creati in _wire_doubleclick_shortcuts(); se esistono li connettiamo.
-        """
         try:
             if getattr(self, "chk_force_stereo", None):
                 self.chk_force_stereo.toggled.connect(self._update_pan_preset_label)
@@ -2164,76 +1754,328 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
-    def current_opts(self) -> list[str]:
+    def _build_filters_chain_from_ui(self, *, for_preview: bool, channels_hint: int) -> list[str]:
+        from hevc_gui.core import constants as C
+
+        filters: list[str] = []
+        post_dyn_makeup_db = 0.0
+
+        def _has_pan(fs: list[str]) -> bool:
+            j = ",".join(fs).lower()
+            return ("pan=stereo" in j) or ("pan=2c" in j)
+
+        def _compact_volume(filters: list[str]) -> list[str]:
+            out, pending = [], 0.0
+            for f in filters:
+                if f.startswith("volume=") and f.endswith("dB"):
+                    try:
+                        pending += float(f[len("volume=") : -2])
+                        continue
+                    except Exception:
+                        pass
+                if pending:
+                    out.append(f"volume={pending}dB")
+                    pending = 0.0
+                out.append(f)
+            if pending:
+                out.append(f"volume={pending}dB")
+            return out
+
+        prof = getattr(self, "_soundbar_profile", "none")
+        is_samsung_stereo = prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo")
+        dyn_on = bool(getattr(self, "chk_dyn", None) and self.chk_dyn.isChecked())
+
+        use_loudnorm2 = False
+        try:
+            if getattr(self, "cmb_norm", None):
+                try:
+                    from hevc_gui.core.loudness import NORM_LOUDNORM2
+
+                    use_loudnorm2 = self.cmb_norm.currentText() == NORM_LOUDNORM2
+                except Exception:
+                    txt = (self.cmb_norm.currentText() or "").lower()
+                    use_loudnorm2 = "loudnorm" in txt and "2" in txt
+            elif getattr(self, "chk_loudnorm2", None):
+                use_loudnorm2 = bool(self.chk_loudnorm2.isChecked())
+            else:
+                use_loudnorm2 = bool(getattr(self, "_force_loudnorm2", False))
+        except Exception:
+            use_loudnorm2 = bool(getattr(self, "_force_loudnorm2", False))
+
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+        pseudo_applied = False
+        if channels_hint == 1 and not keep_mono:
+            filters.append(
+                "asplit=2[a][b];[b]adelay=12:all=1,equalizer=f=3000:t=q:w=1.2:g=-1.5[br];[a][br]join=inputs=2:channel_layout=stereo"
+            )
+            pseudo_applied = True
+
+        gain_deferred = None
+        try:
+            gtxt = (self.cmb_gain.currentText() or "").strip()
+            if gtxt and gtxt not in ("0", "0dB", "Nessuno"):
+                g = float(gtxt[:-2]) if gtxt.lower().endswith("db") else float(gtxt)
+                if abs(g) > 0.0001:
+                    if dyn_on:
+                        gain_deferred = f"volume={g}dB"
+                    else:
+                        filters.append(f"volume={g}dB")
+        except Exception:
+            pass
+
+        try:
+            if getattr(self, "chk_nr", None) and self.chk_nr.isChecked():
+                nr_txt = (self.in_nr.text() or "").strip()
+                if nr_txt:
+                    val = float(nr_txt.replace(",", "."))
+                    if 1 <= val <= 30:
+                        filters.append(f"afftdn=nf=-{val:.1f}")
+        except Exception:
+            pass
+
+        def _eq_piece(cmb, freq: int):
+            try:
+                txt = (cmb.currentText() or "").strip().replace(",", ".")
+                if not txt or txt.lower() == "nessuno":
+                    return
+                v = float(txt)
+                if abs(v) > 0.0001:
+                    filters.append(f"equalizer=f={freq}:t=q:w=1:g={v}")
+            except Exception:
+                pass
+
+        _eq_piece(self.cmb_eq_bass, 60)
+        _eq_piece(self.cmb_eq_mid, 1000)
+        _eq_piece(self.cmb_eq_treb, 3000)
+
+        force_st = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
+        need_downmix = bool(force_st and (channels_hint and channels_hint > 2) and not _has_pan(filters))
+        if need_downmix:
+            pan = C.AUD_PAN_PRESETS.get("stereo_samsung_r450" if is_samsung_stereo else "stereo_tv_generic")
+            if pan:
+                filters.append(pan)
+
+        if is_samsung_stereo and (channels_hint == 2) and (not _has_pan(filters)) and (not pseudo_applied):
+            filters.append("pan=stereo|c0=0.92*c0+0.08*c1|c1=0.92*c1+0.08*c0")
+            if not use_loudnorm2:
+                if dyn_on:
+                    post_dyn_makeup_db += 2.0
+                else:
+                    filters.append("volume=2dB")
+
+        try:
+            if getattr(self, "chk_dialog_boost", None) and self.chk_dialog_boost.isChecked():
+                stereo_out = self._effective_output_is_stereo(channels_hint)
+                if (not stereo_out) and (channels_hint and channels_hint >= 6):
+                    filters.append("pan=5.1(side)|FL=c0+0.06*c2|FR=c1+0.06*c2|FC=1.5*c2|LFE=c3|SL=c4|SR=c5")
+                else:
+                    filters.append("equalizer=f=2000:t=q:w=1.2:g=2")
+        except Exception:
+            pass
+
+        try:
+            enh = (self.cmb_stereo.currentText() or "").strip()
+            if enh and enh.lower() != "nessuno":
+                enh_map = getattr(C, "AUD_STEREO_ENHANCERS", None) or {}
+                f = enh_map.get(enh)
+                if f:
+                    is_now_stereo = pseudo_applied or need_downmix or (channels_hint == 2)
+                    if is_now_stereo:
+                        filters.append(f)
+        except Exception:
+            pass
+
+        try:
+            rev_key = (self.cmb_rev.currentText() or "").strip()
+        except Exception:
+            rev_key = ""
+        if rev_key and rev_key.lower() != "nessuno":
+            try:
+                rev = getattr(C, "AUD_REVERB_MAP", {}).get(rev_key)
+            except Exception:
+                rev = None
+            if rev:
+                filters.append(rev)
+
+        if dyn_on:
+            filters.append("dynaudnorm=f=250:g=31:p=0.95:m=50")
+            if gain_deferred:
+                filters.append(gain_deferred)
+            if post_dyn_makeup_db:
+                filters.append(f"volume={post_dyn_makeup_db}dB")
+
+        comp_str = None
+        try:
+            comp_sel = (self.cmb_comp_soft.currentText() or "").strip().lower()
+        except Exception:
+            comp_sel = "nessuno"
+        if comp_sel in ("leggero", "medio", "forte"):
+            if comp_sel == "leggero":
+                P = dict(threshold="-12dB", ratio=2.5, attack=12, release=220, knee=6, detection="rms", link="average", makeup=4)
+            elif comp_sel == "medio":
+                P = dict(threshold="-18dB", ratio=3.0, attack=10, release=280, knee=6, detection="rms", link="average", makeup=5)
+            else:
+                P = dict(threshold="-22dB", ratio=4.0, attack=8, release=350, knee=8, detection="rms", link="average", makeup=6)
+            if dyn_on:
+                P["makeup"] = 1
+            P["knee"] = max(1, min(8, int(P["knee"])))
+            P["makeup"] = max(1, min(64, int(P["makeup"])))
+            P["attack"] = max(1, int(P["attack"]))
+            P["release"] = max(20, int(P["release"]))
+            comp_str = (
+                "acompressor="
+                f"threshold={P['threshold']}:ratio={P['ratio']}:attack={P['attack']}:release={P['release']}:"
+                f"knee={P['knee']}:link={P['link']}:detection={P['detection']}:makeup={P['makeup']}"
+            )
+            filters.append(comp_str)
+
+        limiter_str = None
+        try:
+            if getattr(self, "chk_anticlip", None) and self.chk_anticlip.isChecked():
+                limiter_str = "alimiter=limit=0.965:attack=12:release=300"
+        except Exception:
+            pass
+        if limiter_str:
+            if (comp_str is None) and (not dyn_on):
+                filters.append("volume=3dB")
+            filters.append(limiter_str)
+
+        filters = _compact_volume(filters)
+        return filters
+
+    def _fmt_audio_title_from_flags(self, *, lang: str, codec: str, ac: int, ar: int | None, br: str | None) -> str:
+        lang_full = self._lang_human(lang)
+        codec_lbl = {"aac": "AAC", "libfdk_aac": "AAC", "ac3": "AC-3", "eac3": "E-AC-3"}.get(str(codec).lower(), str(codec).upper())
+        ch_lbl = {1: "1.0", 2: "2.0", 6: "5.1"}.get(int(ac), f"{ac}ch")
+        sr_lbl = (
+            f"{int(ar) // 1000 * 1} kHz"
+            if ar
+            else (
+                f"{int(self.cmb_sr.currentText()) // 1000 * 1} kHz"
+                if getattr(self, "cmb_sr", None) and self.cmb_sr.currentText().isdigit()
+                else None
+            )
+        )
+        br_lbl = None
+        if br:
+            try:
+                v = int(str(br).lower().replace("k", "").replace("kb/s", "").replace("kbps", "").replace("kbit/s", ""))
+                br_lbl = f"{v} kb/s"
+            except Exception:
+                br_lbl = str(br)
+        parts = [lang_full, f"{codec_lbl} {ch_lbl}"]
+        if sr_lbl:
+            parts.append(sr_lbl)
+        if br_lbl:
+            parts.append(br_lbl)
+        return " • ".join(parts)
+
+    @pyqtSlot()
+    def add_seg(self):
         """
-        Ritorna una bozza di opzioni audio coerente con la GUI per mostrare/esportare
-        un comando d’esempio (DEMO). Riflette la stessa logica di add_seg():
-          - MONO + 'Mantieni MONO' → AAC 1.0 @ 96k (se combo br = 'Nessuno')
-          - STEREO (anche upmix da mono) → AAC 2.0 @ max(originale, 128k) (se combo br = 'Nessuno')
-          - Samsung 5.1 reale → AC-3 5.1 @ 48kHz @ 448k (se combo br = 'Nessuno')
+        Aggiunge **una** traccia audio alla batch.
+        Lingua presa SOLO da self.cmb_lang (niente dialoghi).
         """
+        is_ext = bool(self.audio_externo)
+        lang = self._lang_code_from_combo() or "und"
 
-        # niente demo per audio esterno o se manca il file
-        if self.audio_externo or not self.file:
-            return []
+        if is_ext:
+            if not self.external_audio_file:
+                QMessageBox.warning(self, "Audio esterno", "Nessun file audio esterno caricato.")
+                return
+            src_path = str(self.external_audio_file)
+            sidx = 0
+            map_str = "0:a:0"
+            idx_for_orig = 0
+        else:
+            data = self.cmb_track.currentData()
+            if not isinstance(data, (tuple, list)) or len(data) < 3:
+                QMessageBox.warning(self, "Audio", "Seleziona una traccia valida.")
+                return
+            idx, _old_lang, br = data
+            if idx < 0:
+                QMessageBox.warning(self, "Audio", "Seleziona una traccia valida.")
+                return
+            cur_txt = self._fmt_track_label(idx, lang, br)
+            self.cmb_track.setItemText(self.cmb_track.currentIndex(), cur_txt)
+            self.cmb_track.setItemData(self.cmb_track.currentIndex(), (idx, lang, br))
 
-        data = self.cmb_track.currentData()
-        if not isinstance(data, (tuple, list)) or len(data) < 3:
-            return []
-        idx, lang, br = data
-        if idx < 0 or lang is None:
-            return []
+            src_path = str(self.file)
+            sidx = int(str(idx).split(":")[-1])
+            map_str = f"0:a:{sidx}"
+            idx_for_orig = idx
 
-        # canali di ingresso per comporre la catena coerente
         detected_ch = 2
-        sidx = int(str(idx).split(":")[-1])
         try:
             from hevc_gui.core.ffprobe_utils import probe_audio_stream
 
-            info = probe_audio_stream(str(self.file), stream_index=sidx) or {}
+            info = probe_audio_stream(src_path, stream_index=sidx) or {}
             detected_ch = int(info.get("channels") or 2)
         except Exception:
             pass
 
-        # catena filtri reale (include pseudo-stereo da mono se 'Mantieni MONO' è OFF)
-        filters = self._build_filters_chain_from_ui(for_preview=False, channels_hint=detected_ch)
-        af_chain = ",".join(filters) if filters else None
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+        if detected_ch == 1 and not keep_mono:
+            try:
+                self._soundbar_profile = "none"
+            except Exception:
+                pass
 
-        # stato profili / stereo downmix
         prof = getattr(self, "_soundbar_profile", "none")
         force_stereo = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
-        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
         wants_51 = (prof == "samsung_5_1_ac3") and (not force_stereo)
 
-        # sample rate dalla combo (se numerico)
-        sr = self.cmb_sr.currentText() if getattr(self, "cmb_sr", None) else "Nessuno"
-        ar = int(sr) if (sr and sr.isdigit()) else None
+        filters = self._build_filters_chain_from_ui(for_preview=False, channels_hint=detected_ch)
 
-        # bitrate scelto dall'utente?
-        user_br_txt = None
         try:
-            ct = (self.cmb_br.currentText() or "").strip()
-            if ct and ct.lower() != "nessuno":
-                user_br_txt = ct
+            from hevc_gui.core.loudness import NORM_LOUDNORM2
+        except Exception:
+            NORM_LOUDNORM2 = None
+        try:
+            if NORM_LOUDNORM2 is not None and getattr(self, "cmb_norm", None) and self.cmb_norm.currentText() == NORM_LOUDNORM2:
+                try:
+                    from hevc_gui.core.loudness import measure_loudnorm_smart, build_second_pass_filter_from_json
+
+                    stats = measure_loudnorm_smart(src_path, a_stream_idx=sidx, t=120)
+                    if stats:
+                        filters += build_second_pass_filter_from_json(stats, anticlipping=False)
+                except Exception:
+                    from hevc_gui.core.loudness import DEFAULT_I, DEFAULT_TP, DEFAULT_LRA
+
+                    filters.append(f"loudnorm=I={DEFAULT_I}:TP={DEFAULT_TP}:LRA={DEFAULT_LRA}")
         except Exception:
             pass
 
-        # bitrate originale (se noto)
+        af_chain = ",".join(filters) if filters else None
+
         def _parse_kbps(s: str | None) -> int | None:
             if not s:
                 return None
             digs = "".join(ch for ch in str(s).lower() if ch.isdigit())
             return int(digs) if digs else None
 
-        orig_br_txt = self._orig_bitrates.get(idx, None)
-        if not orig_br_txt:
-            try:
-                orig_br_txt = self._probe_audio_bitrate_label(str(self.file), sidx)
-            except Exception:
-                orig_br_txt = None
+        user_br_txt = None
+        try:
+            if getattr(self, "cmb_br", None):
+                ct = (self.cmb_br.currentText() or "").strip()
+                if ct and ct.lower() != "nessuno":
+                    user_br_txt = ct
+        except Exception:
+            pass
+
+        orig_br_txt = None
+        try:
+            if is_ext:
+                orig_br_txt = self._probe_audio_bitrate_label(src_path, 0)
+            else:
+                orig_br_txt = self._orig_bitrates.get(idx_for_orig) or self._probe_audio_bitrate_label(str(self.file), sidx)
+        except Exception:
+            orig_br_txt = None
         orig_kbps = _parse_kbps(orig_br_txt)
 
-        # codec/canali/bitrate (demo = stessa logica di add_seg)
+        sr_sel = self.cmb_sr.currentText() if getattr(self, "cmb_sr", None) else "Nessuno"
+        ar = int(sr_sel) if (sr_sel and sr_sel != "Nessuno" and sr_sel.isdigit()) else None
+
         if wants_51:
             codec, ac = "ac3", 6
             if not ar:
@@ -2253,13 +2095,10 @@ class AudioConverter(QDialog):
                     else:
                         br_eff = f"{orig_kbps}k"
 
-        # title coerente coi flag
         try:
             title = self._fmt_audio_title_from_flags(lang=lang, codec=codec, ac=ac, ar=ar, br=br_eff)
         except Exception:
-            from hevc_gui.core import constants as C
-
-            parts = [C.LANGUAGE_NAMES.get(lang, lang)]
+            parts = [self._lang_human(lang)]
             parts.append("AC-3 5.1" if (codec == "ac3" and ac == 6) else f"AAC {ac}ch")
             if ar:
                 parts.append(f"{ar // 1000} kHz")
@@ -2267,114 +2106,143 @@ class AudioConverter(QDialog):
                 parts.append(str(br_eff))
             title = " • ".join(parts)
 
-        # costruzione segmento demo (niente -i qui: è solo “opts”)
         tag = len(self.batch.items)
-        seg: list[str] = [
-            "-map",
-            f"0:a:{idx}",
-            f"-metadata:s:a:{tag}",
-            f"title={title}",
-            f"-c:a:{tag}",
-            codec,
-            f"-ac:{tag}",
-            str(ac),
-        ]
+        seg: list[str] = ["-i", src_path, "-map", map_str, "-vn"]
+        if af_chain:
+            seg += ["-af", af_chain]
+        seg += [f"-c:a:{tag}", codec, f"-ac:{tag}", str(ac)]
+        if ar:
+            seg += [f"-ar:{tag}", str(ar)]
+        if br_eff:
+            seg += [f"-b:a:{tag}", str(br_eff)]
+        seg += [f"-metadata:s:a:{tag}", f"language={lang}", f"-metadata:s:a:{tag}", f"title={title}"]
+
+        self.batch.add(seg)  # <— INSERISCE DAVVERO
+        badge = "  [🔊 5.1]" if (codec == "ac3" and ac == 6) else ""
+        self.list.addItem(" ".join(shlex.quote(a) for a in seg) + badge)
+
+        if not is_ext:
+            self.btn_add.setEnabled(False)
+
+    def current_opts(self) -> list[str]:
+        """
+        Bozza opzioni audio coerente con GUI (DEMO).
+        Niente demo per audio esterno o se manca il file.
+        """
+        if self.audio_externo or not self.file:
+            return []
+        data = self.cmb_track.currentData()
+        if not isinstance(data, (tuple, list)) or len(data) < 3:
+            return []
+        idx, lang, br = data
+        if idx < 0 or lang is None:
+            return []
+
+        detected_ch = 2
+        sidx = int(str(idx).split(":")[-1])
+        try:
+            from hevc_gui.core.ffprobe_utils import probe_audio_stream
+
+            info = probe_audio_stream(str(self.file), stream_index=sidx) or {}
+            detected_ch = int(info.get("channels") or 2)
+        except Exception:
+            pass
+
+        filters = self._build_filters_chain_from_ui(for_preview=False, channels_hint=detected_ch)
+        af_chain = ",".join(filters) if filters else None
+
+        prof = getattr(self, "_soundbar_profile", "none")
+        force_stereo = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+        wants_51 = (prof == "samsung_5_1_ac3") and (not force_stereo)
+
+        sr = self.cmb_sr.currentText() if getattr(self, "cmb_sr", None) else "Nessuno"
+        ar = int(sr) if (sr and sr.isdigit()) else None
+
+        def _parse_kbps(s: str | None) -> int | None:
+            if not s:
+                return None
+            digs = "".join(ch for ch in str(s).lower() if ch.isdigit())
+            return int(digs) if digs else None
+
+        user_br_txt = None
+        try:
+            ct = (self.cmb_br.currentText() or "").strip()
+            if ct and ct.lower() != "nessuno":
+                user_br_txt = ct
+        except Exception:
+            pass
+
+        orig_br_txt = self._orig_bitrates.get(idx, None)
+        if not orig_br_txt:
+            try:
+                orig_br_txt = self._probe_audio_bitrate_label(str(self.file), sidx)
+            except Exception:
+                orig_br_txt = None
+        orig_kbps = _parse_kbps(orig_br_txt)
+
+        if wants_51:
+            codec, ac = "ac3", 6
+            if not ar:
+                ar = 48000
+            br_eff = user_br_txt or "448k"
+        else:
+            if detected_ch == 1 and keep_mono:
+                codec, ac = "aac", 1
+                br_eff = user_br_txt or "96k"
+            else:
+                codec, ac = "aac", 2
+                if user_br_txt:
+                    br_eff = user_br_txt
+                else:
+                    br_eff = "128k" if (orig_kbps is None or orig_kbps < 128) else f"{orig_kbps}k"
+
+        try:
+            title = self._fmt_audio_title_from_flags(lang=lang, codec=codec, ac=ac, ar=ar, br=br_eff)
+        except Exception:
+            parts = [self._lang_human(lang)]
+            parts.append("AC-3 5.1" if (codec == "ac3" and ac == 6) else f"AAC {ac}ch")
+            if ar:
+                parts.append(f"{ar // 1000} kHz")
+            if br_eff:
+                parts.append(str(br_eff))
+            title = " • ".join(parts)
+
+        tag = len(self.batch.items)
+        seg: list[str] = ["-map", f"0:a:{idx}", f"-metadata:s:a:{tag}", f"title={title}", f"-c:a:{tag}", codec, f"-ac:{tag}", str(ac)]
         if br_eff:
             seg += [f"-b:a:{tag}", str(br_eff)]
         if ar:
             seg += [f"-ar:{tag}", str(ar)]
         if af_chain:
             seg += ["-af", af_chain]
-
         return seg
-
-    @pyqtSlot(int)
-    def _on_track_changed(self, combo_idx: int):
-        data = self.cmb_track.itemData(combo_idx)
-        if not data:
-            self.btn_add.setEnabled(False)
-            return
-
-        idx, lang, br = data
-        if idx < 0:
-            self.btn_add.setEnabled(False)
-            return
-
-        # Se manca la lingua, chiedila; bitrate: prendi l’originale se disponibile
-        if lang is None:
-            dlg = TagDialog(self)
-            if dlg.exec_() != QDialog.Accepted:
-                self.cmb_track.setCurrentIndex(0)
-                return
-            lang = dlg.selected()
-            _ = self._orig_bitrates.get(idx, "Nessuno")
-
-        label = self._fmt_track_label(idx, lang, br)
-        self.cmb_track.setItemText(combo_idx, label)
-        self.cmb_track.setItemData(combo_idx, (idx, lang, br))
-        self.btn_add.setEnabled(True)
-
-    @pyqtSlot(str)
-    def _update_track_title(self, new_br: str):
-        combo_idx = self.cmb_track.currentIndex()
-        data = self.cmb_track.itemData(combo_idx)
-        if not data:
-            return
-
-        idx, lang, _ = data
-        if idx < 0:
-            return
-
-        # Se l'utente mette "Nessuno", usa il bitrate originale (se esiste)
-        br = new_br if new_br != "Nessuno" else self._orig_bitrates.get(idx, "Nessuno")
-        label = self._fmt_track_label(idx, lang, br)
-        self.cmb_track.setItemText(combo_idx, label)
-        self.cmb_track.setItemData(combo_idx, (idx, lang, new_br))
-
-    @pyqtSlot()
-    def make_preview(self):
-        """Entry point unico del Preview (usato da bottoni/azioni/UI)."""
-        import traceback
-
-        try:
-            print("[UI] make_preview() chiamata → run_preview(self)", flush=True)
-            run_preview(self)
-            print("[UI] make_preview() OK (run_preview ha terminato)", flush=True)
-        except Exception as e:
-            print("[UI][ERRORE] make_preview():", e, flush=True)
-            print(traceback.format_exc(), flush=True)
 
     @pyqtSlot()
     def finish(self):
         """
         Chiude il dialog restituendo il batch dei comandi.
-        Se in modalità interna e non ci sono tracce aggiunte, chiede conferma UNA sola volta.
+        Se interna e vuota, chiede conferma UNA sola volta.
         """
-        # --- ESTERNA ---
         if self.audio_externo:
             if not self.external_audio_file:
                 QMessageBox.warning(self, "Errore", "Nessuna traccia esterna caricata.")
                 return
             if not self.batch.items:
                 seg = ["-i", self.external_audio_file, "-map", "0:a", "-c:a", "copy"]
-                if self.external_audio_lang:
-                    seg += ["-metadata:s:a:0", f"language={self.external_audio_lang}"]
+                lang = self._lang_code_from_combo() or "und"
+                seg += ["-metadata:s:a:0", f"language={lang}"]
                 self.batch.add(seg)
             for i, seg in enumerate(self.batch.items):
                 if seg[0] != "-i":
                     self.batch.items[i] = ["-i", str(self.external_audio_file)] + seg
-
-            # Imposto il flag prima di accept()
             self._closing_via_finish = True
             self.batch.flush()
             self.accept()
             return
 
-        # --- INTERNA ---
         if not self.batch.items:
-            # metto subito il flag, così closeEvent non ridomanda
             self._closing_via_finish = True
-
             reply = QMessageBox.question(
                 self,
                 "Nessuna traccia",
@@ -2383,25 +2251,19 @@ class AudioConverter(QDialog):
                 QMessageBox.No,
             )
             if reply != QMessageBox.Yes:
-                # se NO: annullo il flag e non chiudo
                 self._closing_via_finish = False
                 return
 
-        # Se qui ho segmenti o l’utente ha confermato, preparo il batch
         for i, seg in enumerate(self.batch.items):
             if seg[0] != "-i":
                 self.batch.items[i] = ["-i", str(self.file)] + seg
 
-        # Finalizzo
         self._closing_via_finish = True
         self.batch.flush()
         self.accept()
 
     def _build_audio_filters(self) -> list[str]:
-        """
-        Costruisce la catena -af **coerente con la GUI** delegando alla funzione ufficiale
-        (niente fallback, niente aresample/dynaudnorm automatici).
-        """
+        """Compat: delega alla chain ufficiale, senza fallback."""
         detected_ch = 2
         try:
             data = self.cmb_track.currentData()
@@ -2413,7 +2275,6 @@ class AudioConverter(QDialog):
                 detected_ch = int(info.get("channels") or 2)
         except Exception:
             pass
-
         return self._build_filters_chain_from_ui(for_preview=False, channels_hint=detected_ch)
 
     def _on_conversion_finished(self):
@@ -2447,16 +2308,13 @@ class AudioConverter(QDialog):
 
     def _reset_defaults(self):
         """
-        Ripristina tutti i controlli ai valori di default,
-        incluso deselezionare 'Tratta come muto'.
-        Mantiene self.file e il path mostrato; ripopola la combo tracce dal file.
+        Ripristina i controlli ai default, deseleziona 'Tratta come muto',
+        ripopola la combo tracce dal file corrente e pulisce la lista/batch.
         """
-        # 1) Torno a modalità normale (deseleziono la checkbox) e stato esterno OFF
         if getattr(self, "chk_force_mute", None):
             self.chk_force_mute.setChecked(False)
         self.audio_externo = False
 
-        # 2) Ripristino la combo delle tracce in base al file caricato (se presente)
         self.cmb_track.clear()
         self.cmb_track.addItem("Seleziona traccia…", (-1, None, None))
         if self.file:
@@ -2466,17 +2324,23 @@ class AudioConverter(QDialog):
                 tracks = []
             if tracks:
                 self._orig_bitrates.clear()
+                self._orig_channels.clear()
+                cur_lang = self._lang_code_from_combo()
                 for pos, (idx_raw, title) in enumerate(tracks):
                     a_idx = self._norm_audio_index(idx_raw, pos)
                     br_lbl = self._probe_audio_bitrate_label(str(self.file), a_idx)
                     if br_lbl:
                         self._orig_bitrates[a_idx] = br_lbl
-                    label = f"Traccia {a_idx}" + (f" – {title}" if title else "")
-                    self.cmb_track.addItem(label, (a_idx, None, br_lbl or "Nessuno"))
+                    ch = self._probe_audio_channels(str(self.file), a_idx)
+                    if ch:
+                        self._orig_channels[a_idx] = ch
+                    label = self._fmt_track_label(a_idx, cur_lang, br_lbl or "Nessuno")
+                    if title:
+                        label += f" – {title}"
+                    self.cmb_track.addItem(label, (a_idx, cur_lang, br_lbl or "Nessuno"))
                 self.cmb_track.setEnabled(True)
             else:
                 self.cmb_track.setEnabled(False)
-            # ri-mostra il path del file (lo manteniamo)
             try:
                 self.path.setText(str(self.file))
             except Exception:
@@ -2484,7 +2348,6 @@ class AudioConverter(QDialog):
         else:
             self.cmb_track.setEnabled(False)
 
-        # 3) Svuoto batch e lista comandi (riparto pulito)
         try:
             self.batch.items.clear()
         except Exception:
@@ -2494,17 +2357,12 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
-        # 4) Riporto tutti i controlli ai valori iniziali
         for safe in (
             lambda: self.cmb_br.setCurrentText("Nessuno"),
             lambda: self.cmb_sr.setCurrentText("Nessuno"),
             lambda: self.cmb_gain.setCurrentText("0"),
             lambda: self.chk_nr.setChecked(False),
-            lambda: (
-                self.in_nr.clear(),
-                self.in_nr.setEnabled(False),
-                self.in_nr.setStyleSheet(""),
-            ),
+            lambda: (self.in_nr.clear(), self.in_nr.setEnabled(False), self.in_nr.setStyleSheet("")),
             lambda: self.cmb_eq_bass.setCurrentText("0"),
             lambda: self.cmb_eq_mid.setCurrentText("0"),
             lambda: self.cmb_eq_treb.setCurrentText("0"),
@@ -2539,7 +2397,6 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
-        # 5) Nascondi log e progress bar (se esistono)
         try:
             if getattr(self, "txt_log", None):
                 self.txt_log.hide()
@@ -2551,17 +2408,98 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
+    # ======== MUTUA ESCLUSIONE PROFILI AUDIO ========
+    def _setup_exclusive_audio_profiles(self):
+        """
+        Rende mutuamente esclusivi:
+          - self.chk_force_stereo   (Stereo downmix 2ch)
+          - self.chk_sb_stereo      (Samsung — Stereo)
+          - self.chk_sb_51          (Samsung — 5.1 AC-3)
+        Consentito lo stato 'nessuna' (tutti OFF).
+        """
+        self._excl_guard = False
+        self._exclusive_cbs = [
+            getattr(self, "chk_force_stereo", None),
+            getattr(self, "chk_sb_stereo", None),
+            getattr(self, "chk_sb_51", None),
+        ]
+        self._exclusive_cbs = [cb for cb in self._exclusive_cbs if cb is not None]
+        if not self._exclusive_cbs:
+            return
+        for cb in self._exclusive_cbs:
+            cb.toggled.connect(lambda on, who=cb: self._on_exclusive_cb_toggled(who, on))
+        self._apply_profile_from_state()
 
+    def _on_exclusive_cb_toggled(self, source_cb, is_on: bool):
+        if self._excl_guard:
+            return
+        self._excl_guard = True
+        try:
+            if is_on:
+                for cb in self._exclusive_cbs:
+                    if cb is not source_cb and cb.isChecked():
+                        try:
+                            cb.blockSignals(True)
+                            cb.setChecked(False)
+                            cb.blockSignals(False)
+                        except Exception:
+                            pass
+            self._apply_profile_from_state()
+        finally:
+            self._excl_guard = False
+        self._after_profile_change()
+
+    def _apply_profile_from_state(self):
+        downmix_on = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
+        sb_st_on = bool(getattr(self, "chk_sb_stereo", None) and self.chk_sb_stereo.isChecked())
+        sb_51_on = bool(getattr(self, "chk_sb_51", None) and self.chk_sb_51.isChecked())
+        if sb_51_on:
+            self._active_profile = "sb_51"
+            self._soundbar_profile = "samsung_5_1_ac3"
+        elif sb_st_on:
+            self._active_profile = "sb_tvj"
+            self._soundbar_profile = "samsung_stereo"
+        elif downmix_on:
+            self._active_profile = "downmix"
+            self._soundbar_profile = "none"
+        else:
+            self._active_profile = "none"
+            self._soundbar_profile = "none"
+
+    def _after_profile_change(self):
+        try:
+            self._update_pan_preset_label()
+        except Exception:
+            pass
+        try:
+            self._refresh_filter_availability()
+        except Exception:
+            pass
+        for maybe in (
+            "_update_example_preview_cmd",
+            "update_ffmpeg_preview",
+            "_update_ffmpeg_textarea",
+            "_refresh_preview_and_cmd",
+            "on_audio_params_changed",
+        ):
+            fn = getattr(self, maybe, None)
+            if callable(fn):
+                try:
+                    fn()
+                    break
+                except Exception:
+                    continue
+
+
+# === Main ===
 if __name__ == "__main__":
     import argparse
-    import sys
-    import os
     from PyQt5.QtWidgets import QApplication
 
     parser = argparse.ArgumentParser(description="Generatore stringa audio (HEVC-GUI)")
     parser.add_argument("--audio", help="File audio ESTERNO (mp3/flac/aac/ac3...) da usare come sorgente")
-    parser.add_argument("--lang", default="und", help="Lingua traccia esterna (es. ITA, ENG, und)")
-    parser.add_argument("--force-stereo", action="store_true", help="Spunta 'Stereo (downmix 2ch)' (utile per input mono)")
+    parser.add_argument("--lang", default="und", help="Lingua traccia esterna (es. ita, eng, und)")
+    parser.add_argument("--force-stereo", action="store_true", help="Spunta 'Stereo (downmix 2ch)'")
     parser.add_argument("--headless", action="store_true", help="Non mostra la finestra: genera JSON e stampa")
     parser.add_argument("--show-cmd", action="store_true", help="Mostra la text-box del comando/preview")
     args = parser.parse_args()
@@ -2570,19 +2508,22 @@ if __name__ == "__main__":
         os.environ["HEVC_PREVIEW_SHOW_CMD_BOX"] = "1"
 
     app = QApplication(sys.argv)
-    # niente file video: lavoriamo in “audio esterno”
     dlg = AudioConverter(auto="", parent=None)
 
     if args.audio:
-        # entra in modalità "audio esterno" e carica il file
         dlg.chk_force_mute.setChecked(True)
         dlg.load_external_audio(args.audio)
-        dlg.external_audio_lang = args.lang
+        # usa la combo se presente; in CLI consenti override con --lang
+        try:
+            idx = dlg.cmb_lang.findData((args.lang or "und").lower().strip())
+            if idx >= 0:
+                dlg.cmb_lang.setCurrentIndex(idx)
+        except Exception:
+            pass
         if args.force_stereo and hasattr(dlg, "chk_force_stereo"):
-            dlg.chk_force_stereo.setChecked(True)  # per test pseudo-stereo su input mono
+            dlg.chk_force_stereo.setChecked(True)
 
     if args.headless:
-        # aggiungi traccia e STAMPA SUBITO il JSON (batch.flush() in finish())
         dlg.add_seg()
         dlg.finish()
         sys.exit(0)
@@ -2594,3 +2535,4 @@ if __name__ == "__main__":
 StringAudioGenerator = AudioConverter
 
 __all__ = ["AudioConverter", "StringAudioGenerator"]
+# [FINE FILE]

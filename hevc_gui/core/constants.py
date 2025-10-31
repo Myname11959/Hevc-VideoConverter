@@ -243,12 +243,51 @@ CHANNEL_COLORS = {
 }
 
 # ──────────────────────────── GUI: alias lingua & pattern ────────────────────
+# Elenco ufficiale per UI e metadata (ISO 639-2 a 3 lettere, minuscolo)
+LANG_CHOICES = [
+    ("ita", "Italiano"),
+    ("eng", "Inglese"),
+    ("fra", "Francese"),
+    ("spa", "Spagnolo"),
+    ("deu", "Tedesco"),
+    ("por", "Portoghese"),
+    ("rus", "Russo"),
+    ("jpn", "Giapponese"),
+    ("zho", "Cinese"),
+]
+
 AUDIO_LANG_ALIASES = {
     "ita": {"ita", "italiano", "it", "italian"},
     "eng": {"eng", "inglese", "en", "english"},
     "fra": {"fra", "francese", "fr", "french"},
     "spa": {"spa", "spagnolo", "es", "spanish"},
 }
+# Alias ampliati (accetta 2 lettere e varianti storiche)
+AUDIO_LANG_ALIASES.update(
+    {
+        "deu": {"deu", "ger", "tedesco", "de", "german"},
+        "por": {"por", "pt", "portuguese", "portoghese", "br"},
+        "rus": {"rus", "ru", "russian", "russo"},
+        "jpn": {"jpn", "ja", "japanese", "giapponese"},
+        "zho": {"zho", "chi", "zh", "cinese", "chinese", "zh-cn", "zh-tw"},
+    }
+)
+
 
 # estrae "1" da "Traccia 1 – Italiano – 128k" → poi lo trasformiamo in 0-based
 TRACK_TEXT_PATTERN = r"\b(\d+)\b"
+
+# === Limiti CPU quando si elabora in GUI ===
+CPU_LIMITS_ENABLE = True  # disattiva qui se non li vuoi in GUI
+CPU_NICE = 10  # nice(10) → priorità più bassa
+CPU_IONICE_CLASS = 2  # 2 = best-effort
+CPU_IONICE_N = 5  # priorità 0..7 (più alto = meno prioritario)
+CPU_TASKSET = ""  # es. "0-1" per pinnare ai core 0-1; "" = disattivo
+CPU_CPULIMIT = 85  # percentuale (cpulimit); 0/None = disattivo
+
+# === Limiti interni ffmpeg (ribaditi anche in GUI)
+FFMPEG_VIDEO_THREADS = 2
+FFMPEG_X265_POOLS = "2"
+FFMPEG_X265_FRAME_THREADS = "1"
+FFMPEG_AUDIO_THREADS = 1
+FFMPEG_FILTER_THREADS = 1

@@ -369,6 +369,9 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        # collega un logger di istanza per le .exception() usate nel file
+        self.logger = logger
+
         # DEBUG: verifica tema e style correnti
         logging.debug("--> ENV QT_QPA_PLATFORMTHEME = %s", os.environ.get("QT_QPA_PLATFORMTHEME"))
         logging.debug("--> ENV GTK_THEME           = %s", os.environ.get("GTK_THEME"))
@@ -449,10 +452,10 @@ class MainWindow(QMainWindow):
             logo_label.setPixmap(pix)
         h1 = QHBoxLayout()
         h1.addWidget(logo_label)
-        btn_open = QPushButton("Apri video…")
-        btn_open.setToolTip("Seleziona un file video da convertire")
-        btn_open.clicked.connect(self.open_file)
-        h1.addWidget(btn_open)
+        self.btn_open = QPushButton("Apri video…")
+        self.btn_open.setToolTip("Seleziona un file video da convertire")
+        self.btn_open.clicked.connect(self.open_file)
+        h1.addWidget(self.btn_open)
         self.edit_path = PathLineEdit()
         self.edit_path.setToolTip("Percorso del file video da convertire")
         self.edit_path.textChanged.connect(self._path_changed)
@@ -767,6 +770,41 @@ class MainWindow(QMainWindow):
             if act:
                 act.setEnabled(on)
 
+    def _wrap_with_cpu_limits(self, cmd: list[str]) -> list[str]:
+        """
+        GUI-safe: per default NON wrappa con cpulimit/ionice/nice.
+        I limiti di carico li otteniamo già con:
+          • Video:  -threads N  (+ -x265-params pools=..:frame-threads=..)
+          • Audio:  -filter_threads 1 -threads 1
+        Se vuoi davvero usare cpulimit anche in GUI, esporta HEVC_USE_CPULIMIT=1.
+        """
+        import os
+        import shutil
+
+        use_cap = os.getenv("HEVC_USE_CPULIMIT", "0") == "1"
+        if not use_cap:
+            return cmd  # nessun wrapper, via liscia
+
+        # Opt-in: solo se tutto esiste
+        cpulimit_bin = shutil.which("cpulimit")
+        ionice_bin = shutil.which("ionice")
+        nice_bin = shutil.which("nice")
+        if not cpulimit_bin or not ionice_bin or not nice_bin:
+            return cmd
+
+        # Valori "soft"
+        cpu_limit = os.getenv("HEVC_CPU_LIMIT", "85")
+        ionice_c = os.getenv("HEVC_IONICE_CLASS", "2")
+        ionice_n = os.getenv("HEVC_IONICE_NICE", "5")
+        nice_n = os.getenv("HEVC_NICE_N", "10")
+
+        wrapped = [cpulimit_bin, "-l", cpu_limit, "--", ionice_bin, "-c", ionice_c, "-n", ionice_n, nice_bin, "-n", nice_n, *cmd]
+        try:
+            self.txt_info.append("[CPU] GUI wrapper: " + " ".join(wrapped))
+        except Exception:
+            pass
+        return wrapped
+
     @pyqtSlot()
     def restart_app(self):
         """
@@ -806,7 +844,7 @@ class MainWindow(QMainWindow):
         try:
             # 1) Ricava testo se non arrivato dal segnale
             if text is None:
-                line = getattr(self, "path_edit", None)
+                line = getattr(self, "edit_path", None)
                 text = line.text().strip() if line else ""
             else:
                 text = str(text).strip()
@@ -1512,10 +1550,18 @@ class MainWindow(QMainWindow):
             self._tick_timer.deleteLater()
             self._tick_timer = None
 
+        # progress
         self.progress.setValue(100)
 
         if exit_code != 0:
             QMessageBox.critical(self, "Errore video", f"Ricodifica video fallita (code {exit_code})")
+            self._full_reset()
+            return
+
+        # Verifica che l'output esista davvero
+        if not Path(self.video_tmp).is_file():
+            self.txt_info.append(f"[ERROR] Output video non trovato: {self.video_tmp}")
+            QMessageBox.critical(self, "Errore", f"Output video non trovato:\n{self.video_tmp}")
             self._full_reset()
             return
 
@@ -1524,31 +1570,24 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def _run_audio(self):
-        """Step 2 – ricodifica le tracce audio in **sequenza** (progress-bar cumulativa) con thread limitati."""
-        from PyQt5.QtWidgets import QMessageBox
-
-        # 1) Partenza debug
+        """Step 2 — Ricodifica tracce audio in sequenza con limiti di thread."""
         self.txt_info.append("[DEBUG] ▶️ _run_audio start")
 
-        # 2) Avvio timer (durata totale già in _total_duration)
-        dur = getattr(self, "_total_duration", 1.0) or 1.0
+        dur = float(getattr(self, "_total_duration", 1.0) or 1.0)
         self._start_timer(dur)
 
-        # 3) Setup progress bar
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.lbl_status.setText("🎵 Ricodifica tracce audio…")
 
-        # 4) ID video
         video_id = getattr(self, "_current_video_id", None)
         if video_id is None:
             QMessageBox.critical(self, "Errore", "ID video non trovato per audio.")
             return
 
-        # 5) Ricostruisco i comandi con la build_ffmpeg_audio_cmds
+        # Costruisci i passi (ritorna [(out, cmd), ...])
         audio_steps = self.build_ffmpeg_audio_cmds(audio_dir=self.audio_dir, video_id=video_id, for_queue=False)
 
-        # 6) Se non ci sono tracce, salto subito al mux
         if not audio_steps:
             if not self._allow_silent and not getattr(self, "audio_externo", False):
                 QMessageBox.information(self, "Audio", "Nessuna traccia audio da codificare.")
@@ -1556,36 +1595,28 @@ class MainWindow(QMainWindow):
             self._run_mux()
             return
 
-        # 7) Inizializzo progress e struttura seriale
-        self._audio_steps_serial = []
-        for _out, cmd in audio_steps:
-            # --- iniezione limiti thread a ogni comando audio ---
-            # metto le opzioni globali dopo "-nostdin" (o subito dopo "ffmpeg" se non presente)
+        self._audio_cmds_serial = []  # [(out:Path, cmd:list[str])]
+        for out, cmd in audio_steps:
+            # inietta -filter_threads/-threads se mancanti (già li aggiungi in build, ma doppia sicurezza)
             c = list(cmd)
             try:
                 insert_at = c.index("-nostdin") + 1
             except ValueError:
-                # fallback: subito dopo "ffmpeg"
-                insert_at = 1  # c[0] = ffmpeg
-
-            # evita duplicati
+                insert_at = 1
             to_inject = []
             if "-filter_threads" not in c:
                 to_inject += ["-filter_threads", "1"]
             if "-threads" not in c:
                 to_inject += ["-threads", "1"]
-
             if to_inject:
                 c = c[:insert_at] + to_inject + c[insert_at:]
+            self._audio_cmds_serial.append((Path(out), c))
 
-            self._audio_steps_serial.append(c)
-
-        self._audio_progress = {i: 0 for i in range(len(self._audio_steps_serial))}
+        self._audio_progress = {i: 0 for i in range(len(self._audio_cmds_serial))}
         self._audio_procs = []
         self._current_audio_idx = 0
         self._audio_queue_active = 0
 
-        # 8) Assicuro che la directory esista davvero
         try:
             self.audio_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
@@ -1593,39 +1624,30 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Errore", f"Non posso creare {self.audio_dir}")
             return
 
-        # 9) Avvio seriale (o semi-parallelo se alzi MAX_AUDIO_JOBS in constants)
         self._start_next_audio_serial()
 
     def _start_next_audio_serial(self):
-        """
-        Avvia nuove conversioni audio fino al limite MAX_AUDIO_JOBS.
-        Default: 1 (seriale). Se alzi MAX_AUDIO_JOBS, diventa semi-parallelo.
-        """
-        from hevc_gui.core import constants as C
-        import shlex
+        """Avvia la prossima traccia audio, se disponibile."""
+        if not hasattr(self, "_audio_cmds_serial"):
+            self._audio_cmds_serial = []
 
-        if not hasattr(self, "_audio_steps_serial"):
-            self._audio_steps_serial = []
-
-        # Avvia fino al limite consentito
         while getattr(self, "_audio_queue_active", 0) < getattr(C, "MAX_AUDIO_JOBS", 1) and getattr(self, "_current_audio_idx", 0) < len(
-            self._audio_steps_serial
+            self._audio_cmds_serial
         ):
             idx = self._current_audio_idx
-            cmd = self._audio_steps_serial[idx]
+            out, cmd = self._audio_cmds_serial[idx]
 
-            # Log comando leggibile
             try:
                 cmd_str = " ".join(shlex.quote(a) for a in cmd)
             except Exception:
                 cmd_str = " ".join(cmd)
             self.txt_info.append(f"[DEBUG] Avvio audio seriale #{idx}: {cmd_str}")
 
-            # Processo
             p = QProcess(self)
             p.audio_index = idx
+            p.audio_out = Path(out)  # <— output atteso per questa traccia
             self._audio_procs.append(p)
-            self.ffmpeg_proc = p  # per pausa/stop/cancel
+            self.ffmpeg_proc = p
 
             p.setWorkingDirectory(str(self.audio_dir))
             p.setProcessChannelMode(QProcess.MergedChannels)
@@ -1633,42 +1655,46 @@ class MainWindow(QMainWindow):
             p.readyReadStandardError.connect(self._progress_update)
             p.finished.connect(self._on_audio_finished_serial)
 
+            cmd = self._wrap_with_cpu_limits(cmd)
             p.start(cmd[0], cmd[1:])
 
-            # Avanzamento bookkeeping
             self._audio_queue_active = getattr(self, "_audio_queue_active", 0) + 1
             self._current_audio_idx += 1
 
     @pyqtSlot(int, QProcess.ExitStatus)
     def _on_audio_finished_serial(self, exit_code, exit_status):
-        """
-        Gestisce la fine di una traccia audio:
-        - aggiorna progress cumulativa
-        - lancia la prossima traccia se presente
-        - quando non resta più nulla, avvia il mux
-        """
+        """Fine traccia: aggiorna progress; se è l’ultima, passa al mux; verifica l’output."""
         p = self.sender()
         idx = getattr(p, "audio_index", -1)
+        out = getattr(p, "audio_out", None)
 
-        # forza questa traccia al 100% nell'aggregato
+        # progress cumulativa
         if hasattr(self, "_audio_progress") and idx in self._audio_progress:
             self._audio_progress[idx] = 100
             overall = sum(self._audio_progress.values()) / max(1, len(self._audio_progress))
             self.progress.setValue(int(overall))
+            self._progress_frac = max(0.0, min(0.99, overall / 100.0))
 
         if exit_code != 0:
             QMessageBox.critical(self, "Errore audio", f"Traccia {idx} fallita (code {exit_code})")
-            # puoi decidere se fermarti qui con return
-            # return
+        else:
+            # verifica output effettivo
+            if out and not Path(out).is_file():
+                self.txt_info.append(f"[ERROR] Output audio mancante (traccia {idx}): {out}")
+                QMessageBox.critical(self, "Errore audio", f"Output mancante:\n{out}")
+                # fermo qui: niente mux con file mancanti
+                self._stop_timer()
+                self.btn_pause.setEnabled(False)
+                self.btn_cancel.setEnabled(False)
+                return
 
-        # libera uno "slot" e prova ad avviare la prossima
+        # libera slot e prova la prossima
         self._audio_queue_active = max(0, self._audio_queue_active - 1)
-
-        if self._current_audio_idx < len(self._audio_steps_serial):
+        if self._current_audio_idx < len(self._audio_cmds_serial):
             self._start_next_audio_serial()
             return
 
-        # Se non resta nulla in esecuzione → MUX
+        # tutto finito → MUX
         if self._audio_queue_active == 0:
             self.txt_info.append("[DEBUG] Tutte tracce audio pronte, lancio mux…")
             self.lbl_status.setText("🔗 Muxing…")
@@ -1874,6 +1900,9 @@ class MainWindow(QMainWindow):
         p.readyReadStandardError.connect(self._on_mux_stderr)
         p.readyReadStandardOutput.connect(self._on_mux_stdout)
         p.finished.connect(self._on_mux_finished)
+
+        # ⟵ NOVITÀ: applica i limiti CPU anche in GUI
+        cmd = self._wrap_with_cpu_limits(cmd)
         p.start(cmd[0], cmd[1:])
 
     @pyqtSlot()
@@ -2064,6 +2093,7 @@ class MainWindow(QMainWindow):
         # quando finisce, chiama il nostro handler normale
         p.finished.connect(self._on_mux_finished)
         # avvia FFmpeg
+        cmd = self._wrap_with_cpu_limits(cmd)
         p.start(cmd[0], cmd[1:])
         # conserva il processo per pause/cancel
         self.ffmpeg_proc = p
@@ -2143,7 +2173,9 @@ class MainWindow(QMainWindow):
 
             loop_v = QEventLoop()
             proc_v.finished.connect(loop_v.quit)
+            video_cmd = self._wrap_with_cpu_limits(video_cmd)
             proc_v.start(video_cmd[0], video_cmd[1:])
+
             print("DEBUG: Started video process")
             loop_v.exec_()
             print("DEBUG: Video exitCode =", proc_v.exitCode())
@@ -2174,7 +2206,9 @@ class MainWindow(QMainWindow):
                 p.finished.connect(loop_a.quit)
 
                 print(f"DEBUG: Starting audio #{i}")
+                cmd = self._wrap_with_cpu_limits(cmd)
                 p.start(cmd[0], cmd[1:])
+
                 loop_a.exec_()
                 print(f"DEBUG: Audio #{i} exitCode =", p.exitCode())
 
@@ -2204,7 +2238,9 @@ class MainWindow(QMainWindow):
             p_m.finished.connect(loop_m.quit)
 
             print("DEBUG: Starting mux process")
+            mux_cmd = self._wrap_with_cpu_limits(mux_cmd)
             p_m.start(mux_cmd[0], mux_cmd[1:])
+
             loop_m.exec_()
             print("DEBUG: Mux exitCode =", p_m.exitCode())
 
@@ -2241,52 +2277,32 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def _run_video(self):
-        """Ricodifica solo il video (step 1) limitando i thread di x265."""
+        """Step 1 — Ricodifica video (solo 1 processo)."""
         if not self._current_file:
             return
 
-        # assicurati che le tmp dirs esistano
+        # Assicura dirs
         for d in (self.tmp_dir, self.video_dir, self.audio_dir, self.chapters_dir):
             d.mkdir(parents=True, exist_ok=True)
 
-        # comando base dalla GUI (contiene già SOLO i filtri scelti; niente doppio scale)
+        # Costruisci comando (già con -threads 2 e -x265-params)
         cmd = self.build_ffmpeg_video_cmd(self.video_tmp)
+        try:
+            self.txt_info.append("[DEBUG] video cmd: " + " ".join(shlex.quote(x) for x in cmd))
+        except Exception:
+            pass
 
-        # --- iniezione limiti thread per tenere la CPU sotto controllo ---
-        #   • -threads 2           → limita i thread lato encoder ffmpeg
-        #   • -x265-params ...     → limita i thread interni di x265
-        # Inserisco subito prima del file di output.
-        if cmd and isinstance(cmd[-1], str):
-            out_path = cmd[-1]
-            extras = ["-threads", "2", "-x265-params", "pools=2:frame-threads=1"]
-            # evita duplicazioni se già presenti
-            if "-threads" in cmd or "-x265-params" in cmd:
-                # se l'utente li ha già messi da qualche parte, non li duplico
-                pass
-            else:
-                cmd = cmd[:-1] + extras + [out_path]
+        # Processo
+        p = QProcess(self)
+        self.ffmpeg_proc = p
+        p.setProcessChannelMode(QProcess.MergedChannels)
+        p.readyReadStandardOutput.connect(self._progress_update)
+        p.readyReadStandardError.connect(self._progress_update)
+        p.finished.connect(self._on_video_finished)
 
-        self.txt_info.append("[DEBUG] video cmd: " + shlex.join(cmd))
-
-        # UI
-        self.progress.setRange(0, 100)
-        self.progress.setValue(0)
-        self.lbl_status.setText("🔨 Ricodifica video…")
-        self.btn_pause.setEnabled(True)
-        self.btn_cancel.setEnabled(True)
-
-        # processo FFmpeg
-        self.video_proc = QProcess(self)
-        self.ffmpeg_proc = self.video_proc
-        self.video_proc.setProcessChannelMode(QProcess.MergedChannels)
-        self.video_proc.readyReadStandardOutput.connect(self._progress_update)
-        self.video_proc.readyReadStandardError.connect(self._progress_update)
-        self.video_proc.finished.connect(self._on_video_finished)
-
-        # timer ETA
-        self._start_timer(self._total_duration or 1.0)
-
-        self.video_proc.start(cmd[0], cmd[1:])
+        # Niente shell, niente wrapper aggressivo (vedi _wrap_with_cpu_limits opt-in)
+        cmd = self._wrap_with_cpu_limits(cmd)
+        p.start(cmd[0], cmd[1:])
 
     def _hms_to_sec(self, hms):
         h, m, s = hms.split(":")
@@ -2422,11 +2438,15 @@ class MainWindow(QMainWindow):
         video_tmp = self.video_dir / f"video_temp_QUEUE_{qid}.mkv"
         video_cmd = self.build_ffmpeg_video_cmd(video_tmp)
 
-        raw_audio = self.build_ffmpeg_audio_cmds(self.audio_dir)
+        # Ricostruisci i comandi audio in modalità "queue" senza forzare il container
+        raw_audio = self.build_ffmpeg_audio_cmds(audio_dir=self.audio_dir, video_id=None, for_queue=True)
         audio_steps = []
         for i, (_old, cmd) in enumerate(raw_audio):
-            new_out = self.audio_dir / f"track_QUEUE_{qid}_{i}.m4a"
-            cmd = [str(new_out) if arg == str(_old) else arg for arg in cmd]
+            old = Path(_old)
+            # conserva l’estensione originale (es. .m4a / .ac3 / .eac3 / .mka …)
+            new_out = self.audio_dir / f"track_QUEUE_{qid}_{i}{old.suffix}"
+            # sostituisci SOLO l’argomento di output
+            cmd = [str(new_out) if str(arg) == str(old) else arg for arg in cmd]
             audio_steps.append((new_out, cmd))
         audio_cmds = [cmd for (_o, cmd) in audio_steps]
 
@@ -2464,11 +2484,11 @@ class MainWindow(QMainWindow):
 
         # 4) aggiungi alla coda
         for cmd in all_cmds:
-            qman.add(cmd)
+            added = qman.add(cmd)  # <-- UNA sola volta
             with qman.TMP_QUEUE_FILE.open("a", encoding="utf-8") as f:
                 f.write(shlex.join(cmd) + "\n")
-            prefix = "✅" if qman.add(cmd) else "❌"
-            self.txt_info.append(f"{prefix} {'Aggiunto' if prefix == '✅' else 'Presente'}:\n  {shlex.join(cmd)}")
+            prefix = "✅" if added else "❌"
+            self.txt_info.append(f"{prefix} {'Aggiunto' if added else 'Presente'}:\n  {shlex.join(cmd)}")
 
         self.command_queue = qman.load()
         self.is_queue_saved = True
@@ -3030,34 +3050,133 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def toggle_pause(self):
+        """
+        Mette in pausa / riprende il job corrente.
+        Se il comando è stato avvolto da cpulimit, individua il PID discendente che
+        corrisponde a ffmpeg/avconv e invia i segnali a quello (non al wrapper).
+        """
         if not self.ffmpeg_proc:
             return
 
-        pid = self.ffmpeg_proc.processId()
-        if pid <= 0:
+        # PID del processo lanciato da QProcess (può essere ffmpeg o il wrapper cpulimit)
+        root_pid = int(self.ffmpeg_proc.processId() or 0)
+        if root_pid <= 0:
             return
 
-        # ─── BLOCCO SPECIFICO PER UNIX ─────────────────────────────
-        if sys.platform != "win32":  # su Linux / macOS OK
-            if not self._is_paused:
-                os.kill(pid, signal.SIGSTOP)  # pausa
+        # Solo Unix: su Windows non gestiamo SIGSTOP/SIGCONT
+        if sys.platform == "win32":
+            QMessageBox.information(self, "Pausa non disponibile", "La sospensione del processo non è supportata su Windows.")
+            return
+
+        # --- helper: leggi i figli di un PID via /proc (Linux) o pgrep -P (fallback) ---
+        def _children_of(pid: int) -> list[int]:
+            # Linux: /proc/<pid>/task/<pid>/children
+            try:
+                with open(f"/proc/{pid}/task/{pid}/children", "r") as f:
+                    txt = f.read().strip()
+                return [int(x) for x in txt.split()] if txt else []
+            except Exception:
+                pass
+            # Fallback: pgrep -P
+            try:
+                import subprocess
+
+                out = subprocess.check_output(["pgrep", "-P", str(pid)], text=True).strip()
+                return [int(x) for x in out.splitlines() if x.strip()]
+            except Exception:
+                return []
+
+        def _comm_of(pid: int) -> str:
+            # prova /proc/<pid>/comm
+            try:
+                with open(f"/proc/{pid}/comm", "r") as f:
+                    return f.read().strip()
+            except Exception:
+                pass
+            # fallback: cmdline
+            try:
+                with open(f"/proc/{pid}/cmdline", "rb") as f:
+                    raw = f.read().decode(errors="ignore").replace("\x00", " ").strip()
+                    return raw
+            except Exception:
+                return ""
+
+        def _find_ffmpeg_descendant(pid: int, max_depth: int = 4) -> int:
+            """
+            Segue la catena di figli (tipicamente: cpulimit -> taskset -> ionice -> nice -> ffmpeg)
+            e ritorna il primo PID il cui comm/cmdline contiene 'ffmpeg' o 'avconv'.
+            """
+            from collections import deque
+
+            q = deque([(pid, 0)])
+            seen = {pid}
+            while q:
+                cur, d = q.popleft()
+                name = _comm_of(cur).lower()
+                if "ffmpeg" in name or "avconv" in name:
+                    return cur
+                if d >= max_depth:
+                    continue
+                for ch in _children_of(cur):
+                    if ch not in seen:
+                        seen.add(ch)
+                        q.append((ch, d + 1))
+            return 0
+
+        # Cerca SEMPRE il vero ffmpeg discendente; se non trovato, fallback al PID root
+        target_pid = root_pid
+        try:
+            pid2 = _find_ffmpeg_descendant(root_pid, max_depth=6)
+            if pid2 > 0:
+                target_pid = pid2
+                # log di servizio
+                try:
+                    self.txt_info.append(f"[CPU] toggle_pause: targeting ffmpeg PID {target_pid} (wrapper PID {root_pid})")
+                except Exception:
+                    pass
+            else:
+                # opzionale: piccolo log di debug
+                try:
+                    self.txt_info.append(f"[CPU] toggle_pause: nessun discendente ffmpeg trovato, uso PID {root_pid}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Applica stop/cont sugli Unix
+        try:
+            if not getattr(self, "_is_paused", False):
+                os.kill(target_pid, signal.SIGSTOP)  # pausa
                 if getattr(self, "_tick_timer", None):
                     self._tick_timer.stop()
                 self._is_paused = True
-                self.btn_pause.setText("Continue")  # «Continua»
+                self.btn_pause.setText("Continue")  # mantengo le tue etichette
             else:
-                os.kill(pid, signal.SIGCONT)  # riprendi
+                os.kill(target_pid, signal.SIGCONT)  # riprendi
                 if getattr(self, "_tick_timer", None):
                     self._tick_timer.start(1000)
                 self._is_paused = False
                 self.btn_pause.setText("Pause")
-        # ─── FALLBACK PER WINDOWS ─────────────────────────────────
-        else:
-            QMessageBox.information(
-                self,
-                "Pausa non disponibile",
-                "La sospensione del processo non è supportata su Windows.",
-            )
+        except ProcessLookupError:
+            # processo già terminato
+            try:
+                self.txt_info.append("[WARN] Processo non trovato per pausa/riprendi.")
+            except Exception:
+                pass
+        except PermissionError as e:
+            try:
+                self.txt_info.append(f"[WARN] Permesso negato nel segnalare il processo: {e}")
+            except Exception:
+                pass
+
+    def _child_pids_of(self, pid: int) -> list[int]:
+        """Ritorna i figli diretti del pid (Linux) leggendo /proc/<pid>/task/<pid>/children."""
+        try:
+            with open(f"/proc/{pid}/task/{pid}/children", "r") as f:
+                data = f.read().strip()
+            return [int(x) for x in data.split()] if data else []
+        except Exception:
+            return []
 
     def _start_timer(self, total_sec: float):
         """Avvia (o riavvia) il ticker 1 Hz e resetta contatori/ETA."""
@@ -3108,8 +3227,20 @@ class MainWindow(QMainWindow):
         QApplication.clipboard().setText(text)
         QMessageBox.information(self, "Log copiato", "Comando(i) FFmpeg copiato(i) negli appunti.")
 
-    def _print_cmd_log(self, cmd: list[str], video_log=[], audio_log=[], subtitle_log=[], chapter_log=[]):
-        def q(s):  # noqa: E731  (se vuoi mantenere la regola attiva)
+    def _print_cmd_log(
+        self,
+        cmd: list[str],
+        video_log: list[str] | None = None,
+        audio_log: list[str] | None = None,
+        subtitle_log: list[str] | None = None,
+        chapter_log: list[str] | None = None,
+    ):
+        video_log = video_log or []
+        audio_log = audio_log or []
+        subtitle_log = subtitle_log or []
+        chapter_log = chapter_log or []
+
+        def q(s):  # noqa: E731
             return shlex.quote(str(s))
 
         full_log = [

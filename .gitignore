@@ -137,3 +137,7 @@ htmlcov/
 # === Test assets generabili (tieni solo il segnaposto) ===
 tests/assets/*
 !tests/assets/.gitkeep
+
+# Logs
+log.txt
+*.log

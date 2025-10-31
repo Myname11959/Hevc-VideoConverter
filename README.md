@@ -1,3 +1,6 @@
+![UI Smoketest](https://github.com/Myname11959/Hevc-VideoConverter/actions/workflows/ui-smoketest.yml/badge.svg)
+
+
 README – IT
 
 HEVC Video Converter è un’app con interfaccia Qt per convertire video in HEVC/x265, offrendo pieno controllo sia sulla catena video sia su quella audio.
