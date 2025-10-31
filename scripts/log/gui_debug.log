@@ -1,0 +1,34 @@
+2025-10-31 19:38:12,453 DEBUG    === Avvio applicazione: log ripulito ===
+2025-10-31 19:38:12,455 DEBUG    === Avvio applicazione: log ripulito ===
+2025-10-31 19:38:12,486 DEBUG    --> ENV QT_QPA_PLATFORMTHEME = qt5ct
+2025-10-31 19:38:12,486 DEBUG    --> ENV GTK_THEME           = None
+2025-10-31 19:38:12,486 DEBUG    --> QApp.style() name       = cleanlooks
+2025-10-31 19:38:12,492 DEBUG    [TMP] mode=ram • root=/dev/shm/hevc_gui • reason: OK: RAM total=31 GiB, avail=24 GiB, /dev/shm free=16 GiB, need≈1 GiB
+2025-10-31 19:38:12,512 DEBUG    Icona per 'open' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_open.png'
+2025-10-31 19:38:12,524 DEBUG    Icona per 'exit' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_exit.png'
+2025-10-31 19:38:12,536 DEBUG    Icona per 'convert' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_convert.png'
+2025-10-31 19:38:12,548 DEBUG    Icona per 'extract' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_extract.png'
+2025-10-31 19:38:12,558 DEBUG    Icona per 'subs' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_subs.png'
+2025-10-31 19:38:12,570 DEBUG    Icona per 'chapters' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_chapters.png'
+2025-10-31 19:38:12,583 DEBUG    Icona per 'queue_run' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_queue_run.png'
+2025-10-31 19:38:12,593 DEBUG    Icona per 'save' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_save.png'
+2025-10-31 19:38:12,608 DEBUG    Icona per 'edit_queue' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_edit_queue.png'
+2025-10-31 19:38:12,622 DEBUG    Icona per 'minfo' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_minfo.png'
+2025-10-31 19:38:12,635 DEBUG    Icona per 'preview' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_preview.png'
+2025-10-31 19:38:12,644 DEBUG    Icona per 'preview_filtered' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_preview_filtered.png'
+2025-10-31 19:38:12,657 DEBUG    Icona per 'asp' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_asp.png'
+2025-10-31 19:38:12,673 DEBUG    Icona per 'help' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_help.png'
+2025-10-31 19:38:12,676 DEBUG    Icona per 'info' non trovata nel tema: uso fallback locale '/mnt/Storage/Hevc_gui/hevc_gui/gui/../resources/icons/ph_info.png'
+2025-10-31 19:38:23,860 DEBUG    _path_changed(): text='/home/loris/Scaricati/Von.Ryans.Express.Il.Colonnello.Von.Ryan.1965.ITA-ENG.BRRip.720p.x264-HD4ME.mkv' • file_ok=True
+2025-10-31 19:38:23,874 WARNING  [Qt] WARNING Qt AtSpiAdaptor: Accessible invalid:  QAccessibleInterface(0x5dead40db300 invalid) "/org/a11y/atspi/accessible/2147483757"
+2025-10-31 19:38:43,355 DEBUG    [UI] _ensure_preview_wiring: collegati 1 trigger Preview
+2025-10-31 19:38:43,929 DEBUG    [DEBUG] Combo tracce:
+2025-10-31 19:38:43,929 DEBUG      00: text='Seleziona traccia…' data=(-1, None, None)
+2025-10-31 19:38:43,929 DEBUG      01: text='[M] Traccia 0 – Italiano – 192k – ITA AC3 1.0 192 kbps' data=(0, 'ita', '192k')
+2025-10-31 19:38:43,929 DEBUG      02: text='[MC] Traccia 1 – Italiano – 224k – ENG AAC 5.1 224 kbps' data=(1, 'ita', '224k')
+2025-10-31 19:39:55,808 DEBUG    [UI] make_preview() chiamata → run_preview(self)
+2025-10-31 19:39:55,808 DEBUG    [UI] run_preview(mod.run_preview) …
+2025-10-31 19:39:58,464 DEBUG    [UI] make_preview() OK (run_preview ha terminato)
+2025-10-31 19:40:44,395 DEBUG    [["-map", "0:a:0", "-vn", "-af", "asplit=2[a][b];[b]adelay=12:all=1,equalizer=f=3000:t=q:w=1.2:g=-1.5[br];[a][br]join=inputs=2:channel_layout=stereo,equalizer=f=60:t=q:w=1:g=8.0,equalizer=f=1000:t=q:w=1:g=-3.0,equalizer=f=3000:t=q:w=1:g=1.0,equalizer=f=2000:t=q:w=1.2:g=2,stereowiden=delay=1:feedback=0.5,aecho=0.95:0.95:80:0.20,dynaudnorm=f=250:g=31:p=0.95:m=50,volume=6.0dB", "-c:a:0", "aac", "-ac:0", "2", "-b:a:0", "192k", "-metadata:s:a:0", "language=ita", "-metadata:s:a:0", "title=Italiano • AAC 2.0 • 192 kb/s"]]
+2025-10-31 19:41:49,912 DEBUG    [ASPECT_AUTOFIX] target=720x576, dar_src≈2.3704 → no-op
+2025-10-31 19:41:50,007 DEBUG    [ASPECT_AUTOFIX] target=720x576, dar_src≈2.3704 → no-op
