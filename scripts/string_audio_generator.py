@@ -660,7 +660,8 @@ class AudioConverter(QDialog):
         # ---------- R14: Footer ----------
         self.lbl_pan_preset = QLabel("Pan preset: — (nessun downmix)", self)
         place(self.lbl_pan_preset, M["X0"], CANVAS_W - 2 * M["X0"])
-
+        new_line()
+        
         self.btn_add = QPushButton("Agg. traccia", self)
         self.btn_cancel = QPushButton("Annulla", self)
         self.btn_ok = QPushButton("OK / Esci", self)
