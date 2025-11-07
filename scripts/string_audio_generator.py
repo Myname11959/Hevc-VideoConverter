@@ -1670,70 +1670,69 @@ class AudioConverter(QDialog):
 
     @pyqtSlot()
     def _update_pan_preset_label(self) -> None:
-        """
-        Aggiorna SEMPRE la label nel footer in base a:
-          - canali input reali
-          - 'Mantieni MONO'
-          - profilo attivo (Samsung stereo / 5.1 / downmix)
-          - output effettivo (pseudo-stereo da MONO, downmix da multicanale, crossfeed Samsung)
-        """
-        # 1) Raccogli stato corrente
-        in_ch = self._current_input_channels_hint()
+        # Trova la label
+        lbl = getattr(self, "lbl_pan_preset", None)
+        if lbl is None:
+            return
+
+        # Stato d’ingresso e scelte utente
+        try:
+            in_ch = self._current_input_channels_hint()
+        except Exception:
+            in_ch = 2
+
         keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
         downmix_on = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
 
         prof = getattr(self, "_soundbar_profile", "none")
+        # chiave configurabile in constants.py; fallback "samsung_stereo"
+        from hevc_gui.core import constants as C
+
         samsung_stereo = prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo")
         samsung_51 = prof == "samsung_5_1_ac3"
 
-        # 2) Calcola se l'OUTPUT sarà stereo (es. MONO→pseudo-stereo quando NON mantieni mono)
         try:
-            eff_stereo = self._effective_output_is_stereo(in_ch)
+            eff_stereo = bool(self._effective_output_is_stereo(in_ch))
         except Exception:
             eff_stereo = in_ch >= 2 and not keep_mono
 
-        # 3) Trova la label (quella creata in R14)
-        lbl = getattr(self, "lbl_pan_preset", None)
-        if lbl is None:
-            for w in self.findChildren(QLabel):
-                try:
-                    if "pan preset" in (w.text() or "").lower():
-                        lbl = w
-                        break
-                except Exception:
-                    pass
-            if lbl is None:
-                return
-
-        # 4) Casi espliciti (ordine di priorità pensato per non “rimbalzare” lo stato)
-        # 4a) MONO mantenuto: nessun preset, messaggio chiaro
+        # 1) MONO mantenuto → niente pan/pseudo-stereo
         if in_ch == 1 and keep_mono:
-            lbl.setText("Pan preset: — (input MONO mantenuto)")
+            lbl.setText("Pan preset: — (input MONO mantenuto: nessun pan/pseudo-stereo)")
             lbl.setStyleSheet("")
             return
 
-        # 4b) Multicanale + downmix forzato → 5.1→2.0 con preset TV o Samsung
+        # 2) Multicanale + downmix forzato → pan 5.1→2.0 (Samsung o TV)
         if in_ch > 2 and downmix_on:
             which = "Samsung R450" if samsung_stereo else "TV generico"
-            lbl.setText(f"Pan preset: {which} (downmix 5.1→2.0)")
+            cause = "forzato da “Stereo (downmix 2ch)”"
+            lbl.setText(f"Pan preset: {which} (downmix 5.1→2.0, {cause})")
             lbl.setStyleSheet("color: #10b981;")  # verde “attivo”
             return
 
-        # 4c) Output stereo + profilo Samsung stereo → crossfeed (vale anche da MONO→pseudo-stereo)
+        # 3) Uscita stereo + profilo Samsung stereo → crossfeed (anche da MONO→pseudo-stereo)
         if eff_stereo and samsung_stereo:
-            lbl.setText("Pan preset: Samsung (crossfeed)")
-            lbl.setStyleSheet("color: #e11d48;")  # accento per evidenziare il profilo
+            src = "input MONO → pseudo-stereo" if (in_ch == 1 and not keep_mono) else "uscita stereo"
+            lbl.setText(f"Pan preset: Samsung (crossfeed, {src}, profilo attivo)")
+            lbl.setStyleSheet("color: #e11d48;")  # accento
             return
 
-        # 4d) Profilo Samsung 5.1: niente pan preset (si esce in 5.1)
+        # 4) Profilo Samsung 5.1 → uscita 5.1 (nessun pan 2.0)
         if samsung_51:
-            lbl.setText("Pan preset: — (Uscita 5.1)")
-            lbl.setStyleSheet("color: #2563eb;")
+            lbl.setText("Pan preset: — (Uscita 5.1; profilo Samsung 5.1 attivo)")
+            lbl.setStyleSheet("color: #2563eb;")  # blu
             return
 
-        # 4e) Default: nessun downmix/crossfeed attivo
-        lbl.setText("Pan preset: — (Stereo downmix 2.0)")
-        lbl.setStyleSheet("color: #3b82f6;")
+        # 5) Default: nessun downmix/crossfeed attivo → specifica il “perché”
+        if in_ch > 2:
+            extra = "input multicanale mantenuto (nessun downmix)"
+        elif in_ch == 2:
+            extra = "stereo nativo (nessun crossfeed/preset)"
+        else:
+            # in_ch == 1 e non keep_mono: pseudo-stereo MA senza profilo Samsung → nessun crossfeed
+            extra = "mono → pseudo-stereo senza crossfeed"
+        lbl.setText(f"Pan preset: — ({extra})")
+        lbl.setStyleSheet("")
 
     def _connect_pan_preset_signals(self):
         try:
@@ -2491,6 +2490,7 @@ class AudioConverter(QDialog):
                     continue
 
 
+"""
 # === Main ===
 if __name__ == "__main__":
     import argparse
@@ -2536,3 +2536,13 @@ StringAudioGenerator = AudioConverter
 
 __all__ = ["AudioConverter", "StringAudioGenerator"]
 # [FINE FILE]
+"""
+# === Main (disabilitato) ===
+if __name__ == "__main__":  # blocco l'uso stand-alone (anche con `python -m`)
+    import sys
+
+    print(
+        "Questo modulo non è eseguibile da solo.\nAprilo dall’app HEVC-GUI (MainWindow) e usalo solo dentro la GUI.",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)

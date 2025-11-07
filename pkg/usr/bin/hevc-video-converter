@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec /usr/bin/python3 /usr/lib/hevc-video-converter/main.py "$@"

@@ -1,0 +1,6 @@
+PyQt5==5.15.9
+pyqtgraph==0.12.4
+numpy==1.23.5
+psutil==5.9.5
+chardet==5.2.0
+

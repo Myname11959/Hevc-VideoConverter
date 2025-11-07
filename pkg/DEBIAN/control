@@ -1,0 +1,13 @@
+Package: hevc-video-converter
+Version: 2.1.0-1
+Section: video
+Priority: optional
+Architecture: all
+Depends: python3, python3-chardet, python3-numpy, python3-psutil, python3-pyqt5, python3-pyqt5.qtmultimedia, python3-pyqtgraph, ffmpeg
+Recommends: gnome-terminal, cpulimit, util-linux, coreutils
+Provides: hevc-gui
+Replaces: hevc-gui (<= 2.1.0)
+Conflicts: hevc-gui (<= 2.1.0)
+Maintainer: Loris <noreply@example>
+Description: HEVC – Video Converter
+ HEVC/H.265 video converter with queue manager and audio preview/filters.

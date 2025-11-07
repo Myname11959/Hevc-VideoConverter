@@ -1,0 +1,21 @@
+# .github/workflows/af-tests.yml
+name: AF Tests
+on:
+  push:
+  pull_request:
+jobs:
+  af-tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Run AF tests
+        run: |
+          chmod +x tools/run_af_tests.sh
+          bash tools/run_af_tests.sh
+

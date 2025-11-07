@@ -1,1 +1,92 @@
-# (incolla qui il contenuto sopra)
+# --- Python / build ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.pyd
+*.egg-info/
+.eggs/
+.build/
+build/
+dist/
+pip-wheel-metadata/
+
+# --- Virtual env ---
+.venv/
+venv/
+.env
+.env.*
+
+# --- Tools / cache ---
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.pyre/
+.pytype/
+
+# --- IDE ---
+.idea/
+.vscode/
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+Icon?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+
+# --- Project logs / temp ---
+/logs/
+*.log
+/log.txt
+/scripts/log/
+/tmp/
+/test/        # (opzionale: lascialo solo se usi davvero una cartella "test/" di lavoro)
+verify-report.txt
+
+# --- Backups / duplicati locali ---
+/backup/*
+!/backup/.keep
+*.bak
+*.bak.*
+*.old
+*.orig
+*.rej
+*~
+* (copia).*
+* (un'altra copia).*
+*_.py
+
+# --- Packaging / altri artefatti ---
+repo-tree.txt
+packaging/
+wheelhouse/
+
+# --- Coverage / profiling ---
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.prof
+*.prof
+*.py,cover
+.cache
+
+# --- Test assets generabili (tieni solo il segnaposto) ---
+tests/assets/*
+!tests/assets/.gitkeep
+
+
+# build & artefatti
+/dist/
+*.deb
+scripts/log/*.log
+
+
+# Python cache
+__pycache__/
+*.pyc

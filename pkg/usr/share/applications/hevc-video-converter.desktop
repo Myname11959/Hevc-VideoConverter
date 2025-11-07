@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=HEVC – Video Converter
+Name[it]=HEVC – Video Converter
+GenericName=Video Converter
+GenericName[it]=Convertitore Video
+Comment=Queue-based HEVC/H.265 converter with audio preview & filters
+Comment[it]=Convertitore HEVC/H.265 con coda, anteprima audio e filtri
+Exec=hevc-video-converter %F
+TryExec=hevc-video-converter
+Icon=hevc-video-converter
+Terminal=false
+Categories=AudioVideo;Video;Qt;
+StartupWMClass=hevc-video-converter
+Keywords=video;hevc;h265;converter;
