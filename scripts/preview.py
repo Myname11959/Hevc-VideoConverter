@@ -95,6 +95,13 @@ def count_audio_streams(src: str) -> int:
 
 
 def probe_stream_info(src: str, track_idx: int) -> dict:
+    """
+    Prova a ottenere info base con ffprobe:
+      channels, sample_rate, channel_layout.
+
+    Può restituire un dict con channels=0 / sample_rate=0 se i campi
+    non sono presenti: in quel caso gestiamo un fallback altrove.
+    """
     try:
         p = subprocess.run(
             [
@@ -126,6 +133,101 @@ def probe_stream_info(src: str, track_idx: int) -> dict:
         }
     except Exception:
         return {}
+
+
+def _probe_audio_channels_fallback(src: str, track_idx: int) -> tuple[int, Optional[int]]:
+    """
+    Fallback robusto quando ffprobe non dà i canali direttamente sul VOB:
+    - decodifica ~1s della traccia in WAV PCM;
+    - usa ffprobe sul WAV per leggere channels / sample_rate.
+
+    Ritorna (channels, sample_rate) oppure (0, None) se fallisce.
+    """
+    tmp_dir = _ensure_tmp_dir(TMP_BASE / "hevc_preview_probe")
+    wav_path = tmp_dir / f"chprobe_{track_idx}.wav"
+
+    # Pulisci eventuale residuo
+    try:
+        if wav_path.exists():
+            wav_path.unlink()
+    except Exception:
+        pass
+
+    # 1) ffmpeg → WAV breve
+    cmd = [
+        _which(FFMPEG),
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        src,
+        "-map",
+        f"0:a:{int(track_idx)}",
+        "-vn",
+        "-sn",
+        "-dn",
+        "-c:a",
+        "pcm_s16le",
+        "-t",
+        "1",
+        "-f",
+        "wav",
+        "-write_channel_mask",
+        "0",  # disabilita il channel mask (resta WAVEEXT ma a ffprobe va benissimo)
+        "-y",
+        str(wav_path),
+    ]
+
+    try:
+        subprocess.run(cmd, check=True)
+    except Exception as exc:
+        _log(f"[PREVIEW] Fallback ffmpeg fallita per 0:a:{track_idx}: {exc}")
+        return 0, None
+
+    # 2) ffprobe sul WAV generato
+    try:
+        p = subprocess.run(
+            [
+                _which(FFPROBE),
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=channels,sample_rate",
+                "-of",
+                "json",
+                str(wav_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if p.returncode != 0:
+            raise RuntimeError(p.stderr or "ffprobe error on WAV")
+
+        data = json.loads(p.stdout or "{}")
+        ss = data.get("streams") or []
+        if not ss:
+            raise RuntimeError("no streams in WAV")
+
+        st = ss[0]
+        ch = int(st.get("channels") or 0)
+        sr = int(st.get("sample_rate") or 0)
+        ch_int = int(ch or 0)
+        sr_int: Optional[int] = int(sr or 0) if sr else None
+
+        _log(f"[PREVIEW] Fallback probe: 0:a:{track_idx} → {ch_int} canali, {sr_int or 'n/d'} Hz")
+        return ch_int, sr_int
+    except Exception as exc:
+        _log(f"[PREVIEW] Fallback probe ffprobe fallita per 0:a:{track_idx}: {exc}")
+        return 0, None
+    finally:
+        try:
+            if wav_path.exists():
+                wav_path.unlink()
+        except Exception:
+            pass
 
 
 # ======================================================================
@@ -216,6 +318,56 @@ def resolve_track_index(ac) -> int:
     except Exception:
         return 0
 
+def resolve_track_for_preview(ac: Any) -> tuple[int, bool, Optional[dict]]:
+    """
+    Ritorna (idx, use_abs, meta):
+
+      • idx      → se use_abs=False: indice audio 0..N-1 (come prima, 0:a:idx)
+                   se use_abs=True : stream_index assoluto (useremo -map 0:idx)
+
+      • use_abs  → True se nei dati combo c'è ff_index (sidecar LDVD),
+                   False altrimenti (modo "classico" senza sidecar).
+
+      • meta     → opzionale dict con channels/sample_rate/layout se forniti dai dati
+                   combo (cioè dal sidecar). Se None, ci pensa ffprobe.
+    """
+    w = getattr(ac, "cmb_track", None)
+    if not (w and hasattr(w, "currentIndex")):
+        return 0, False, None
+
+    try:
+        data = w.currentData()
+        # Caso "nuovo": itemData è un dict con ff_index e metadati dal sidecar
+        if isinstance(data, dict):
+            # preferisci ff_index se presente
+            ff_idx = data.get("ff_index")
+            if ff_idx is not None and int(ff_idx) >= 0:
+                ff_idx = int(ff_idx)
+                # Meta opzionale
+                ch = int(data.get("channels") or 0)
+                sr = int(data.get("sample_rate") or 0)
+                layout = data.get("layout") or data.get("channel_layout")
+                meta = {
+                    "channels": ch,
+                    "sample_rate": sr,
+                    "channel_layout": layout,
+                }
+                # ripulisci meta da zero/None
+                meta = {k: v for k, v in meta.items() if v}
+                return ff_idx, True, (meta or None)
+
+            # fallback: usa index/idx come indice audio 0..N-1
+            for k in ("index", "idx"):
+                if k in data and int(data[k]) >= 0:
+                    return int(data[k]), False, None
+
+        # Vecchi casi: tuple/list/str → delega a resolve_track_index()
+    except Exception:
+        pass
+
+    # Fallback compatibile con il passato
+    idx = resolve_track_index(ac)
+    return idx, False, None
 
 def resolve_preview_seconds(ac: Any) -> Optional[int]:
     w = getattr(ac, "cmb_prev", None)
@@ -388,16 +540,22 @@ class AudioPreview:
             return
         _log(f"[PREVIEW] Sorgente: {src}")
 
-        # traccia audio (indice reale)
-        track_idx = resolve_track_index(self.ac)
-        n_tracks = count_audio_streams(src)
-        if n_tracks == 0:
-            _warn_console("Preview", "Nessuna traccia audio trovata (o ffprobe è fallito).", self.ac)
-            return
-        if track_idx >= n_tracks:
-            _log(f"[PREVIEW] Traccia richiesta {track_idx} fuori range (0..{n_tracks - 1}). Uso 0.")
-            track_idx = 0
-        _log(f"[PREVIEW] Traccia: 0:a:{track_idx}")
+        # traccia audio (indice + modalità mappatura)
+        track_idx, use_abs, meta = resolve_track_for_preview(self.ac)
+
+        if not use_abs:
+            # modalità classica: 0:a:<idx>
+            n_tracks = count_audio_streams(src)
+            if n_tracks == 0:
+                _warn_console("Preview", "Nessuna traccia audio trovata (o ffprobe è fallito).", self.ac)
+                return
+            if track_idx >= n_tracks:
+                _log(f"[PREVIEW] Traccia richiesta {track_idx} fuori range (0..{n_tracks - 1}). Uso 0.")
+                track_idx = 0
+            _log(f"[PREVIEW] Traccia: 0:a:{track_idx}")
+        else:
+            # modalità sidecar LDVD: stream_index assoluto → -map 0:<idx>
+            _log(f"[PREVIEW] Traccia: 0:{track_idx}")
 
         # durata/offset
         ts = resolve_preview_seconds(self.ac)
@@ -406,10 +564,61 @@ class AudioPreview:
         _log(f"[PREVIEW] Durata: {'ALL' if total_secs is None else str(total_secs) + 's'}")
         _log(f"[PREVIEW] Start:  {start_off}s")
 
-        # probe input
-        info = probe_stream_info(src, track_idx)
-        in_ch = int(info.get("channels") or 0) or 2
+        # Info traccia (canali / sample-rate / layout)
+        if meta is not None:
+            info = dict(meta)
+            _log(f"[PREVIEW] Info traccia (da sidecar): {info}")
+        else:
+            info = probe_stream_info(src, track_idx)
+
+            # Se ffprobe non ci dà i canali, prova il fallback con WAV di 1s
+            if not info or not info.get("channels"):
+                ch_fb, sr_fb = _probe_audio_channels_fallback(src, track_idx)
+                if ch_fb:
+                    info = {
+                        "channels": ch_fb,
+                        "sample_rate": sr_fb or 0,
+                        "channel_layout": info.get("channel_layout") if info else None,
+                    }
+                    _log(f"[PREVIEW] Info traccia (fallback WAV): {info}")
+
+            # (per sicurezza, se siamo in modalità assoluta e ancora non abbiamo info,
+            #  prova il vecchio fallback per stream_index globale)
+            if (not info) and use_abs:
+                try:
+                    p = subprocess.run(
+                        [
+                            _which(FFPROBE),
+                            "-v",
+                            "error",
+                            "-show_entries",
+                            "stream=index,channels,sample_rate,channel_layout",
+                            "-of",
+                            "json",
+                            src,
+                        ],
+                        capture_output=True,
+                        text=True,
+                    )
+                    data = json.loads(p.stdout or "{}")
+                    for st in data.get("streams") or []:
+                        if int(st.get("index", -1)) == int(track_idx):
+                            info = {
+                                "channels": int(st.get("channels") or 0),
+                                "sample_rate": int(st.get("sample_rate") or 0),
+                                "channel_layout": (st.get("channel_layout") or None),
+                            }
+                            _log(
+                                f"[PREVIEW] Fallback probe (index): 0:{track_idx} → "
+                                f"{info.get('channels', 0)} canali, {info.get('sample_rate', 0)} Hz"
+                            )
+                            break
+                except Exception as e:
+                    _log(f"[PREVIEW] Fallback probe fallita per 0:{track_idx}: {e}")
+
         _log(f"[PREVIEW] Info traccia: {info or 'n/d'}")
+
+        in_ch = int((info or {}).get("channels") or 0) or 2
 
         # filtri/uscita coerenti con la GUI
         af_chain, out_ac, force_sr = _af_from_ui(self.ac, in_ch)
@@ -428,7 +637,16 @@ class AudioPreview:
         cmd = [_which(FFMPEG), "-hide_banner", "-nostdin", "-progress", "pipe:1", "-nostats", "-y"]
         if start_off > 0:
             cmd += ["-ss", str(int(start_off))]
-        cmd += ["-i", src, "-vn", "-sn", "-dn", "-map", f"0:a:{int(track_idx)}", "-loglevel", "error"]
+        cmd += ["-i", src, "-vn", "-sn", "-dn", "-loglevel", "error"]
+
+        # mappatura traccia in base alla modalità
+        if use_abs:
+            # sidecar LDVD: stream_index assoluto
+            cmd += ["-map", f"0:{int(track_idx)}"]
+        else:
+            # modalità "classica": a:<idx> (primo audio = 0)
+            cmd += ["-map", f"0:a:{int(track_idx)}"]
+
         if af_chain:
             cmd += ["-af", af_chain]
         cmd += ["-c:a", "pcm_s16le"]
@@ -466,10 +684,15 @@ class AudioPreview:
         try:
             scope = ScopeDialog(str(wav), self.ac, channel_names=ch_names, auto_cleanup=True)
 
+            # ─── Mantieni un riferimento sul parent per evitare che il GC uccida il dialog ───
+            try:
+                setattr(self.ac, "_hevc_preview_scope", scope)
+            except Exception:
+                pass
+
             # Geometria: ripristina SOLO posizione e larghezza (non altezza!)
             st = QSettings(SCOPE_APP, SCOPE_NAME)
             try:
-                # vecchia 'geometry' ignorata per l'altezza (evita finestre troppo alte)
                 w_saved = int(st.value(f"{SCOPE_KEY}/width", 0))
                 x_saved = int(st.value(f"{SCOPE_KEY}/pos_x", -1))
                 y_saved = int(st.value(f"{SCOPE_KEY}/pos_y", -1))
@@ -477,11 +700,9 @@ class AudioPreview:
                 w_saved = 0
                 x_saved = y_saved = -1
 
-            # Fallback prima apertura
             if w_saved <= 0:
                 w_saved = SCOPE_DEF_W
 
-            # Imposta larghezza; l'altezza la calcolerà lo scope
             try:
                 scope.resize(int(w_saved), scope.height())
             except Exception:
@@ -498,14 +719,20 @@ class AudioPreview:
                     pos = scope.pos()
                     st.setValue(f"{SCOPE_KEY}/pos_x", int(pos.x()))
                     st.setValue(f"{SCOPE_KEY}/pos_y", int(pos.y()))
-                    # manteniamo anche la geometry "classica" per compatibilità,
-                    # ma NON la usiamo più in restore.
                     st.setValue(f"{SCOPE_KEY}/geometry", scope.saveGeometry())
                 except Exception:
                     pass
 
+            def _clear_ref(*_args):
+                try:
+                    if getattr(self.ac, "_hevc_preview_scope", None) is scope:
+                        setattr(self.ac, "_hevc_preview_scope", None)
+                except Exception:
+                    pass
+
             try:
-                scope.finished.connect(_save_geom)  # type: ignore
+                scope.finished.connect(_save_geom)   # type: ignore
+                scope.finished.connect(_clear_ref)   # type: ignore
             except Exception:
                 pass
 
@@ -514,7 +741,6 @@ class AudioPreview:
             scope.activateWindow()
         except Exception as e:
             _warn_console("Oscilloscopio", f"Impossibile aprire lo scope: {e}", self.ac)
-
 
 def _scope_names_from_gui(af_chain: Optional[str], out_ac: Optional[int], in_ch: int) -> List[str]:
     joined = (af_chain or "").lower()

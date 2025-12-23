@@ -1,5 +1,5 @@
 Package: hevc-video-converter
-Version: 2.1.0-1
+Version: 2.0.0-4
 Section: video
 Priority: optional
 Architecture: all
@@ -8,6 +8,6 @@ Recommends: gnome-terminal, cpulimit, util-linux, coreutils
 Provides: hevc-gui
 Replaces: hevc-gui (<= 2.1.0)
 Conflicts: hevc-gui (<= 2.1.0)
-Maintainer: Loris <noreply@example>
+Maintainer: LorisPaganiniHomeStudio<loris.paganini@gmail.com>
 Description: HEVC – Video Converter
  HEVC/H.265 video converter with queue manager and audio preview/filters.

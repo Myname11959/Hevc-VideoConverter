@@ -1,21 +1,117 @@
 <RCC>
   <qresource prefix="/icons">
+
+    <!-- =========================================================
+         FILE REALI (mantengo anche i path "lunghi": :/icons/icons/...)
+         ========================================================= -->
     <file>icons/logo.png</file>
+
     <file>icons/ph_asp.png</file>
     <file>icons/ph_chapters.png</file>
+    <file>icons/ph_color.png</file>
     <file>icons/ph_convert.png</file>
+    <file>icons/ph_crop.png</file>
+    <file>icons/ph_document-open.png</file>
+    <file>icons/ph_dvdrip.png</file>
     <file>icons/ph_edit_queue.png</file>
     <file>icons/ph_exit.png</file>
     <file>icons/ph_extract.png</file>
+    <file>icons/ph_folder-open.png</file>
+    <file>icons/ph_go-down.png</file>
+    <file>icons/ph_go-next.png</file>
+    <file>icons/ph_go-up.png</file>
     <file>icons/ph_help.png</file>
     <file>icons/ph_info.png</file>
+    <file>icons/ph_ldvd-logo.png</file>
+    <file>icons/ph_list-add.png</file>
+    <file>icons/ph_list-remove.png</file>
+    <file>icons/ph_media-eject.png</file>
+    <file>icons/ph_media-playback-start.png</file>
+    <file>icons/ph_media-playback-stop.png</file>
+    <file>icons/ph_media-record.png</file>
     <file>icons/ph_minfo.png</file>
     <file>icons/ph_open.png</file>
     <file>icons/ph_paypal.png</file>
     <file>icons/ph_preview.png</file>
     <file>icons/ph_preview_filtered.png</file>
+    <file>icons/ph_process-stop.png</file>
     <file>icons/ph_queue_run.png</file>
     <file>icons/ph_save.png</file>
     <file>icons/ph_subs.png</file>
+    <file>icons/ph_text-subtitle.png</file>
+    <file>icons/ph_trim.png</file>
+    <file>icons/ph_view-refresh.png</file>
+
+    <file>icons/ph_clear-queue.png</file>
+    <file>icons/ph_edit-clear.png</file>
+
+    <!-- =========================================================
+         ALIAS "CORTI" (così funzionano anche :/icons/logo.png ecc.)
+         ========================================================= -->
+    <file alias="logo.png">icons/logo.png</file>
+
+    <file alias="ph_asp.png">icons/ph_asp.png</file>
+    <file alias="ph_chapters.png">icons/ph_chapters.png</file>
+    <file alias="ph_color.png">icons/ph_color.png</file>
+    <file alias="ph_convert.png">icons/ph_convert.png</file>
+    <file alias="ph_crop.png">icons/ph_crop.png</file>
+    <file alias="ph_document-open.png">icons/ph_document-open.png</file>
+    <file alias="ph_dvdrip.png">icons/ph_dvdrip.png</file>
+    <file alias="ph_edit_queue.png">icons/ph_edit_queue.png</file>
+    <file alias="ph_exit.png">icons/ph_exit.png</file>
+    <file alias="ph_extract.png">icons/ph_extract.png</file>
+    <file alias="ph_folder-open.png">icons/ph_folder-open.png</file>
+    <file alias="ph_go-down.png">icons/ph_go-down.png</file>
+    <file alias="ph_go-next.png">icons/ph_go-next.png</file>
+    <file alias="ph_go-up.png">icons/ph_go-up.png</file>
+    <file alias="ph_help.png">icons/ph_help.png</file>
+    <file alias="ph_info.png">icons/ph_info.png</file>
+    <file alias="ph_ldvd-logo.png">icons/ph_ldvd-logo.png</file>
+    <file alias="ph_list-add.png">icons/ph_list-add.png</file>
+    <file alias="ph_list-remove.png">icons/ph_list-remove.png</file>
+    <file alias="ph_media-eject.png">icons/ph_media-eject.png</file>
+    <file alias="ph_media-playback-start.png">icons/ph_media-playback-start.png</file>
+    <file alias="ph_media-playback-stop.png">icons/ph_media-playback-stop.png</file>
+    <file alias="ph_media-record.png">icons/ph_media-record.png</file>
+    <file alias="ph_minfo.png">icons/ph_minfo.png</file>
+    <file alias="ph_open.png">icons/ph_open.png</file>
+    <file alias="ph_paypal.png">icons/ph_paypal.png</file>
+    <file alias="ph_preview.png">icons/ph_preview.png</file>
+    <file alias="ph_preview_filtered.png">icons/ph_preview_filtered.png</file>
+    <file alias="ph_process-stop.png">icons/ph_process-stop.png</file>
+    <file alias="ph_queue_run.png">icons/ph_queue_run.png</file>
+    <file alias="ph_save.png">icons/ph_save.png</file>
+    <file alias="ph_subs.png">icons/ph_subs.png</file>
+    <file alias="ph_text-subtitle.png">icons/ph_text-subtitle.png</file>
+    <file alias="ph_trim.png">icons/ph_trim.png</file>
+    <file alias="ph_view-refresh.png">icons/ph_view-refresh.png</file>
+
+    <file alias="ph_clear-queue.png">icons/ph_clear-queue.png</file>
+    <file alias="ph_edit-clear.png">icons/ph_edit-clear.png</file>
+
+    <!-- =========================================================
+         LDVDripper: NOMI SENZA "ph_" (il file vero resta ph_*.png)
+         ========================================================= -->
+    <file alias="folder-open.png">icons/ph_folder-open.png</file>
+    <file alias="list-add.png">icons/ph_list-add.png</file>
+    <file alias="view-refresh.png">icons/ph_view-refresh.png</file>
+    <file alias="list-remove.png">icons/ph_list-remove.png</file>
+    <file alias="go-next.png">icons/ph_go-next.png</file>
+    <file alias="go-up.png">icons/ph_go-up.png</file>
+    <file alias="go-down.png">icons/ph_go-down.png</file>
+    <file alias="edit-clear.png">icons/ph_edit-clear.png</file>
+    <file alias="text-subtitle.png">icons/ph_text-subtitle.png</file>
+    <file alias="document-open.png">icons/ph_document-open.png</file>
+    <file alias="media-record.png">icons/ph_media-record.png</file>
+    <file alias="media-playback-start.png">icons/ph_media-playback-start.png</file>
+    <file alias="process-stop.png">icons/ph_process-stop.png</file>
+    <file alias="media-eject.png">icons/ph_media-eject.png</file>
+    <file alias="media-playback-stop.png">icons/ph_media-playback-stop.png</file>
+
+    <!-- icona app LDVD -->
+    <file alias="ldvd-logo.png">icons/ph_ldvd-logo.png</file>
+
+    <file alias="clear-queue.png">icons/ph_clear-queue.png</file>
   </qresource>
 </RCC>
+

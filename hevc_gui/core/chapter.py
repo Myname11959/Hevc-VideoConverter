@@ -213,6 +213,91 @@ class ChapterManager:
         except Exception:
             return False
 
+    # ---------- nuovo: OGM → FFmetadata -----------------------------------
+    @staticmethod
+    def _ogm_to_ffmetadata(src: Path, dst: Path) -> bool:
+        """
+        Converte un file OGM/Matroska chapters.txt (CHAPTERxx=… / CHAPTERxxNAME=…)
+        in un file FFmetadata (FFMETADATA1) con blocchi [CHAPTER].
+
+        Esempio input:
+
+          CHAPTER01=00:00:00.000
+          CHAPTER01NAME=Intro
+          CHAPTER02=00:05:12.500
+          CHAPTER02NAME=Scena 2
+
+        Gli END sono creati come START+1 ms (chapters “a punto”),
+        che è sufficiente per la maggior parte dei player.
+        """
+        try:
+            lines_in = src.read_text(encoding="utf-8", errors="ignore").splitlines()
+        except OSError:
+            return False
+
+        times: Dict[int, float] = {}
+        names: Dict[int, str] = {}
+
+        rx_time = re.compile(r"^CHAPTER(\d+)\s*=\s*([0-9:.]+)")
+        rx_name = re.compile(r"^CHAPTER(\d+)NAME\s*=\s*(.*)")
+
+        def _parse_ts(ts: str) -> float | None:
+            # accetta HH:MM:SS.mmm
+            try:
+                parts = ts.strip().split(":")
+                if len(parts) != 3:
+                    return None
+                h = int(parts[0])
+                m = int(parts[1])
+                s = float(parts[2])
+                return h * 3600 + m * 60 + s
+            except Exception:
+                return None
+
+        for raw in lines_in:
+            line = raw.strip()
+            if not line:
+                continue
+            m = rx_time.match(line)
+            if m:
+                idx = int(m.group(1))
+                t = _parse_ts(m.group(2))
+                if t is not None:
+                    times[idx] = t
+                continue
+            m = rx_name.match(line)
+            if m:
+                idx = int(m.group(1))
+                title = m.group(2).strip()
+                names[idx] = title or f"Chapter {idx:02d}"
+
+        if not times:
+            # niente CHAPTERxx=… → non è un file OGM valido
+            return False
+
+        # ordina per indice capitolo
+        indices = sorted(times.keys())
+        out: List[str] = [";FFMETADATA1"]
+
+        for idx in indices:
+            t0 = times[idx]
+            start = int(round(t0 * 1000))
+            end = start + 1  # punto singolo, come nel fallback QuickTime
+            title = names.get(idx) or f"Chapter {idx:02d}"
+            out += [
+                "[CHAPTER]",
+                "TIMEBASE=1/1000",
+                f"START={start}",
+                f"END={end}",
+                f"title={title}",
+            ]
+
+        try:
+            dst.write_text("\n".join(out), encoding="utf-8")
+            return True
+        except OSError:
+            return False
+
     # ---------- API pubbliche --------------------------------------------
     @staticmethod
     def get_embedded_chapters(input_file: Path) -> List[Dict]:
@@ -239,29 +324,43 @@ class ChapterManager:
         """
         Cerca di ottenere un file FFmetadata compatibile con FFmpeg.
 
-        1) prova l’estrazione diretta con FFmpeg;
-        2) se fallisce, tenta la conversione (QuickTime ©chp);
-        3) se non c’è alcun formato gestibile, genera automaticamente;
-        4) se ancora nulla ⇒ solleva ChapterError.
+        Priorità:
+
+          0) se esiste <basename>.chapters_ogm.txt accanto al video,
+             prova a convertirlo in FFmetadata;
+          1) prova l’estrazione diretta con FFmpeg;
+          2) se fallisce, tenta la conversione (QuickTime ©chp);
+          3) se non c’è alcun formato gestibile, genera automaticamente;
+          4) se ancora nulla ⇒ solleva ChapterError.
         """
-        # 1) usa dir dedicata e nomi per video
+        # dir dedicata e nome per questo video
         tmp_dir = _per_video_chapters_dir(video)
         meta = tmp_dir / f"{video.stem}_chapters.txt"
 
-        # estrazione diretta
+        # 0) sidecar OGM accanto al file video (universale, vale anche per VOB LDVD)
+        ogm = video.with_suffix(".chapters_ogm.txt")
+        try:
+            if ogm.is_file():
+                if cls._ogm_to_ffmetadata(ogm, meta):
+                    return meta
+        except Exception:
+            # meglio non esplodere se il file è strano
+            pass
+
+        # 1) estrazione diretta da capitoli incorporati
         if cls._extract_ffmetadata(video, meta):
             return meta
 
-        # fallback QuickTime
+        # 2) fallback QuickTime (©chp ecc.)
         if cls._qtchp_to_ffmetadata(video, meta):
             return meta
 
-        # fallback automatico scene-change
+        # 3) fallback automatico scene-change
         auto_meta = Path(auto_generate_chapter_file(str(video), 0.4))
         if auto_meta.exists():
             return auto_meta
 
-        # nessun capitolo compatibile
+        # 4) nessun capitolo compatibile
         raise ChapterError("Nessun capitolo compatibile trovato.")
 
     # ---------- dialogo GUI ----------------------------------------------

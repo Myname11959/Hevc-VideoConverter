@@ -34,7 +34,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QSizePolicy,
 )
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QAudioProbe
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QAudioProbe, QAudioFormat
 
 # ==================== Parametri UI/regolabili (via env) ====================
 # Spazio VERTICALE (in px) tra una “vasca” e la successiva
@@ -248,22 +248,55 @@ class Oscilloscope(QWidget):
         return old
 
     def update_buffer(self, buffer):
-        """QAudioProbe -> aggiorna i canali (si aspetta PCM 16 bit interlacciato)."""
+        """QAudioProbe -> aggiorna i canali; supporta PCM16 e float32 interlacciato."""
+        fmt = buffer.format()
+        actual_ch = max(1, fmt.channelCount())
+        sample_size = fmt.sampleSize()
+        sample_type = fmt.sampleType()
+
         try:
             ptr = buffer.constData()
             size = buffer.byteCount()
             raw = ctypes.string_at(int(ptr), size)
-            arr = np.frombuffer(raw, dtype=np.int16)
         except Exception:
             return
 
-        actual_ch = max(1, buffer.format().channelCount())
+        # Scegli il dtype corretto in base al formato Qt
+        try:
+            if sample_type == QAudioFormat.Float and sample_size == 32:
+                # float32 (tipico backend GStreamer)
+                arr = np.frombuffer(raw, dtype=np.float32)
+            elif sample_size == 16:
+                # Signed/Unsigned 16-bit → trattiamo comunque come int16
+                arr = np.frombuffer(raw, dtype=np.int16)
+            else:
+                # Formato non gestito: esco in silenzio
+                return
+        except Exception:
+            return
+
+        if arr.size == 0:
+            return
+
+        # Reshape in [frames, canali]
         try:
             frames = arr.reshape(-1, actual_ch)
         except Exception:
-            frames = arr.reshape(-1, 1)
-            actual_ch = 1
+            # fallback mono
+            try:
+                frames = arr.reshape(-1, 1)
+                actual_ch = 1
+            except Exception:
+                return
 
+        # Normalizza in float32 -1..1
+        if arr.dtype == np.int16:
+            norm = frames.astype(np.float32) / 32768.0
+        else:
+            # float32: di solito è già in -1..1
+            norm = frames.astype(np.float32)
+
+        # Mappa standard canali → index fisico
         if actual_ch == 1:
             std_map = {"M": 0, "L": 0, "R": 0}
         elif actual_ch == 2:
@@ -273,12 +306,12 @@ class Oscilloscope(QWidget):
         else:
             std_map = {name: min(i, actual_ch - 1) for i, name in enumerate(self.channel_names)}
 
+        # Aggiorna i buffer dei canali e ridisegna le curve
         for i, name in enumerate(self.channel_names):
             idx = std_map.get(name, 0)
-            chan = frames[:, idx].astype(np.float32) / 32768.0
+            chan = norm[:, idx]
             self.buffers[i] = self._update_array(self.buffers[i], chan)
             self.curves[i].setData(self.buffers[i])
-
 
 class PreviewDialog(QDialog):
     """Dialog di preview con player+probe e Oscilloscope multi-canale."""
@@ -304,8 +337,12 @@ class PreviewDialog(QDialog):
         self.player = QMediaPlayer(self)
         self.player.setMedia(QMediaContent(QUrl.fromLocalFile(self.audio_file)))
         self.player.setNotifyInterval(20)
+
         self.probe = QAudioProbe(self)
-        self.probe.setSource(self.player)
+        ok = self.probe.setSource(self.player)
+        if not ok:
+            print("[SCOPE] WARNING: QAudioProbe.setSource() FAILED — nessun buffer audio verrà ricevuto")
+
         self.probe.audioBufferProbed.connect(self.osc.update_buffer)
 
         self._build_ui()

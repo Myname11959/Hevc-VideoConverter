@@ -108,6 +108,7 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
 
     # — STRUMENTI —
     m_tools = menubar.addMenu("&Strumenti")
+
     act_minfo = QAction(_themed_icon_with_aliases("minfo"), "MediaInfo", win,
                         triggered=win.show_mediainfo)
     act_minfo.setProperty("icon_name", "minfo")
@@ -120,7 +121,31 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
                                    triggered=lambda: win.launch_preview(True))
     act_preview_filtered.setProperty("icon_name", "preview_filtered")
 
-    m_tools.addActions([act_minfo, act_preview, act_preview_filtered])
+    # Nuova voce: Imposta crop…
+    act_crop = QAction(_themed_icon_with_aliases("crop"), "Imposta crop…", win,
+                       triggered=win.open_crop_tool)
+    act_crop.setStatusTip("Apri lo strumento di ritaglio video")
+    act_crop.setProperty("icon_name", "crop")
+    act_crop.setObjectName("act_crop")
+    act_crop.setEnabled(False)  # all’avvio non c’è input → disabilitata
+
+    m_tools.addActions([act_minfo, act_preview, act_preview_filtered, act_crop])
+
+    # Espone i riferimenti direttamente sul MainWindow (più affidabile di _menu_actions)
+    setattr(win, "act_minfo", act_minfo)
+    setattr(win, "act_preview", act_preview)
+    setattr(win, "act_preview_filtered", act_preview_filtered)
+    setattr(win, "act_crop", act_crop)
+
+    # Se usi anche la mappa azioni, aggiorna senza sovrascrivere altri
+    if not hasattr(win, "_menu_actions") or not isinstance(win._menu_actions, dict):
+        win._menu_actions = {}
+    win._menu_actions.update({
+        "mediainfo": act_minfo,
+        "preview": act_preview,
+        "preview_filtered": act_preview_filtered,
+        "crop": act_crop,
+    })
 
     # — IMPOSTAZIONI —
     m_settings = menubar.addMenu("&Impostazioni")

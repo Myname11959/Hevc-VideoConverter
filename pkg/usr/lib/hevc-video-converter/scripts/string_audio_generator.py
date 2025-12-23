@@ -261,7 +261,7 @@ class AudioConverter(QDialog):
 
         # finestra
         self.setWindowTitle("String Audio Generator")
-        self.resize(560, 680)
+        self.resize(560, 700)
         self.setAcceptDrops(True)
 
         # stato interno
@@ -375,7 +375,7 @@ class AudioConverter(QDialog):
         """
         M = {
             "WIN_W": 560,
-            "WIN_H": 680,
+            "WIN_H": 700,
             "MARG": 8,
             "ROW_H": 26,
             "VSP": 10,
@@ -660,6 +660,9 @@ class AudioConverter(QDialog):
         # ---------- R14: Footer ----------
         self.lbl_pan_preset = QLabel("Pan preset: — (nessun downmix)", self)
         place(self.lbl_pan_preset, M["X0"], CANVAS_W - 2 * M["X0"])
+
+        # Vai a riga successiva per mettere i pulsanti separati
+        new_line()
 
         self.btn_add = QPushButton("Agg. traccia", self)
         self.btn_cancel = QPushButton("Annulla", self)
@@ -1681,19 +1684,20 @@ class AudioConverter(QDialog):
         except Exception:
             in_ch = 2
 
-        keep_mono  = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
         downmix_on = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
 
         prof = getattr(self, "_soundbar_profile", "none")
         # chiave configurabile in constants.py; fallback "samsung_stereo"
         from hevc_gui.core import constants as C
-        samsung_stereo = (prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo"))
-        samsung_51     = (prof == "samsung_5_1_ac3")
+
+        samsung_stereo = prof == getattr(C, "PROFILE_SAMSUNG_STEREO_KEY", "samsung_stereo")
+        samsung_51 = prof == "samsung_5_1_ac3"
 
         try:
             eff_stereo = bool(self._effective_output_is_stereo(in_ch))
         except Exception:
-            eff_stereo = (in_ch >= 2 and not keep_mono)
+            eff_stereo = in_ch >= 2 and not keep_mono
 
         # 1) MONO mantenuto → niente pan/pseudo-stereo
         if in_ch == 1 and keep_mono:
@@ -2488,6 +2492,7 @@ class AudioConverter(QDialog):
                 except Exception:
                     continue
 
+
 """
 # === Main ===
 if __name__ == "__main__":
@@ -2538,9 +2543,9 @@ __all__ = ["AudioConverter", "StringAudioGenerator"]
 # === Main (disabilitato) ===
 if __name__ == "__main__":  # blocco l'uso stand-alone (anche con `python -m`)
     import sys
+
     print(
-        "Questo modulo non è eseguibile da solo.\n"
-        "Aprilo dall’app HEVC-GUI (MainWindow) e usalo solo dentro la GUI.",
+        "Questo modulo non è eseguibile da solo.\nAprilo dall’app HEVC-GUI (MainWindow) e usalo solo dentro la GUI.",
         file=sys.stderr,
     )
     raise SystemExit(2)

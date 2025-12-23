@@ -219,6 +219,20 @@ Problemi comuni
 • Errore Qt “xcb” (Linux) → installa librerie X11 mancanti (es. libxcb-xinerama0) o esegui sotto X11.
 • Permessi → chmod +x tools/*.sh
 
+IMPORTANTISSIMO!!!
+### Integrazione con Subtitle Edit (snap)
+
+Se usi **Subtitle Edit** installato come snap (`sudo snap install subtitle-edit`),
+per poter lavorare con i VOB/IFO su dischi esterni o sotto `/mnt` devi dare
+una volta sola questi comandi:
+
+
+sudo snap connect subtitle-edit:alsa :alsa
+sudo snap connect subtitle-edit:removable-media :removable-media
+sudo snap connect subtitle-edit:mount-observe :mount-observe
+
+###
+
 Donazioni
 Se il progetto ti è utile, puoi supportarlo:
 https://paypal.me/loris1159
