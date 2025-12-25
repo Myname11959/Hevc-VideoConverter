@@ -29,6 +29,7 @@ from PyQt5.QtCore import (
     QDir,
     QDirIterator,
     QUrl,
+    QFile,
     QTimer,
     QMimeData,
 )
@@ -332,10 +333,9 @@ class DVDExtractorView(QMainWindow):
                 candidates.append(f"ps_{n}.png")
 
         for base in candidates:
-            for p in (f":/icons/{base}", f":/icons/icons/{base}"):
-                ic = QIcon(p)
-                if not ic.isNull():
-                    return ic
+            p = f":/icons/{base}"
+            if QFile.exists(p):
+                return QIcon(p)
 
         return QIcon()
 
@@ -925,11 +925,11 @@ class DVDExtractorView(QMainWindow):
     def _show_about(self):
         QMessageBox.about(
             self,
-            "DVD Ripper — Informazioni",
-            "<b>DVD Ripper</b><br>"
+            "LDVD Ripper — Informazioni",
+            "<b>LDVD Ripper</b><br>"
             "GUI split (albero / file / coda) con estrazione VOB nativa e sidecar, "
             "più handoff a HEVC.<br><br>"
-            "© Loris — Tool di backup personale.<br>"
+            "© LorisPaganiniHomeStudio - 2025<br>"
             "<small>Può integrare un remux DVD (lossless) opzionale se disponibile.</small>",
         )
 

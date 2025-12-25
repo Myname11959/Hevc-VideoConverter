@@ -97,3 +97,6 @@ hevc_gui/resources/icons_rc.py
 # generated Qt resources
 hevc_gui/resources/icons.qrc
 hevc_gui/resources/icons_rc.py
+
+# pkg payload (GENERATA durante build .deb)
+pkg/usr/lib/hevc-video-converter/

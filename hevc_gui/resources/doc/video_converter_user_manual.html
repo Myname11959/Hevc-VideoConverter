@@ -1,11 +1,8 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html><head>
-  <meta content="text/html; charset=UTF-8" http-equiv="content-type">
-  <title>user_manual</title>
-
-
-  <meta charset="UTF-8">
-
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>HEVC-Video Converter — Manuale Utente / User Manual</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -13,419 +10,998 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
-max-width: 960px;
-margin: 2rem auto;
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-background: #fefefe;
-color: #222;
-line-height: 1.6;
-padding: 0 1rem;
+  max-width: 960px;
+  margin: 2rem auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #fefefe;
+  color: #222;
+  line-height: 1.6;
+  padding: 0 1rem;
 }
-h1, h2, h3 {
-font-weight: 700;
-color: #004080;
-margin-bottom: 0.5rem;
-}
+h1, h2, h3 { font-weight: 700; color: #004080; margin-bottom: 0.5rem; }
+
 nav {
-background: #e6f0ff;
-border-left: 5px solid #004080;
-padding: 1rem 1.5rem;
-margin-bottom: 2rem;
-border-radius: 6px;
+  background: #e6f0ff;
+  border-left: 5px solid #004080;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.2rem;
+  border-radius: 6px;
 }
 nav a {
-color: #004080;
-font-weight: 600;
-text-decoration: none;
-margin-right: 1.25rem;
-font-size: 1rem;
+  color: #004080;
+  font-weight: 600;
+  text-decoration: none;
+  margin-right: 1.25rem;
+  font-size: 1rem;
+  white-space: nowrap;
 }
-nav a:hover {
-text-decoration: underline;
-}
+nav a:hover { text-decoration: underline; }
+
 section {
-margin-bottom: 3rem;
-background: white;
-box-shadow: 0 0 10px #ddd;
-padding: 2rem;
-border-radius: 8px;
+  margin-bottom: 3rem;
+  background: white;
+  box-shadow: 0 0 10px #ddd;
+  padding: 2rem;
+  border-radius: 8px;
 }
+
 code, pre {
-background: #f3f4f6;
-border-radius: 4px;
-font-family: Consolas, monospace;
-font-size: 0.95rem;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+  font-size: 0.95rem;
 }
-pre {
-overflow-x: auto;
-padding: 1rem;
-margin: 1rem 0;
+pre { overflow-x: auto; padding: 1rem; margin: 1rem 0; }
+
+ul, ol { margin-left: 1.25rem; margin-bottom: 1rem; }
+li { margin-bottom: 0.5rem; }
+
+.btn-print, .btn-lang {
+  display: inline-block;
+  background-color: #004080;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  margin: 0.2rem 0.35rem 0.8rem 0;
+  transition: background-color 0.3s ease;
 }
-ul, ol {
-margin-left: 1.25rem;
-margin-bottom: 1rem;
+.btn-print:hover, .btn-lang:hover { background-color: #002e5b; }
+.btn-lang.secondary { background:#4b5563; }
+.btn-lang.secondary:hover { background:#374151; }
+
+.badge {
+  display:inline-block;
+  padding:0.15rem 0.55rem;
+  border-radius:999px;
+  background:#e6f0ff;
+  color:#004080;
+  font-weight:700;
+  font-size:0.85rem;
 }
-li {
-margin-bottom: 0.5rem;
+
+.note {
+  background:#f3f7ff;
+  border:1px solid #cfe0ff;
+  border-left:5px solid #004080;
+  padding:0.9rem 1rem;
+  border-radius:6px;
+  margin: 1rem 0;
 }
-.btn-print {
-display: inline-block;
-background-color: #004080;
-color: white;
-padding: 0.6rem 1.2rem;
-font-size: 1rem;
-border-radius: 6px;
-border: none;
-cursor: pointer;
-margin-bottom: 2rem;
-transition: background-color 0.3s ease;
+.warn {
+  background:#fff7e6;
+  border:1px solid #ffe2a8;
+  border-left:5px solid #b45309;
+  padding:0.9rem 1rem;
+  border-radius:6px;
+  margin: 1rem 0;
 }
-.btn-print:hover {
-background-color: #002e5b;
+.danger {
+  background:#ffeef0;
+  border:1px solid #ffcad1;
+  border-left:5px solid #b91c1c;
+  padding:0.9rem 1rem;
+  border-radius:6px;
+  margin: 1rem 0;
 }
-dl dt {
-font-weight: 700;
-margin-top: 1rem;
-color: #004080;
+.small { font-size:0.92rem; color:#444; }
+kbd {
+  background:#111827; color:white; border-radius:4px; padding:0.08rem 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size:0.9rem;
 }
-dl dd {
-margin-left: 1rem;
-margin-bottom: 0.75rem;
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0;
+  font-size: 0.95rem;
 }
+th, td { border:1px solid #e5e7eb; padding:0.6rem 0.6rem; vertical-align: top; }
+th { background:#f3f7ff; color:#004080; text-align:left; }
+
 footer {
-text-align: center;
-margin: 3rem 0 1rem 0;
-color: #555;
-font-size: 0.9rem;
+  text-align: center;
+  margin: 3rem 0 1rem 0;
+  color: #555;
+  font-size: 0.9rem;
 }
-a {
-color: #004080;
-}
-a:hover {
-text-decoration: underline;
+a { color: #004080; }
+a:hover { text-decoration: underline; }
+
+.lang { display:none; }
+.lang.active { display:block; }
+
+/* PRINT A4 */
+@page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+@media print{
+  body{ max-width:none; margin:0; padding:0; }
+  nav, .no-print { display:none !important; }
+  section{ box-shadow:none; margin:0 0 16px 0; padding:0; border-radius:0; }
+  .btn-print, .btn-lang { display:none !important; }
+  a{ text-decoration: underline; }
 }
   </style>
-</head><body>
-<br>
 
-<script>
-function printManual() {
-window.print();
-}
-</script>
-<h1>Manuale Utente HEVC-Video Converter</h1>
+  <script>
+    function printManual(){ window.print(); }
+    function setLang(which){
+      var it = document.getElementById('lang-it');
+      var en = document.getElementById('lang-en');
+      if(which === 'en'){
+        en.classList.add('active'); it.classList.remove('active');
+        document.documentElement.lang = 'en';
+        document.title = 'HEVC-Video Converter — User Manual';
+        location.hash = '#en-intro';
+      }else{
+        it.classList.add('active'); en.classList.remove('active');
+        document.documentElement.lang = 'it';
+        document.title = 'HEVC-Video Converter — Manuale Utente';
+        location.hash = '#introduzione';
+      }
+    }
+  </script>
+</head>
+
+<body>
+
+  <h1>HEVC-Video Converter <span class="badge">2025</span></h1>
+  <p class="small">
+    Manuale in <b>Italiano</b> e <b>English</b> nello stesso file.
+    Usa i pulsanti qui sotto per cambiare lingua e poi <b>Stampa / Salva in PDF (A4)</b>.
+  </p>
+
+  <div class="no-print">
+    <button class="btn-lang" onclick="setLang('it')">🇮🇹 Italiano</button>
+    <button class="btn-lang secondary" onclick="setLang('en')">🇬🇧 English</button>
+    <button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF (A4)</button>
+  </div>
+
+  <nav class="no-print">
+    <a href="#introduzione">Introduzione</a>
+    <a href="#requisiti">Requisiti</a>
+    <a href="#installazione">Installazione</a>
+    <a href="#interfaccia">Interfaccia</a>
+    <a href="#uso">Come Usare</a>
+    <a href="#ricette">Ricette pronte</a>
+    <a href="#strumenti">Strumenti Video</a>
+    <a href="#audio">Audio</a>
+    <a href="#subs">Sottotitoli</a>
+    <a href="#capitoli">Capitoli</a>
+    <a href="#coda">Coda</a>
+    <a href="#ldvd">LDVD Ripper</a>
+    <a href="#subtitle-edit">Subtitle Edit (fallback)</a>
+    <a href="#troubleshoot">Problemi comuni</a>
+    <a href="#faq">FAQ</a>
+    <a href="#info">Info</a>
+    <a href="#note-legali">Note Legali</a>
+  </nav>
+
+  <!-- ====================== ITALIANO ====================== -->
+  <div id="lang-it" class="lang active">
+
+    <section>
+      <h2 id="introduzione">1. Introduzione</h2>
+
+      <p><strong>HEVC-Video Converter</strong> è un convertitore video open source pensato per rendere semplice e sicura la conversione
+      in formato <strong>HEVC (H.265)</strong>, mantenendo però strumenti avanzati (preview, filtri, audio, sottotitoli, capitoli, coda batch).</p>
+
+      <p>La GUI “nasconde” la complessità di FFmpeg ma ti lascia il controllo delle cose davvero importanti:
+      qualità, preset, tracce audio, sottotitoli/capitoli e strumenti di verifica prima della conversione.</p>
+
+      <div class="note">
+        <b>Novità principali (versione attuale):</b>
+        <ul>
+          <li><b>Toolbar icon-only</b> (pulsanti = icone PNG, stile LDVD).</li>
+          <li>Voce <b>File → Riavvia…</b> per riavvio “pulito” dell’app (reset stato in RAM).</li>
+          <li>Modulo integrato <b>LDVD Ripper</b>: DVD → file locale + (opzionale) OCR sottotitoli in SRT + handoff a HEVC.</li>
+          <li>Risorse icone Qt: path standard <code>:/icons/...</code> (generate durante il build del <code>.deb</code>).</li>
+        </ul>
+      </div>
+
+      <div class="danger">
+        <b>Disclaimer:</b> il software è fornito “così com’è”, senza garanzie. L’utente è responsabile di verificare la conformità alle leggi locali
+        su copyright e codec.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="requisiti">2. Requisiti di Sistema</h2>
+
+      <h3>2.1 Sistemi operativi supportati</h3>
+      <ul>
+        <li><strong>Linux</strong> (Mint/Ubuntu e derivate) — supporto principale.</li>
+        <li><strong>macOS</strong> — supportato tramite script di build e dipendenze installabili.</li>
+        <li><strong>Windows</strong> — possibile, ma alcune funzioni dipendono da tool esterni (setup più manuale).</li>
+      </ul>
+
+      <h3>2.2 Dipendenze software (comuni)</h3>
+      <ul>
+        <li><strong>FFmpeg + FFprobe</strong> installati e raggiungibili dal PATH.</li>
+        <li><strong>Python 3</strong> + <strong>PyQt5</strong> se usi la versione sorgente.</li>
+      </ul>
+
+      <div class="note">
+        <b>Test rapido (tutti i sistemi):</b>
+        <pre>ffmpeg -version
+ffprobe -version</pre>
+        Se questi comandi non funzionano, HEVC non può convertire.
+      </div>
+
+      <h3>2.3 Tool opzionali (solo se usi quelle funzioni)</h3>
+      <ul>
+        <li><b>Subtitle Edit</b> (consigliato come piano B) per estrarre/convertire sottotitoli quando l’OCR automatico fallisce.</li>
+        <li><b>Mono</b> (Linux/macOS) se usi Subtitle Edit versione .NET.</li>
+        <li>Tool DVD (a seconda del flusso LDVD): utilità per leggere titoli/capitoli/stream.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 id="installazione">3. Installazione e avvio (Linux / macOS / Windows)</h2>
+
+      <h3>3.1 Linux — Installazione tramite .deb (consigliata)</h3>
+      <ol>
+        <li>Scarica il pacchetto <code>.deb</code> (release).</li>
+        <li>Installa con:
+          <pre>sudo apt install ./hevc-video-converter_*.deb</pre>
+        </li>
+        <li>Avvia da menu o da terminale:
+          <pre>hevc-video-converter</pre>
+        </li>
+      </ol>
+
+      <h3>3.2 Linux — Avvio da sorgenti (sviluppo)</h3>
+      <ol>
+        <li>Clona il repository e entra nella cartella.</li>
+        <li>Installa dipendenze Python (se previste dal progetto) e verifica FFmpeg.</li>
+        <li>Avvia:
+          <pre>python3 main.py</pre>
+        </li>
+      </ol>
+
+      <div class="warn">
+        <b>Nota icone (importante):</b>
+        nel progetto le risorse Qt (<code>icons_rc.py</code>) vengono generate durante il build del <code>.deb</code>.
+        Se stai lanciando “da sorgenti” e non vedi le icone, devi rigenerare le risorse o usare il pacchetto <code>.deb</code>.
+      </div>
+
+      <h3>3.3 macOS — Linee guida</h3>
+      <ol>
+        <li>Installa FFmpeg (es. Homebrew):
+          <pre>brew install ffmpeg</pre>
+        </li>
+        <li>Assicurati di avere Python 3 e le dipendenze GUI (PyQt5).</li>
+        <li>Avvia da sorgenti:
+          <pre>python3 main.py</pre>
+        </li>
+      </ol>
+
+      <h3>3.4 Windows — Linee guida (setup più manuale)</h3>
+      <ol>
+        <li>Installa Python 3.</li>
+        <li>Installa FFmpeg (ZIP) e aggiungi <code>bin</code> al PATH.</li>
+        <li>Installa PyQt5 e dipendenze Python del progetto.</li>
+        <li>Avvia:
+          <pre>python main.py</pre>
+        </li>
+      </ol>
+      <div class="warn">
+        Su Windows alcune funzioni dipendono da tool esterni o comportamenti specifici del sistema.
+        Se qualcosa non va, controlla sempre prima FFmpeg/ffprobe e i percorsi (PATH).
+      </div>
+    </section>
+
+    <section>
+      <h2 id="interfaccia">4. Panoramica Interfaccia</h2>
+
+      <ul>
+        <li><strong>Barra Menu + Toolbar icon-only:</strong> accesso rapido alle funzioni principali.</li>
+        <li><strong>Campo input video:</strong> scegli/trascina il file da convertire.</li>
+        <li><strong>Impostazioni video:</strong> qualità (CRF/bitrate), preset, filtri.</li>
+        <li><strong>Strumenti:</strong> <em>Preview</em>, <em>Preview filtrata</em>, <em>Crop</em>, <em>Trim</em>, <em>Colore</em>, <em>Aspetto</em>.</li>
+        <li><strong>Audio:</strong> scelta tracce e profili (downmix, ecc.).</li>
+        <li><strong>Sottotitoli / Capitoli:</strong> gestione inclusione e sorgenti.</li>
+        <li><strong>Log e avanzamento:</strong> messaggi tecnici, progress bar, tempo stimato.</li>
+        <li><strong>Coda:</strong> salva/gestisci/elabora conversioni batch.</li>
+      </ul>
+
+      <div class="note">
+        <b>Workflow “a prova di dummy” (la sequenza migliore):</b><br>
+        <b>Apri → Preview → (Crop/Trim/Colore) → Preview filtrata → Converti</b><br>
+        Se fai sempre così, riduci al minimo le sorprese.
+      </div>
+
+      <table>
+        <tr>
+          <th>Termine</th>
+          <th>Spiegazione semplice</th>
+        </tr>
+        <tr>
+          <td><b>CRF</b></td>
+          <td>Qualità “automatica”: tu scegli un numero (es. 20–24) e il bitrate si adatta. Più basso = più qualità = file più grande.</td>
+        </tr>
+        <tr>
+          <td><b>Bitrate</b></td>
+          <td>Qualità “a budget”: tu scegli un numero (es. 2000k) e la qualità si adatta al limite. Utile se vuoi un peso più controllato.</td>
+        </tr>
+        <tr>
+          <td><b>Preset</b></td>
+          <td>Velocità/efficienza: più lento = migliore compressione ma più tempo.</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <h2 id="uso">5. Come usare HEVC (conversione passo-passo)</h2>
+
+      <h3>5.1 Aprire un video (2 modi)</h3>
+      <ol>
+        <li><b>Metodo 1:</b> clicca <b>Apri</b> (icona in toolbar) e seleziona il file.</li>
+        <li><b>Metodo 2:</b> trascina il file video dentro l’app (se previsto dal tuo ambiente).</li>
+      </ol>
+
+      <h3>5.2 Prima verifica: Preview</h3>
+      <div class="note">
+        <b>Fallo sempre:</b> la preview ti evita di convertire “il file sbagliato” o con audio/lingua non desiderata.
+      </div>
+
+      <h3>5.3 Scegliere qualità e preset (consigli pratici)</h3>
+      <ul>
+        <li><b>Se sei alle prime armi:</b> usa <b>CRF</b> e un preset “medio” (es. medium/slow).</li>
+        <li><b>Se vuoi pesi simili tra episodi:</b> usa bitrate (ma richiede più esperienza).</li>
+        <li><b>Non cambiare 10 cose insieme:</b> fai una modifica, poi preview filtrata.</li>
+      </ul>
+
+      <h3>5.4 Se usi strumenti (crop/trim/colore): Preview filtrata</h3>
+      <div class="warn">
+        <b>Regola salva-vita:</b> dopo ogni tool (crop/trim/colore/aspect) fai <b>Preview filtrata</b>.
+        Se l’immagine è deformata o tagliata, te ne accorgi subito.
+      </div>
+
+      <h3>5.5 Convertire</h3>
+      <ol>
+        <li>Premi <b>Converti</b>.</li>
+        <li>Attendi la fine e controlla l’output.</li>
+      </ol>
+
+      <div class="note">
+        <b>Metodo “anti-sorpresa” (consigliato):</b>
+        prima fai un test di 60–120 secondi (trim breve), poi lanci la conversione completa.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="ricette">6. Ricette pronte (per chi vuole risultati subito)</h2>
+
+      <h3>6.1 “Ho un film con bande nere sopra/sotto”</h3>
+      <ol>
+        <li>Apri il video.</li>
+        <li>Apri <b>Crop</b> e ritaglia solo le bande nere (senza tagliare contenuto).</li>
+        <li>Fai <b>Preview filtrata</b>.</li>
+        <li>Converti.</li>
+      </ol>
+
+      <h3>6.2 “Voglio tagliare intro e titoli di coda”</h3>
+      <ol>
+        <li>Apri <b>Trim</b>.</li>
+        <li>Imposta inizio e fine (lascia un margine di sicurezza).</li>
+        <li>Preview filtrata e converti.</li>
+      </ol>
+
+      <h3>6.3 “Audio 5.1: sento rumori ma non i dialoghi”</h3>
+      <ol>
+        <li>Apri modulo <b>Audio</b>.</li>
+        <li>Cambia profilo downmix o traccia audio.</li>
+        <li>Fai test su 1–2 minuti con dialoghi evidenti.</li>
+      </ol>
+
+      <h3>6.4 “Ho un DVD e voglio anche i sottotitoli in SRT”</h3>
+      <ol>
+        <li>Vai in <b>LDVD Ripper</b> e fai <b>Estrai</b>.</li>
+        <li>Prova <b>OCR SRT</b>.</li>
+        <li>Se l’OCR fallisce: usa <b>Subtitle Edit</b> (vedi sezione dedicata).</li>
+        <li>Passa a HEVC e converti.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 id="strumenti">7. Strumenti Video (Crop / Trim / Colore / Aspetto)</h2>
+
+      <h3>7.1 Crop (ritaglio)</h3>
+      <ul>
+        <li>Serve a togliere bande nere e bordi inutili.</li>
+        <li>Se ci sono sottotitoli “impressi nel video”, NON tagliarli.</li>
+      </ul>
+      <div class="warn">
+        <b>Errore comune:</b> croppare troppo e tagliare contenuto o sottotitoli.
+      </div>
+
+      <h3>7.2 Trim (tagli)</h3>
+      <ul>
+        <li>Taglia intro/finale o parti indesiderate.</li>
+        <li>Controlla sempre i punti di taglio con preview.</li>
+      </ul>
+
+      <h3>7.3 Regolazione colore</h3>
+      <ul>
+        <li>Corregge video troppo scuro/slavato.</li>
+        <li>Fallo a piccoli passi e controlla scene giorno/notte.</li>
+      </ul>
+
+      <h3>7.4 Aspetto / Aspect ratio</h3>
+      <div class="note">
+        <b>Regola “da dummy” che salva la vita:</b> se non sai cosa stai forzando, <b>non forzare aspect</b>.<br>
+        Fai crop corretto + preview filtrata e verifica che non ci siano deformazioni.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="audio">8. Modulo Audio</h2>
+
+      <p>Il modulo audio serve per selezionare tracce, impostare codec/bitrate/canali e applicare miglioramenti (se disponibili nel tuo setup).</p>
+
+      <h3>8.1 Problema tipico: “Sento rumori ma non i dialoghi”</h3>
+      <div class="danger">
+        <b>Causa frequente:</b> downmix errato (il canale centrale con i dialoghi non viene miscelato bene).<br>
+        <b>Soluzione semplice:</b> prova un profilo downmix diverso e testa su una scena parlata.
+      </div>
+
+      <div class="note">
+        <b>Consiglio pratico:</b> prima di convertire un film intero, fai sempre una prova breve su 1–2 minuti con dialoghi evidenti.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="subs">9. Sottotitoli (interni / esterni / da DVD)</h2>
+
+      <h3>9.1 Sottotitoli “interni” (dentro MKV/MP4)</h3>
+      <ul>
+        <li>Se il file li contiene, puoi selezionare lo stream desiderato.</li>
+        <li>Se non li vedi, spesso il file non li ha davvero (o sono in un formato non supportato dal tuo flusso).</li>
+      </ul>
+
+      <h3>9.2 Sottotitoli “esterni” (SRT)</h3>
+      <ul>
+        <li>Un file <code>.srt</code> è un testo: è leggero e compatibile con quasi tutti i player.</li>
+        <li>Se hai più lingue, rinomina bene o scegli dal modulo sottotitoli.</li>
+      </ul>
+
+      <h3>9.3 Sottotitoli da DVD (VobSub → SRT)</h3>
+      <div class="note">
+        Nei DVD spesso i sottotitoli sono “immagini” (VobSub), non testo.
+        Per avere un SRT leggibile serve OCR (automatico o assistito con Subtitle Edit).
+      </div>
+    </section>
+
+    <section>
+      <h2 id="capitoli">10. Capitoli</h2>
+      <p>Se la sorgente ha capitoli (DVD o file), puoi includerli nell’output. Se un formato non è compatibile, potrebbe essere necessaria una conversione in formato FFmpeg-friendly (dipende dal setup).</p>
+    </section>
+
+    <section>
+      <h2 id="coda">11. Gestione Coda (Batch)</h2>
+      <ul>
+        <li><b>Salva coda</b>: salva lavori senza eseguirli.</li>
+        <li><b>Gestisci coda</b>: modifica/riordina.</li>
+        <li><b>Elabora coda</b>: esegue i job in sequenza.</li>
+      </ul>
+      <div class="note">
+        <b>Consiglio:</b> prima prova su un file singolo, poi vai di batch (serie TV, più episodi, ecc.).
+      </div>
+    </section>
+
+    <section>
+      <h2 id="ldvd">12. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
+
+      <p><b>Scopo:</b> rippare una volta sola dal DVD e lavorare poi su file locali (più veloci, più stabili, riusabili).</p>
+
+      <h3>12.1 Flusso semplice e consigliato</h3>
+      <ol>
+        <li>Apri <b>DVD Ripper</b>.</li>
+        <li>Seleziona il DVD o la cartella <code>VIDEO_TS</code>.</li>
+        <li>Aggiungi in coda i file necessari (VTS + IFO associato).</li>
+        <li>Premi <b>Estrai</b> e attendi la fine.</li>
+        <li>(Opzionale) Premi <b>OCR SRT</b> per ottenere sottotitoli in testo.</li>
+        <li>Se OCR fallisce: vai alla sezione <b>Subtitle Edit (fallback)</b>.</li>
+        <li>Premi <b>Passa a HEVC</b> per caricare il risultato nel converter.</li>
+      </ol>
+
+      <div class="warn">
+        <b>Nota:</b> alcuni DVD hanno più titoli/stream. Se i sottotitoli OCR “non escono”, spesso è perché non è stato scelto il titolo/stream corretto.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="subtitle-edit">13. Subtitle Edit (fallback quando OCR fallisce)</h2>
+
+      <p>
+        Se l’OCR automatico non produce un SRT decente (o non produce nulla), puoi usare <b>Subtitle Edit</b> per estrarre e convertire i sottotitoli
+        dal DVD (VobSub) in modo più guidato.
+      </p>
+
+      <div class="note">
+        <b>Quando conviene usare Subtitle Edit?</b>
+        <ul>
+          <li>OCR automatico produce SRT vuoto o con caratteri “spazzatura”.</li>
+          <li>Il DVD ha sottotitoli speciali (forced/SDH) o font difficili.</li>
+          <li>Vuoi fare correzioni veloci (accenti, nomi) prima del mux finale.</li>
+        </ul>
+      </div>
+
+      <h3>13.1 Flusso “semplice” (consigliato ai meno esperti)</h3>
+      <ol>
+        <li>Apri <b>LDVD Ripper</b> e completa <b>Estrai</b> (così lavori su file locali).</li>
+        <li>Apri <b>Subtitle Edit</b>.</li>
+        <li>Apri i sottotitoli dal DVD/file estratto:
+          <ul>
+            <li>Tipicamente: <b>File → Open</b> e selezioni il contenuto VobSub (<code>.idx</code>/<code>.sub</code>) se presente,
+              oppure apri direttamente il contenuto del DVD se Subtitle Edit lo supporta.</li>
+          </ul>
+        </li>
+        <li>Se vedi i sottotitoli (anche come immagini), fai OCR guidato:
+          <ul>
+            <li>Scegli la lingua corretta (es. Italian).</li>
+            <li>Fai “Recognize / OCR” e correggi le parole sbagliate quando te lo chiede.</li>
+          </ul>
+        </li>
+        <li>Salva come <b>SRT</b>.</li>
+        <li>Torna in HEVC e includi il file SRT salvato nell’output.</li>
+      </ol>
+
+      <div class="warn">
+        <b>Consiglio da “dummy”:</b> se Subtitle Edit ti propone tante opzioni, fai così:
+        <ul>
+          <li>imposta <b>lingua giusta</b>,</li>
+          <li>scegli <b>SRT</b> come output,</li>
+          <li>non toccare altro finché non funziona.</li>
+        </ul>
+      </div>
+
+      <h3>13.2 Se Subtitle Edit non vede i sottotitoli</h3>
+      <ul>
+        <li>Verifica di aver scelto il titolo/segmento corretto del DVD (VTS giusto).</li>
+        <li>Prova ad aprire un altro file/IFO del film (spesso quello giusto è <code>VTS_01_0.IFO</code>, ma non sempre).</li>
+        <li>Se l’OCR è “pessimo”, prova a cambiare lingua OCR o migliorare contrasto/zoom (dentro Subtitle Edit).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 id="troubleshoot">14. Problemi comuni (soluzioni rapide)</h2>
+
+      <h3>14.1 “Non vedo le icone / pulsanti vuoti”</h3>
+      <div class="danger">
+        <b>Causa:</b> risorse Qt non compilate (manca <code>icons_rc.py</code>) oppure path errati.<br>
+        <b>Soluzione:</b> usa il pacchetto <code>.deb</code> (consigliato) oppure rigenera le risorse nel tuo ambiente di sviluppo.
+      </div>
+
+      <h3>14.2 “FFmpeg non trovato”</h3>
+      <div class="warn">
+        Verifica:
+        <pre>ffmpeg -version
+ffprobe -version</pre>
+        Se non funzionano, installa FFmpeg o aggiungilo al PATH.
+      </div>
+
+      <h3>14.3 “Crop deforma l’immagine”</h3>
+      <div class="warn">
+        Controlla forzature aspect. Se non sei sicuro, disattiva forzature e usa crop + preview filtrata.
+      </div>
+
+      <h3>14.4 “Audio senza dialoghi dopo downmix”</h3>
+      <div class="warn">
+        Cambia profilo downmix / traccia audio e prova su una scena parlata.
+      </div>
+
+      <h3>14.5 “Riavvia…” per ripartire pulito</h3>
+      <div class="note">
+        Menù <b>File → Riavvia…</b> = reset completo dello stato in RAM, come chiudere e riaprire l’app.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="faq">15. FAQ</h2>
+      <dl>
+        <dt>Quali formati video sono supportati?</dt>
+        <dd>Tutti i formati supportati da FFmpeg (MP4, MKV, MOV, AVI, TS, ecc.).</dd>
+
+        <dt>Posso convertire più video in batch?</dt>
+        <dd>Sì, con la funzione coda: salva/gestisci/elabora in sequenza.</dd>
+
+        <dt>Come evito sorprese su crop/colore?</dt>
+        <dd>Usa sempre <b>Preview filtrata</b> dopo ogni modifica.</dd>
+
+        <dt>Come ottengo sottotitoli da DVD?</dt>
+        <dd>Prova <b>LDVD Ripper → OCR SRT</b>. Se fallisce, usa <b>Subtitle Edit</b> come fallback e salva in SRT.</dd>
+
+        <dt>Come stampo o salvo in PDF?</dt>
+        <dd>Clicca “📄 Stampa / Esporta PDF (A4)” e seleziona “Salva come PDF”.</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2 id="info">16. Informazioni sul Progetto e Contatti</h2>
+      <p><strong>HEVC-Video Converter</strong> — progetto 2025</p>
+      <p>Creato e mantenuto da <strong>LorisPaganiniHomeStudio</strong>.</p>
+      <p>Per info/bug report/suggerimenti:</p>
+      <p><a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a></p>
+      <div class="note">
+        <b>Suggerimento per bug report efficace:</b> incolla il log dal click su “Converti/Estrai” fino all’errore.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="note-legali">17. Note Legali e Disclaimer</h2>
+      <p style="font-weight:bold; color:#b91c1c;">HEVC-Video Converter è fornito "così com’è" senza garanzie di alcun tipo.</p>
+      <p style="font-weight:bold; color:#b91c1c;">L’autore non è responsabile per danni diretti o indiretti derivanti dall’uso del software.</p>
+      <p>FFmpeg e altri componenti terzi mantengono le loro rispettive licenze.</p>
+      <p>È responsabilità dell’utente verificare la conformità alle leggi locali relative a copyright e uso dei codec.</p>
+
+      <button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF (A4)</button>
+      <footer><small>© 2025 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
+    </section>
+
+  </div>
+
+  <!-- ====================== ENGLISH ====================== -->
+  <div id="lang-en" class="lang">
+
+    <section>
+      <h2 id="en-intro">1. Introduction</h2>
+
+      <p><strong>HEVC-Video Converter</strong> is an open-source GUI that helps you encode videos to <strong>HEVC (H.265)</strong>
+      without having to manually type long FFmpeg commands. It also includes advanced tools (preview, filters, audio, subtitles, chapters, queue/batch).</p>
+
+      <p>The idea is simple: the app hides the complexity, but keeps the important controls available to you:
+      quality, preset, audio tracks, subtitles/chapters, and a safe “check-before-encode” workflow.</p>
+
+      <div class="note">
+        <b>Main highlights (current version):</b>
+        <ul>
+          <li><b>Icon-only toolbar</b> (buttons are PNG icons, LDVD-style).</li>
+          <li><b>File → Restart…</b> menu entry to restart the app cleanly (RAM state reset).</li>
+          <li>Integrated <b>LDVD Ripper</b>: DVD → local files + (optional) subtitle OCR to SRT + handoff to HEVC.</li>
+          <li>Qt resources use <code>:/icons/...</code> (generated during <code>.deb</code> packaging).</li>
+        </ul>
+      </div>
+
+      <div class="danger">
+        <b>Disclaimer:</b> software is provided “as-is”, without any warranty. Users are responsible for local copyright/codec compliance.
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Requirements</h2>
+
+      <h3>2.1 Supported operating systems</h3>
+      <ul>
+        <li><strong>Linux</strong> (Mint/Ubuntu derivatives) — main target.</li>
+        <li><strong>macOS</strong> — supported via build scripts and installable dependencies.</li>
+        <li><strong>Windows</strong> — possible, but setup is more manual and some features depend on external tools.</li>
+      </ul>
+
+      <h3>2.2 Core dependencies (all OS)</h3>
+      <ul>
+        <li><strong>FFmpeg + FFprobe</strong> available in your PATH.</li>
+        <li><strong>Python 3</strong> + <strong>PyQt5</strong> if running from sources.</li>
+      </ul>
+
+      <div class="note">
+        <b>Quick check:</b>
+        <pre>ffmpeg -version
+ffprobe -version</pre>
+        If these commands fail, the app cannot encode.
+      </div>
+
+      <h3>2.3 Optional tools (only if you need those features)</h3>
+      <ul>
+        <li><b>Subtitle Edit</b> (recommended fallback) if automatic OCR fails.</li>
+        <li><b>Mono</b> (Linux/macOS) if you use the .NET version of Subtitle Edit.</li>
+        <li>DVD helper tools (depending on your LDVD workflow).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Install & Run (Linux / macOS / Windows)</h2>
+
+      <h3>3.1 Linux — .deb package (recommended)</h3>
+      <ol>
+        <li>Download the <code>.deb</code> release.</li>
+        <li>Install:
+          <pre>sudo apt install ./hevc-video-converter_*.deb</pre>
+        </li>
+        <li>Run:
+          <pre>hevc-video-converter</pre>
+        </li>
+      </ol>
+
+      <h3>3.2 Linux — run from sources (development)</h3>
+      <ol>
+        <li>Clone the repository.</li>
+        <li>Install Python dependencies (if needed) and make sure FFmpeg works.</li>
+        <li>Run:
+          <pre>python3 main.py</pre>
+        </li>
+      </ol>
+
+      <div class="warn">
+        <b>Icons note:</b> Qt resources (<code>icons_rc.py</code>) are generated during <code>.deb</code> packaging.
+        If you run from sources and icons are missing, generate Qt resources or use the <code>.deb</code>.
+      </div>
+
+      <h3>3.3 macOS — guidelines</h3>
+      <ol>
+        <li>Install FFmpeg (Homebrew):
+          <pre>brew install ffmpeg</pre>
+        </li>
+        <li>Ensure Python 3 + PyQt5.</li>
+        <li>Run:
+          <pre>python3 main.py</pre>
+        </li>
+      </ol>
+
+      <h3>3.4 Windows — guidelines</h3>
+      <ol>
+        <li>Install Python 3.</li>
+        <li>Install FFmpeg (ZIP) and add <code>bin</code> to PATH.</li>
+        <li>Install PyQt5 and project dependencies.</li>
+        <li>Run:
+          <pre>python main.py</pre>
+        </li>
+      </ol>
+      <div class="warn">
+        On Windows, always double-check PATH and FFmpeg installation first if something fails.
+      </div>
+    </section>
+
+    <section>
+      <h2>4. User Interface Overview</h2>
+
+      <ul>
+        <li><strong>Menu bar + icon-only toolbar</strong> for the main actions.</li>
+        <li><strong>Input path</strong> to open/drag a video file.</li>
+        <li><strong>Video settings</strong> (CRF/bitrate, preset, filters).</li>
+        <li><strong>Tools</strong>: Preview, Filtered Preview, Crop, Trim, Color, Aspect.</li>
+        <li><strong>Audio</strong>: track selection and profiles (downmix, etc.).</li>
+        <li><strong>Subtitles / Chapters</strong>: include embedded streams or external files.</li>
+        <li><strong>Logs + progress</strong>: status, errors, timing.</li>
+        <li><strong>Queue</strong>: batch processing.</li>
+      </ul>
+
+      <div class="note">
+        <b>Beginner-proof workflow (best order):</b><br>
+        <b>Open → Preview → (Crop/Trim/Color) → Filtered Preview → Convert</b>
+      </div>
+
+      <table>
+        <tr>
+          <th>Term</th>
+          <th>Simple explanation</th>
+        </tr>
+        <tr>
+          <td><b>CRF</b></td>
+          <td>“Quality mode”: you pick a number (e.g. 20–24). Lower = better quality = bigger file.</td>
+        </tr>
+        <tr>
+          <td><b>Bitrate</b></td>
+          <td>“Size budget mode”: you pick a bitrate. Quality adapts to that limit. Useful for consistent output sizes.</td>
+        </tr>
+        <tr>
+          <td><b>Preset</b></td>
+          <td>Speed vs efficiency: slower presets usually compress better but take longer.</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>5. How to Encode (step-by-step)</h2>
+
+      <h3>5.1 Open a file</h3>
+      <ol>
+        <li>Click <b>Open</b> (toolbar icon) and select your video.</li>
+        <li>Do a <b>Preview</b> first to confirm it’s the right file.</li>
+      </ol>
+
+      <h3>5.2 Choose quality and preset</h3>
+      <ul>
+        <li><b>New users:</b> use <b>CRF</b> and a medium/slow preset.</li>
+        <li><b>Don’t change 10 things at once:</b> change one setting, then test with filtered preview.</li>
+      </ul>
+
+      <h3>5.3 If you use tools (crop/trim/color): Filtered Preview</h3>
+      <div class="warn">
+        <b>Life-saving rule:</b> after any tool (Crop/Trim/Color/Aspect), run <b>Filtered Preview</b>.
+        This is how you catch distortions or wrong cuts before encoding a full movie.
+      </div>
+
+      <h3>5.4 Convert</h3>
+      <ol>
+        <li>Click <b>Convert</b>.</li>
+        <li>Wait for completion and verify the output.</li>
+      </ol>
+
+      <div class="note">
+        <b>Zero-surprise method:</b> do a 60–120 second test (short trim) first, then encode the full file.
+      </div>
+    </section>
+
+    <section>
+      <h2>6. Ready-made recipes (quick results)</h2>
+
+      <h3>6.1 “My video has black bars”</h3>
+      <ol>
+        <li>Open the video.</li>
+        <li>Use <b>Crop</b> to remove only the black bars.</li>
+        <li>Run <b>Filtered Preview</b>.</li>
+        <li>Convert.</li>
+      </ol>
+
+      <h3>6.2 “I want to cut intro/outro”</h3>
+      <ol>
+        <li>Open <b>Trim</b>.</li>
+        <li>Set start/end and keep a small safety margin.</li>
+        <li>Filtered Preview, then Convert.</li>
+      </ol>
+
+      <h3>6.3 “5.1 audio: I hear sounds but no dialog”</h3>
+      <ol>
+        <li>Open the <b>Audio</b> module.</li>
+        <li>Change downmix profile / audio track.</li>
+        <li>Test on 1–2 minutes with clear dialog.</li>
+      </ol>
+
+      <h3>6.4 “I have a DVD and want SRT subtitles”</h3>
+      <ol>
+        <li>Use <b>LDVD Ripper</b> to extract the DVD to local files.</li>
+        <li>Try <b>OCR SRT</b>.</li>
+        <li>If OCR fails, use <b>Subtitle Edit</b> (see dedicated section).</li>
+        <li>Handoff to HEVC and convert.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>7. Subtitles (embedded / external / from DVD)</h2>
+
+      <h3>7.1 Embedded subtitles</h3>
+      <ul>
+        <li>If your file contains subtitle streams (common in MKV), select the one you want.</li>
+        <li>If you don’t see any, the file might not actually contain subtitles.</li>
+      </ul>
+
+      <h3>7.2 External subtitles (SRT)</h3>
+      <ul>
+        <li>SRT is plain text and widely compatible.</li>
+        <li>Keep filenames clear when you have multiple languages.</li>
+      </ul>
+
+      <h3>7.3 DVD subtitles (VobSub → SRT)</h3>
+      <div class="note">
+        DVD subtitles are often image-based (VobSub). To get SRT text you need OCR:
+        automatic OCR or assisted OCR using Subtitle Edit.
+      </div>
+    </section>
+
+    <section>
+      <h2>8. LDVD Ripper (DVD → local files + OCR + handoff)</h2>
+
+      <p><b>Goal:</b> rip only once from the physical disc, then work on fast local files.</p>
+
+      <ol>
+        <li>Open <b>DVD Ripper</b>.</li>
+        <li>Select the DVD / <code>VIDEO_TS</code>.</li>
+        <li>Queue the needed files (VTS + matching IFO).</li>
+        <li>Click <b>Extract</b> and wait.</li>
+        <li>(Optional) Click <b>OCR SRT</b>.</li>
+        <li>If OCR fails, use <b>Subtitle Edit</b> (next section).</li>
+        <li>Click <b>Handoff to HEVC</b>.</li>
+      </ol>
+
+      <div class="warn">
+        Many DVDs have multiple titles/streams. Wrong title/IFO selection is a common reason for missing subtitles.
+      </div>
+    </section>
+
+    <section>
+      <h2 id="en-subtitle-edit">9. Subtitle Edit (fallback when OCR fails)</h2>
+
+      <p>
+        If automatic OCR produces an empty/broken SRT (or no SRT at all), use <b>Subtitle Edit</b> as a guided fallback.
+        It can open DVD subtitle sources and run assisted OCR, where you can correct mistakes while converting to SRT.
+      </p>
+
+      <div class="note">
+        <b>When should you use Subtitle Edit?</b>
+        <ul>
+          <li>Automatic OCR creates an empty SRT, garbage characters, or unreadable text.</li>
+          <li>Subtitles are “forced/SDH” or use difficult fonts.</li>
+          <li>You want to quickly fix accents, names, and common OCR errors before muxing.</li>
+        </ul>
+      </div>
+
+      <h3>9.1 Beginner-friendly workflow</h3>
+      <ol>
+        <li>Use <b>LDVD Ripper</b> to <b>Extract</b> first (work on local files).</li>
+        <li>Open <b>Subtitle Edit</b>.</li>
+        <li>Open the DVD subtitle source:
+          <ul>
+            <li>Typically you open a VobSub pair (<code>.idx</code>/<code>.sub</code>) if available, or open from DVD structure if supported.</li>
+          </ul>
+        </li>
+        <li>If you see the subtitles (as images), run OCR:
+          <ul>
+            <li>Select the correct OCR language (e.g. Italian).</li>
+            <li>Run “Recognize / OCR” and confirm/correct prompts.</li>
+          </ul>
+        </li>
+        <li>Save as <b>SRT</b>.</li>
+        <li>Back in HEVC, include the saved SRT in your final output.</li>
+      </ol>
+
+      <div class="warn">
+        <b>Beginner tip:</b> if Subtitle Edit shows many options, do only this first:
+        set the right <b>language</b>, choose <b>SRT</b> output, and don’t tweak advanced settings until it works.
+      </div>
+
+      <h3>9.2 If Subtitle Edit cannot find subtitles</h3>
+      <ul>
+        <li>Try a different DVD title/VTS/IFO (common on multi-title DVDs).</li>
+        <li>Check you are opening the correct movie segment, not extras/menus.</li>
+        <li>If OCR is poor, try changing language or improving contrast/zoom inside Subtitle Edit.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>10. Troubleshooting</h2>
+
+      <h3>Icons missing / empty toolbar buttons</h3>
+      <div class="danger">
+        Qt resources not compiled (<code>icons_rc.py</code> missing) or wrong resource paths.
+        Use the <code>.deb</code> (recommended) or generate Qt resources for source runs.
+      </div>
+
+      <h3>FFmpeg not found</h3>
+      <div class="warn">
+        <pre>ffmpeg -version
+ffprobe -version</pre>
+      </div>
+
+      <h3>Restart…</h3>
+      <div class="note">
+        <b>File → Restart…</b> restarts the app cleanly (RAM state reset).
+      </div>
+    </section>
+
+    <section>
+      <h2>11. Project Info / Contact</h2>
+      <p>Maintained by <strong>LorisPaganiniHomeStudio</strong> — 2025</p>
+      <p><a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a></p>
+
+      <button class="btn-print" onclick="printManual()" aria-label="Print or export manual to PDF">📄 Print / Export PDF (A4)</button>
+      <footer><small>© 2025 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
+    </section>
+
+  </div>
+
+</body>
+</html>
 
-<a href="#introduzione">Introduzione</a><br>
-
-<a href="#requisiti">Requisiti</a> <br>
-
-<a href="#interfaccia">Interfaccia</a> <br>
-
-<a href="#uso">Come Usare</a> <br>
-
-<a href="#audio">Modulo Audio</a> <br>
-
-<a href="#coda">Gestione Coda</a> <br>
-
-<a href="#faq">FAQ</a> <br>
-
-<a href="#info">Info e Contatti</a> <br>
-
-<a href="#note-legali">Note Legali</a>
-<br>
-
-<br>
-
-<button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF</button><br>
-
-<br>
-
-<h2 id="introduzione">1. Introduzione</h2>
-
-<p><strong>HEVC-Video Converter</strong> è un convertitore video open
-source
-pensato per facilitare la conversione in formato HEVC (H.265) con la
-massima qualità e configurabilità. La GUI intuitiva nasconde la
-complessità di FFmpeg, consentendo di gestire facilmente conversioni
-video e audio, filtri, sottotitoli, capitoli e altro.</p>
-
-<p>Il software è stato progettato per offrire un workflow efficace sia
-a utenti esperti che a principianti. È ideale per chi vuole convertire
-video con controllo preciso su bitrate, preset, filtri di immagine,
-gestione audio multitraccia e muxing finale.</p>
-
-<p><em>Nota:</em> trattandosi di progetto open source, <strong>non
-viene fornito supporto ufficiale</strong> per modifiche o usi impropri
-del codice. L’autore declina ogni responsabilità per danni diretti o
-indiretti.</p>
-
-<br>
-
-<h2 id="requisiti">2. Requisiti di Sistema e Installazione</h2>
-
-<h3 id="requisiti_os">2.1 Sistemi Operativi Supportati</h3>
-
-<ul>
-
-<li><strong>Linux</strong> (Mint, Ubuntu e derivate)</li>
-<li><strong>macOS</strong></li>
-<li><strong>Windows</strong> (uso possibile ma con funzionalità
-limitate; FFmpeg deve essere installato separatamente)</li>
-</ul>
-
-<h3 id="requisiti_dipendenze">2.2 Dipendenze Software</h3>
-
-<ul>
-
-<li><strong>Python 3.8+</strong></li>
-<li><strong>PyQt5</strong> per l’interfaccia grafica</li>
-<li><strong>FFmpeg e FFprobe</strong> installati e accessibili via
-PATH</li>
-</ul>
-
-<h3 id="requisiti_installazione">2.3 Installazione</h3>
-
-<ol>
-
-<li>Scarica o clona il repository, o il file .deb HEVC-Video
-Converter.</li>
-<li>Installa dipendenze Python con il comando: <code>pip install -r
-requirements.txt</code></li>
-<li>Verifica l’installazione di FFmpeg digitando <code>ffmpeg
--version</code> e <code>ffprobe -version</code> nel terminale.</li>
-<li>Avvia il programma con <code>python main_window.py</code>.</li>
-</ol>
-
-<h2 id="interfaccia">3. Panoramica Interfaccia Principale</h2>
-
-<p>Al primo avvio, la finestra principale mostra i seguenti elementi
-chiave:</p>
-
-<ul>
-
-<li><strong>Barra Menu e Toolbar:</strong> accesso rapido alle
-funzioni di apertura file, gestione coda, conversione e manuale.</li>
-<li><strong>Campo di inserimento percorso video:</strong> trascina un
-file video o usa il pulsante "Apri video…" per selezionare il file da
-convertire.</li>
-<li><strong>Impostazioni di conversione video:</strong> scegli tra <em>Bitrate</em>
-o <em>CRF</em> (controllo qualità), seleziona il preset di codifica,
-livelli di sharpness, smoothness e risoluzione di output.</li>
-<li><strong>Impostazioni frame rate:</strong> seleziona modalità
-automatica o costante con valore personalizzato.</li>
-<li><strong>Opzioni colore:</strong> video a colori o in bianco e
-nero (B&amp;W), con filtro deinterlacciamento attivabile.</li>
-<li><strong>Pulsanti dedicati:</strong> <em>Estrai audio</em>, <em>Sottotitoli</em>,
-<em>Capitoli</em>, <em>Preview</em> e <em>Preview filtrata</em>
-per gestione avanzata dei media.</li>
-<li><strong>Log output:</strong> area testuale dove vengono mostrati
-i dettagli tecnici e lo stato di conversione.</li>
-<li><strong>Controlli di stato e progressione:</strong> barra di
-progresso, tempo trascorso, tempo stimato rimanente.</li>
-<li><strong>Pulsanti azione:</strong> <em>Converti</em>, <em>Salva
-Coda</em>, <em>Gestisci Coda</em>, <em>Elabora Coda</em>, <em>MediaInfo</em>,
-<em>Directory Output</em>, <em>Copia Log</em>, <em>Pausa</em>, <em>Interrompi</em>,
-<em>Reset GUI</em>, <em>Esci</em>, <em>Info</em>.</li>
-</ul>
-
-<h2 id="uso">4. Come Usare HEVC-Video Converter per la Conversione Video</h2>
-
-<h3 id="uso_selezione_file">4.1 Selezione File Video</h3>
-
-<p>Puoi aprire il video da convertire trascinandolo nell'apposito campo
-o premendo il pulsante <em>Apri video…</em>. Il programma verificherà
-automaticamente il file e abiliterà le opzioni successive.</p>
-
-<h3 id="uso_configurazione_video">4.2 Configurazione Video</h3>
-
-<ul>
-
-<li><strong>Bitrate o CRF:</strong> seleziona se impostare un
-valore fisso di bitrate o il parametro CRF per la qualità (CRF
-predefinito è consigliato per bilanciare qualità/dimensione).</li>
-<li><strong>Preset:</strong> da ultrafast a slower, influenza la
-velocità e qualità di codifica.</li>
-<li><strong>Filtri:</strong> scegli livello di sharpness e
-smoothness, ridimensiona l’output scegliendo risoluzione.</li>
-<li><strong>Frame Rate:</strong> imposta modalità automatica o
-costante con valore personalizzato.</li>
-<li><strong>Colori:</strong> video a colori o in bianco e nero.</li>
-<li><strong>Deinterlacciamento:</strong> attiva se il video di
-partenza è interlacciato (es. TV o registrazioni vecchie).</li>
-</ul>
-
-<h3 id="uso_audio">4.3 Estrazione e Gestione Tracce Audio</h3>
-
-<p>Premi il pulsante <em>Estrai audio</em> per aprire il modulo audio
-integrato che consente di estrarre, modificare e convertire le tracce
-audio interne o esterne. Puoi applicare filtri di equalizzazione, noise
-reduction, gain, riverbero e stereo widening.</p>
-
-<h3 id="uso_subtitle_chapter">4.4 Gestione Sottotitoli e Capitoli</h3>
-
-<p>Usa i pulsanti <em>Sottotitoli</em> e <em>Capitoli</em> per
-gestire
-i sottotitoli interni o esterni e i capitoli video. Puoi scegliere di
-includerli nel file finale o rigenerarli automaticamente tramite scene
-detection.</p>
-
-<h3 id="uso_preview">4.5 Anteprima Video e Filtrata</h3>
-
-<p>I pulsanti <em>Preview</em> e <em>Preview filtrata</em> lanciano
-una riproduzione rapida con ffplay, utile per verificare la qualità
-video prima della conversione definitiva.</p>
-
-<h3 id="uso_conversione">4.6 Conversione</h3>
-
-<ol>
-
-<li>Premi <em>Converti</em> per iniziare la conversione. Se non hai
-estratto tracce audio, verrà mostrato un avviso per il video senza
-audio.</li>
-<li>Scegli il percorso di output e il nome del file risultante.</li>
-<li>La
-barra di progresso mostrerà lo stato della conversione video, seguito
-dalla ricodifica audio in parallelo e infine dal muxing finale (unione
-di video, audio, sottotitoli, capitoli).</li>
-<li>Al termine, riceverai una notifica di successo o errore.</li>
-</ol>
-
-<h3 id="uso_coda">4.7 Salvataggio e Gestione Coda</h3>
-
-<p>HEVC-Video Converter supporta conversioni batch tramite la <em>coda</em>
-di comandi:</p>
-
-<ul>
-
-<li><em>Salva Coda:</em> salva i comandi di conversione senza
-eseguirli.</li>
-<li><em>Gestisci Coda:</em> apri un editor per modificare manualmente
-i comandi.</li>
-<li><em>Elabora Coda:</em> avvia l’esecuzione sequenziale di tutti i
-comandi in coda.</li>
-</ul>
-
-<p>Questa funzione permette di automatizzare conversioni multiple in
-sequenza senza interventi manuali.</p>
-
-<h3 id="uso_controlli">4.8 Controlli di Conversione</h3>
-
-<ul>
-
-<li><strong>Pausa:</strong> sospende temporaneamente il processo di
-conversione (solo su Linux/macOS).</li>
-<li><strong>Interrompi:</strong> ferma la conversione corrente e
-cancella i file temporanei e la coda.</li>
-<li><strong>Reset GUI:</strong> ripristina la finestra alle
-impostazioni iniziali senza chiudere il programma.</li>
-</ul>
-
-<h2 id="audio">5. Dettagli Modulo Audio</h2>
-
-<p>Il modulo audio integrato offre funzioni avanzate di estrazione,
-conversione e miglioramento tracce audio:</p>
-
-<ul>
-
-<li>Importazione tracce audio interne ed esterne.</li>
-<li>Impostazione codec (AAC), bitrate, sample rate e canali.</li>
-<li>Filtri
-di gain, noise reduction (fino a -30 dB), equalizzazione con 3 bande
-(bass, mid, treble), riverbero, stereo widening e panning.</li>
-<li>Anteprima audio in formato WAV con visualizzatore oscilloscopio.</li>
-<li>Gestione metadati come titolo e lingua da assegnare alle tracce
-audio.</li>
-</ul>
-
-<p>Il risultato audio viene codificato e preparato per il muxing finale
-con il video convertito e gli altri elementi multimediali.</p>
-
-<br>
-
-<h2 id="coda">6. Gestione Avanzata Coda di Conversione</h2>
-
-<p>La coda permette di salvare, modificare e processare batch multipli
-di conversioni, garantendo:</p>
-
-<ul>
-
-<li>Salvataggio persistente su file JSON.</li>
-<li>Modifica manuale tramite editor integrato (modifica linea per
-linea i comandi FFmpeg).</li>
-<li>Elaborazione sequenziale automatica tramite terminale esterno
-(es. GNOME Terminal).</li>
-</ul>
-
-<p>Se avvii una nuova conversione con coda attiva, puoi scegliere di
-aggiungere i nuovi comandi alla coda o eseguire solo il singolo job.</p>
-
-<br>
-
-<h2 id="faq">7. FAQ - Domande Frequenti</h2>
-
-<dl>
-
-<dt>Quali formati video sono supportati?</dt>
-<dd>Tutti i formati supportati da FFmpeg installato nel sistema (MP4,
-MKV, MOV, AVI, M4V, TS e altri).</dd>
-<dt>Posso convertire più video in batch?</dt>
-<dd>Sì, usando la funzione coda è possibile elaborare file multipli
-in sequenza automaticamente.</dd>
-<dt>Come scelgo la traccia audio da includere?</dt>
-<dd>Premi <em>Estrai audio</em> per selezionare le tracce interne o
-caricare tracce audio esterne, impostando parametri e filtri desiderati.</dd>
-<dt>È possibile annullare una conversione in corso?</dt>
-<dd>Sì, premi <em>Interrompi</em>. Il programma fermerà FFmpeg,
-cancellerà temporanei e resetterà la GUI.</dd>
-<dt>Come applico i filtri video?</dt>
-<dd>Seleziona
-i livelli di sharpness, smoothness e resize nella sezione filtri. Puoi
-anche attivare il bianco e nero e il deinterlacciamento.</dd>
-<dt>Come stampo o salvo il manuale utente?</dt>
-<dd>Dal
-manuale stesso puoi usare il pulsante “📄 Stampa / Esporta PDF” che
-apre la finestra di stampa del browser per salvare o stampare
-facilmente.</dd>
-</dl>
-
-<br>
-
-<h2 id="info">8. Informazioni sul Progetto e Contatti</h2>
-
-<p><strong>HEVC-Video Converter - versione 2.0.0 - 2025<br>
-</strong></p>
-
-<p>Creato e mantenuto da <strong></strong>(<span style="font-weight: bold;">LorisPaganiniHomeStudio</span>).</p>
-
-<p>Per informazioni, bug report o suggerimenti contattare:</p>
-
-<p> <a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a>
-</p>
-
-<p>Logo e risorse sono inclusi con licenza open source.</p>
-
-<br>
-
-<h2 id="note-legali">9. Note Legali e Disclaimer</h2>
-
-<p style="font-weight: bold; color: rgb(252, 0, 0);">HEVC-Video
-Converter è fornito "così com’è" senza garanzie di alcun tipo.</p>
-
-<p style="font-weight: bold; color: rgb(252, 0, 0);">L’autore non è
-responsabile per danni diretti o indiretti derivanti dall’uso del
-software.</p>
-
-<p>FFmpeg e altri componenti terzi mantengono le loro rispettive
-licenze.</p>
-
-<p>È responsabilità dell’utente verificare la conformità alle leggi
-locali relative a copyright e uso dei codec.</p>
-
-<button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF</button><br>
-
-<div style="text-align: center;"><footer><small>© 2025
-LorisPaganiniHomeStudio - HEVC-Video Converter v2.0.0</small></footer></div>
-
-<footer>
-</footer>
-</body></html>
