@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# hevc_gui/gui/appearance_dialog.py
+
+from hevc_gui.i18n import L
+from PyQt5.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QLabel,
+    QComboBox,
+    QSpinBox,
+    QRadioButton,
+    QGroupBox,
+    QHBoxLayout,
+    QPushButton,
+    QFontComboBox,
+    QStyleFactory,
+    QApplication,
+    QStyledItemDelegate,
+)
+from PyQt5.QtCore import QModelIndex
+from PyQt5.QtGui import QFont
+
+from hevc_gui.gui.appearance_settings import (
+    load_appearance,
+    save_appearance,
+    apply_appearance,
+    reset_to_defaults,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Delegate per “font preview”: ogni voce è disegnata col proprio font
+# ─────────────────────────────────────────────────────────────────────
+class FontPreviewDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index: QModelIndex):
+        font_name = index.data()
+        if font_name:
+            # usa il font stesso per disegnare il suo nome
+            option.font = QFont(font_name, option.font.pointSize())
+        super().paint(painter, option, index)
+
+
+class AppearanceDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(L("Impostazioni Aspetto"))
+
+        # Carica le impostazioni attuali
+        self.original = load_appearance()  # (style, font_family, font_size, theme_mode, icon_theme, button_style)
+        self.preview = None  # snapshot ultimo "Applica"
+
+        self.create_widgets()
+        self.create_layout()
+        self.create_connections()
+
+        self.set_values(*self.original)
+
+    # ─────────────────────────────────────────────────────────────────
+    # UI
+    # ─────────────────────────────────────────────────────────────────
+    def create_widgets(self):
+        # Stili Qt
+        self.combo_style = QComboBox()
+        self.combo_style.addItems(QStyleFactory.keys())
+
+        # Font + delegate di preview
+        self.combo_font = QFontComboBox()
+        self.combo_font.setItemDelegate(FontPreviewDelegate(self.combo_font))
+
+        # Dimensione font
+        self.spin_font_size = QSpinBox()
+        self.spin_font_size.setRange(6, 32)
+
+        # Tema chiaro/scuro
+        self.radio_light = QRadioButton(L("Chiaro"))
+        self.radio_dark = QRadioButton(L("Scuro"))
+
+        # Tema icone
+        self.combo_icon_theme = QComboBox()
+        self.combo_icon_theme.addItems(
+            [
+                "Hevc - Video Converter (richiede riavvio)",
+                "Numix",
+                "Mint-Y",
+                "Tango",
+                "ubuntu-mono",
+            ]
+        )
+
+        # Stile pulsanti
+        self.combo_button_style = QComboBox()
+        self.combo_button_style.addItems(["Predefinito", "Flat", "Icon Only", "Text Only"])
+
+        # Pulsanti
+        self.btn_reset = QPushButton(L("Ripristina predefiniti"))
+        self.btn_apply = QPushButton(L("Applica"))
+        self.btn_undo = QPushButton(L("Annulla Mod."))
+        self.btn_ok = QPushButton(L("OK"))
+        self.btn_cancel = QPushButton(L("Cancel"))
+
+    def create_layout(self):
+        layout = QVBoxLayout()
+
+        layout.addWidget(QLabel(L("Temi:")))
+        layout.addWidget(self.combo_style)
+
+        layout.addWidget(QLabel(L("Font:")))
+        layout.addWidget(self.combo_font)
+
+        layout.addWidget(QLabel(L("Dimensione font:")))
+        layout.addWidget(self.spin_font_size)
+
+        theme_group = QGroupBox(L("Modalità tema"))
+        theme_layout = QHBoxLayout()
+        theme_layout.addWidget(self.radio_light)
+        theme_layout.addWidget(self.radio_dark)
+        theme_group.setLayout(theme_layout)
+        layout.addWidget(theme_group)
+
+        layout.addWidget(QLabel(L("Tema icone:")))
+        layout.addWidget(self.combo_icon_theme)
+
+        layout.addWidget(QLabel(L("Stile pulsanti:")))
+        layout.addWidget(self.combo_button_style)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.btn_reset)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_apply)
+        btn_layout.addWidget(self.btn_undo)
+        btn_layout.addWidget(self.btn_ok)
+        btn_layout.addWidget(self.btn_cancel)
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def create_connections(self):
+        self.btn_ok.clicked.connect(self.on_ok)
+        self.btn_apply.clicked.connect(self.on_apply)
+        self.btn_undo.clicked.connect(self.on_undo)
+        self.btn_cancel.clicked.connect(self.reject)
+        self.btn_reset.clicked.connect(self.on_reset)
+
+    # ─────────────────────────────────────────────────────────────────
+    # Stato <-> UI
+    # ─────────────────────────────────────────────────────────────────
+    def get_values(self):
+        style = self.combo_style.currentText()
+        font_family = self.combo_font.currentFont().family()
+        font_size = self.spin_font_size.value()
+        theme_mode = "dark" if self.radio_dark.isChecked() else "light"
+        icon_theme = self.combo_icon_theme.currentText()
+        button_style = self.combo_button_style.currentIndex()
+        return style, font_family, font_size, theme_mode, icon_theme, button_style
+
+    def set_values(self, style, font_family, font_size, theme_mode, icon_theme, button_style):
+        self.combo_style.setCurrentText(style)
+        self.combo_font.setCurrentFont(QFont(font_family))
+        self.spin_font_size.setValue(font_size)
+
+        if theme_mode == "dark":
+            self.radio_dark.setChecked(True)
+        else:
+            self.radio_light.setChecked(True)
+
+        self.combo_icon_theme.setCurrentText(icon_theme)
+        self.combo_button_style.setCurrentIndex(button_style)
+
+    # ─────────────────────────────────────────────────────────────────
+    # Azioni
+    # ─────────────────────────────────────────────────────────────────
+    def on_ok(self):
+        values = self.get_values()
+        save_appearance(*values)
+        apply_appearance(QApplication.instance())
+        if self.parent() and hasattr(self.parent(), "refresh_icons"):
+            self.parent().refresh_icons()
+        self.accept()
+
+    def on_apply(self):
+        values = self.get_values()
+        # apply con anteprima (senza persistere subito)
+        apply_appearance(QApplication.instance(), *values)
+        self.preview = values
+        if self.parent() and hasattr(self.parent(), "refresh_icons"):
+            self.parent().refresh_icons()
+
+    def on_undo(self):
+        if self.preview:
+            # torna allo stato salvato originale (non l’ultimo apply)
+            self.set_values(*self.original)
+            apply_appearance(QApplication.instance())
+            if self.parent() and hasattr(self.parent(), "refresh_icons"):
+                self.parent().refresh_icons()
+            self.preview = None
+
+    def on_reset(self):
+        reset_to_defaults()
+        self.set_values(*load_appearance())
+        apply_appearance(QApplication.instance())
+        if self.parent() and hasattr(self.parent(), "refresh_icons"):
+            self.parent().refresh_icons()

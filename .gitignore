@@ -100,3 +100,8 @@ hevc_gui/resources/icons_rc.py
 
 # pkg payload (GENERATA durante build .deb)
 pkg/usr/lib/hevc-video-converter/
+# i18n tmp/backup
+hevc_gui/resources/i18n/*.tmp_SAFE_*.ts
+hevc_gui/resources/i18n/*.bak_SAFE_*
+hevc_gui/resources/i18n/*.bak_*
+tools/*.BAK_*

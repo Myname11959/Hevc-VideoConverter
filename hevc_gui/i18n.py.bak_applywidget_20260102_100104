@@ -1,0 +1,348 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+hevc_gui/i18n.py — runtime i18n pulito + compat.
+
+Obiettivi:
+- IT = testo nativo (nessun .qm) / EN = traduzione via hevc_en.qm
+- API stabile usata dai moduli:
+    L, T, get_lang, set_lang, init_qt_i18n,
+    current_lang, set_app_language, restart_app, apply_i18n_to_widget
+- Priorità lingua:
+    1) env HEVC_LANG
+    2) QSettings (chiavi compat: ui/language, ui/lang, i18n/lang, hevc/lang)
+    3) default 'it'
+"""
+from __future__ import annotations
+
+import os
+import sys
+import inspect
+from pathlib import Path
+from collections import OrderedDict
+from typing import Optional, Iterator, Tuple, List
+
+from PyQt5.QtCore import QCoreApplication, QSettings, QEvent, QTranslator, Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QAbstractButton, QGroupBox, QTabWidget, QMenuBar, QMenu, QAction
+
+# ------------------------- extraction-friendly -------------------------
+
+def T(context: str, text: Optional[str] = None, disambiguation: Optional[str] = None, n: int = -1) -> str:
+    """
+    Compat pylupdate5:
+      - T("MainWindow", "Apri")
+      - T("Apri") -> contesto default "hevc_gui"
+    """
+    if text is None:
+        return QCoreApplication.translate("hevc_gui", context, disambiguation or "", n)
+    return QCoreApplication.translate(context, text, disambiguation or "", n)
+
+class _LProxy(OrderedDict):
+    """
+    L è:
+      - callable: L("Testo") -> traduce col contesto dedotto dal chiamante
+      - iterabile/dict: lista lingue (code -> label)
+    """
+    def __call__(self, text: str) -> str:
+        return L(text)
+
+    def __iter__(self) -> Iterator[Tuple[str, str]]:
+        return iter(self.items())
+
+# lista lingue (label *source* in IT, poi EN via .qm)
+_LANGS = _LProxy([("it", "Italiano"), ("en", "English")])
+
+# esposto come nel tuo codice
+L_LIST = _LANGS  # alias se ti serve
+# (alcuni moduli importano "L" come dict; altri come funzione: sotto lo rendiamo funzione + manteniamo _LANGS per iteration)
+L = _LANGS  # temporaneo, poi ridefiniamo la funzione L() più sotto
+
+# ------------------------------ settings ------------------------------
+
+_SETTINGS_KEYS = ("ui/language", "ui/lang", "i18n/lang", "hevc/lang")
+_SETTINGS_KEY_PRIMARY = "ui/language"
+
+def _norm_lang(v: str, default: str = "it") -> str:
+    v = (v or "").strip().lower()
+    if v.startswith("en"):
+        return "en"
+    if v.startswith("it"):
+        return "it"
+    return default
+
+def get_lang(default: str = "it") -> str:
+    # 1) env
+    try:
+        env = (os.environ.get("HEVC_LANG") or "").strip().lower()
+        if env:
+            return _norm_lang(env, default)
+    except Exception:
+        pass
+    # 2) settings
+    try:
+        s = QSettings()
+        for k in _SETTINGS_KEYS:
+            v = s.value(k, None)
+            if v is not None and str(v).strip():
+                return _norm_lang(str(v), default)
+    except Exception:
+        pass
+    return default
+
+def _persist_lang(lang: str) -> None:
+    lang = _norm_lang(lang, "it")
+    os.environ["HEVC_LANG"] = lang
+    try:
+        s = QSettings()
+        s.setValue(_SETTINGS_KEY_PRIMARY, lang)
+        # scrivi anche le chiavi vecchie per compat
+        s.setValue("ui/lang", lang)
+        s.setValue("i18n/lang", lang)
+        s.setValue("hevc/lang", lang)
+        s.sync()
+    except Exception:
+        pass
+
+# ------------------------------ runtime -------------------------------
+
+_translator: Optional[QTranslator] = None
+_installed_lang: Optional[str] = None
+
+def _i18n_dir() -> Path:
+    return Path(__file__).resolve().parent / "resources" / "i18n"
+
+def _broadcast_language_change(app: QApplication) -> None:
+    ev = QEvent(QEvent.LanguageChange)
+    for w in app.topLevelWidgets():
+        try:
+            QCoreApplication.sendEvent(w, ev)
+        except Exception:
+            pass
+
+def set_lang(lang: str, app: Optional[QApplication] = None, persist: bool = True) -> bool:
+    """
+    IT -> rimuove translator
+    EN -> installa hevc_en.qm
+    """
+    global _translator, _installed_lang
+    lang = _norm_lang(lang, "it")
+
+    if persist:
+        _persist_lang(lang)
+
+    if app is None:
+        app = QApplication.instance()
+
+    # se Qt non è ancora su: salva e basta
+    if app is None:
+        _installed_lang = lang
+        return True
+
+    # rimuovi precedente
+    if _translator is not None:
+        try:
+            app.removeTranslator(_translator)
+        except Exception:
+            pass
+        _translator = None
+
+    if lang == "it":
+        _installed_lang = "it"
+        _broadcast_language_change(app)
+        return True
+
+    qm = _i18n_dir() / f"hevc_{lang}.qm"
+    if not qm.exists():
+        _installed_lang = lang
+        return False
+
+    tr = QTranslator(app)
+    ok = tr.load(str(qm))
+    if ok:
+        app.installTranslator(tr)
+        _translator = tr
+        _installed_lang = lang
+        _broadcast_language_change(app)
+        return True
+
+    _installed_lang = lang
+    return False
+
+def init_qt_i18n(app: Optional[QApplication] = None, lang: Optional[str] = None) -> bool:
+    """
+    Chiamala DOPO QApplication().
+    Se lang è None: usa env/settings.
+    """
+    if app is None:
+        app = QApplication.instance()
+    if app is None:
+        return False
+    if lang is None:
+        lang = _installed_lang or get_lang("it")
+    return set_lang(lang, app=app, persist=False)
+
+# -------------------------- context deduction -------------------------
+
+def _caller_context() -> str:
+    """
+    Deduce context:
+    - se modulo è "__main__", usa __spec__.name se c'è
+    - se script importato come "string_audio_generator", normalizza a "scripts.string_audio_generator"
+    """
+    try:
+        f = inspect.currentframe()
+        f = f.f_back if f else None
+        g = f.f_globals if f else {}
+        name = g.get("__name__", "") or "hevc_gui"
+        if name == "__main__":
+            spec = g.get("__spec__", None)
+            if spec and getattr(spec, "name", None):
+                name = spec.name
+        if name == "string_audio_generator":
+            return "scripts.string_audio_generator"
+        return name
+    except Exception:
+        return "hevc_gui"
+
+def translate(ctx: str, source: str) -> str:
+    return QCoreApplication.translate(ctx, source)
+
+def L(source: str) -> str:  # noqa: N802 (nome voluto)
+    return QCoreApplication.translate(_caller_context(), source)
+
+# ri-esponi anche come “lista lingue” (dict-like)
+L.__dict__["items"] = _LANGS.items  # piccola compat per chi fa L.items()
+
+def available_languages() -> List[Tuple[str, str]]:
+    return list(_LANGS.items())
+
+# ---------------------------- compat API ------------------------------
+
+def current_lang(default: str = "it") -> str:
+    return get_lang(default)
+
+def set_app_language(lang: str) -> bool:
+    """
+    Usata da menubar: salva lingua e basta (il restart lo fa menubar).
+    """
+    try:
+        _persist_lang(lang)
+        return True
+    except Exception:
+        return False
+
+def restart_app() -> None:
+    """
+    Restart pulito dello stesso comando.
+    """
+    # prova Qt-friendly
+    try:
+        from PyQt5.QtCore import QProcess, QCoreApplication
+        QProcess.startDetached(sys.executable, sys.argv)
+        QCoreApplication.quit()
+        return
+    except Exception:
+        pass
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+def apply_i18n_to_widget(root: QWidget, ctx: Optional[str] = None, *, translate_combos: bool = False) -> None:
+    """
+    Best-effort: traduce testi già settati (label/bottoni/menu/tooltips).
+    DEFAULT: NON tocca le combo items (evita KeyError tipo 'None' -> src[...]).
+    """
+    if ctx is None:
+        try:
+            ctx = root.__class__.__module__ or "hevc_gui"
+        except Exception:
+            ctx = "hevc_gui"
+
+    def tr(s: str) -> str:
+        return translate(ctx, s)
+
+    def fix_action(a: QAction):
+        try:
+            if a.text():
+                a.setText(tr(a.text()))
+        except Exception:
+            pass
+        try:
+            if a.toolTip():
+                a.setToolTip(tr(a.toolTip()))
+        except Exception:
+            pass
+        try:
+            if a.statusTip():
+                a.setStatusTip(tr(a.statusTip()))
+        except Exception:
+            pass
+        try:
+            m = a.menu()
+            if m:
+                fix_menu(m)
+        except Exception:
+            pass
+
+    def fix_menu(m: QMenu):
+        try:
+            if m.title():
+                m.setTitle(tr(m.title()))
+        except Exception:
+            pass
+        for a in m.actions():
+            fix_action(a)
+
+    # window title + menuBar
+    try:
+        if root.windowTitle():
+            root.setWindowTitle(tr(root.windowTitle()))
+    except Exception:
+        pass
+
+    try:
+        mb = root.menuBar() if hasattr(root, "menuBar") else None
+        if isinstance(mb, QMenuBar):
+            for a in mb.actions():
+                fix_action(a)
+    except Exception:
+        pass
+
+    # children
+    try:
+        kids = root.findChildren(QWidget)
+    except Exception:
+        kids = []
+
+    for w in kids:
+        try:
+            if w.toolTip():
+                w.setToolTip(tr(w.toolTip()))
+        except Exception:
+            pass
+
+        try:
+            if isinstance(w, QLabel):
+                if w.text():
+                    w.setText(tr(w.text()))
+            elif isinstance(w, QAbstractButton):
+                if w.text():
+                    w.setText(tr(w.text()))
+            elif isinstance(w, QGroupBox):
+                if w.title():
+                    w.setTitle(tr(w.title()))
+            elif isinstance(w, QTabWidget):
+                for i in range(w.count()):
+                    if w.tabText(i):
+                        w.setTabText(i, tr(w.tabText(i)))
+            # NOTE: combo items NO by default
+            elif translate_combos:
+                from PyQt5.QtWidgets import QComboBox
+                if isinstance(w, QComboBox):
+                    for i in range(w.count()):
+                        s = w.itemText(i)
+                        if s:
+                            w.setItemText(i, tr(s))
+        except Exception:
+            continue
+
+# alias (alcuni moduli importano apply_i18n)
+apply_i18n = apply_i18n_to_widget
