@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  <title>HEVC-Video Converter — Manuale Utente / User Manual</title>
+<html lang="it"><head>
+
+
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8"><title>HEVC-Video Converter — Manuale Utente / User Manual</title>
+  
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -161,10 +162,7 @@ a:hover { text-decoration: underline; }
         location.hash = '#introduzione';
       }
     }
-  </script>
-</head>
-
-<body>
+  </script></head><body>
 
   <h1>HEVC-Video Converter <span class="badge">2025</span></h1>
   <p class="small">
@@ -202,7 +200,7 @@ a:hover { text-decoration: underline; }
   <div id="lang-it" class="lang active">
 
     <section>
-      <h2 id="introduzione">1. Introduzione</h2>
+      </section><h2 id="introduzione">1. Introduzione</h2>
 
       <p><strong>HEVC-Video Converter</strong> è un convertitore video open source pensato per rendere semplice e sicura la conversione
       in formato <strong>HEVC (H.265)</strong>, mantenendo però strumenti avanzati (preview, filtri, audio, sottotitoli, capitoli, coda batch).</p>
@@ -217,6 +215,9 @@ a:hover { text-decoration: underline; }
           <li>Voce <b>File → Riavvia…</b> per riavvio “pulito” dell’app (reset stato in RAM).</li>
           <li>Modulo integrato <b>LDVD Ripper</b>: DVD → file locale + (opzionale) OCR sottotitoli in SRT + handoff a HEVC.</li>
           <li>Risorse icone Qt: path standard <code>:/icons/...</code> (generate durante il build del <code>.deb</code>).</li>
+  <li>Scelta Lingua (IT/EN)<br>
+  </li>
+
         </ul>
       </div>
 
@@ -224,10 +225,10 @@ a:hover { text-decoration: underline; }
         <b>Disclaimer:</b> il software è fornito “così com’è”, senza garanzie. L’utente è responsabile di verificare la conformità alle leggi locali
         su copyright e codec.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="requisiti">2. Requisiti di Sistema</h2>
+      </section><h2 id="requisiti">2. Requisiti di Sistema</h2>
 
       <h3>2.1 Sistemi operativi supportati</h3>
       <ul>
@@ -244,8 +245,7 @@ a:hover { text-decoration: underline; }
 
       <div class="note">
         <b>Test rapido (tutti i sistemi):</b>
-        <pre>ffmpeg -version
-ffprobe -version</pre>
+        <pre>ffmpeg -version<br>ffprobe -version</pre>
         Se questi comandi non funzionano, HEVC non può convertire.
       </div>
 
@@ -255,10 +255,10 @@ ffprobe -version</pre>
         <li><b>Mono</b> (Linux/macOS) se usi Subtitle Edit versione .NET.</li>
         <li>Tool DVD (a seconda del flusso LDVD): utilità per leggere titoli/capitoli/stream.</li>
       </ul>
-    </section>
+    
 
     <section>
-      <h2 id="installazione">3. Installazione e avvio (Linux / macOS / Windows)</h2>
+      </section><h2 id="installazione">3. Installazione e avvio (Linux / macOS / Windows)</h2>
 
       <h3>3.1 Linux — Installazione tramite .deb (consigliata)</h3>
       <ol>
@@ -310,10 +310,10 @@ ffprobe -version</pre>
         Su Windows alcune funzioni dipendono da tool esterni o comportamenti specifici del sistema.
         Se qualcosa non va, controlla sempre prima FFmpeg/ffprobe e i percorsi (PATH).
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="interfaccia">4. Panoramica Interfaccia</h2>
+      </section><h2 id="interfaccia">4. Panoramica Interfaccia</h2>
 
       <ul>
         <li><strong>Barra Menu + Toolbar icon-only:</strong> accesso rapido alle funzioni principali.</li>
@@ -333,7 +333,7 @@ ffprobe -version</pre>
       </div>
 
       <table>
-        <tr>
+        <tbody><tr>
           <th>Termine</th>
           <th>Spiegazione semplice</th>
         </tr>
@@ -349,11 +349,11 @@ ffprobe -version</pre>
           <td><b>Preset</b></td>
           <td>Velocità/efficienza: più lento = migliore compressione ma più tempo.</td>
         </tr>
-      </table>
-    </section>
+      </tbody></table>
+    
 
     <section>
-      <h2 id="uso">5. Come usare HEVC (conversione passo-passo)</h2>
+      </section><h2 id="uso">5. Come usare HEVC (conversione passo-passo)</h2>
 
       <h3>5.1 Aprire un video (2 modi)</h3>
       <ol>
@@ -389,10 +389,10 @@ ffprobe -version</pre>
         <b>Metodo “anti-sorpresa” (consigliato):</b>
         prima fai un test di 60–120 secondi (trim breve), poi lanci la conversione completa.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="ricette">6. Ricette pronte (per chi vuole risultati subito)</h2>
+      </section><h2 id="ricette">6. Ricette pronte (per chi vuole risultati subito)</h2>
 
       <h3>6.1 “Ho un film con bande nere sopra/sotto”</h3>
       <ol>
@@ -423,10 +423,10 @@ ffprobe -version</pre>
         <li>Se l’OCR fallisce: usa <b>Subtitle Edit</b> (vedi sezione dedicata).</li>
         <li>Passa a HEVC e converti.</li>
       </ol>
-    </section>
+    
 
     <section>
-      <h2 id="strumenti">7. Strumenti Video (Crop / Trim / Colore / Aspetto)</h2>
+      </section><h2 id="strumenti">7. Strumenti Video (Crop / Trim / Colore / Aspetto)</h2>
 
       <h3>7.1 Crop (ritaglio)</h3>
       <ul>
@@ -454,12 +454,15 @@ ffprobe -version</pre>
         <b>Regola “da dummy” che salva la vita:</b> se non sai cosa stai forzando, <b>non forzare aspect</b>.<br>
         Fai crop corretto + preview filtrata e verifica che non ci siano deformazioni.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="audio">8. Modulo Audio</h2>
+      </section><h2 id="audio">8. Modulo Audio</h2>
 
-      <p>Il modulo audio serve per selezionare tracce, impostare codec/bitrate/canali e applicare miglioramenti (se disponibili nel tuo setup).</p>
+      <p>Il
+modulo audio serve per selezionare tracce, impostare
+codec/bitrate/canali e applicare miglioramenti (se disponibili nel tuo
+setup).</p>
 
       <h3>8.1 Problema tipico: “Sento rumori ma non i dialoghi”</h3>
       <div class="danger">
@@ -470,10 +473,10 @@ ffprobe -version</pre>
       <div class="note">
         <b>Consiglio pratico:</b> prima di convertire un film intero, fai sempre una prova breve su 1–2 minuti con dialoghi evidenti.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="subs">9. Sottotitoli (interni / esterni / da DVD)</h2>
+      </section><h2 id="subs">9. Sottotitoli (interni / esterni / da DVD)</h2>
 
       <h3>9.1 Sottotitoli “interni” (dentro MKV/MP4)</h3>
       <ul>
@@ -492,15 +495,18 @@ ffprobe -version</pre>
         Nei DVD spesso i sottotitoli sono “immagini” (VobSub), non testo.
         Per avere un SRT leggibile serve OCR (automatico o assistito con Subtitle Edit).
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="capitoli">10. Capitoli</h2>
-      <p>Se la sorgente ha capitoli (DVD o file), puoi includerli nell’output. Se un formato non è compatibile, potrebbe essere necessaria una conversione in formato FFmpeg-friendly (dipende dal setup).</p>
-    </section>
+      </section><h2 id="capitoli">10. Capitoli</h2>
+      <p>Se
+la sorgente ha capitoli (DVD o file), puoi includerli nell’output. Se
+un formato non è compatibile, potrebbe essere necessaria una
+conversione in formato FFmpeg-friendly (dipende dal setup).</p>
+    
 
     <section>
-      <h2 id="coda">11. Gestione Coda (Batch)</h2>
+      </section><h2 id="coda">11. Gestione Coda (Batch)</h2>
       <ul>
         <li><b>Salva coda</b>: salva lavori senza eseguirli.</li>
         <li><b>Gestisci coda</b>: modifica/riordina.</li>
@@ -509,10 +515,10 @@ ffprobe -version</pre>
       <div class="note">
         <b>Consiglio:</b> prima prova su un file singolo, poi vai di batch (serie TV, più episodi, ecc.).
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="ldvd">12. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
+      </section><h2 id="ldvd">12. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
 
       <p><b>Scopo:</b> rippare una volta sola dal DVD e lavorare poi su file locali (più veloci, più stabili, riusabili).</p>
 
@@ -528,12 +534,13 @@ ffprobe -version</pre>
       </ol>
 
       <div class="warn">
-        <b>Nota:</b> alcuni DVD hanno più titoli/stream. Se i sottotitoli OCR “non escono”, spesso è perché non è stato scelto il titolo/stream corretto.
-      </div>
-    </section>
+        <b>Nota:</b>
+alcuni DVD hanno più titoli/stream. Se i sottotitoli OCR “non escono”,
+spesso è perché non è stato scelto il titolo/stream corretto. </div>
+    
 
     <section>
-      <h2 id="subtitle-edit">13. Subtitle Edit (fallback quando OCR fallisce)</h2>
+      </section><h2 id="subtitle-edit">13. Subtitle Edit (fallback quando OCR fallisce)</h2>
 
       <p>
         Se l’OCR automatico non produce un SRT decente (o non produce nulla), puoi usare <b>Subtitle Edit</b> per estrarre e convertire i sottotitoli
@@ -584,10 +591,10 @@ ffprobe -version</pre>
         <li>Prova ad aprire un altro file/IFO del film (spesso quello giusto è <code>VTS_01_0.IFO</code>, ma non sempre).</li>
         <li>Se l’OCR è “pessimo”, prova a cambiare lingua OCR o migliorare contrasto/zoom (dentro Subtitle Edit).</li>
       </ul>
-    </section>
+    
 
     <section>
-      <h2 id="troubleshoot">14. Problemi comuni (soluzioni rapide)</h2>
+      </section><h2 id="troubleshoot">14. Problemi comuni (soluzioni rapide)</h2>
 
       <h3>14.1 “Non vedo le icone / pulsanti vuoti”</h3>
       <div class="danger">
@@ -598,8 +605,7 @@ ffprobe -version</pre>
       <h3>14.2 “FFmpeg non trovato”</h3>
       <div class="warn">
         Verifica:
-        <pre>ffmpeg -version
-ffprobe -version</pre>
+        <pre>ffmpeg -version<br>ffprobe -version</pre>
         Se non funzionano, installa FFmpeg o aggiungilo al PATH.
       </div>
 
@@ -617,10 +623,10 @@ ffprobe -version</pre>
       <div class="note">
         Menù <b>File → Riavvia…</b> = reset completo dello stato in RAM, come chiudere e riaprire l’app.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="faq">15. FAQ</h2>
+      </section><h2 id="faq">15. FAQ</h2>
       <dl>
         <dt>Quali formati video sono supportati?</dt>
         <dd>Tutti i formati supportati da FFmpeg (MP4, MKV, MOV, AVI, TS, ecc.).</dd>
@@ -637,10 +643,10 @@ ffprobe -version</pre>
         <dt>Come stampo o salvo in PDF?</dt>
         <dd>Clicca “📄 Stampa / Esporta PDF (A4)” e seleziona “Salva come PDF”.</dd>
       </dl>
-    </section>
+    
 
     <section>
-      <h2 id="info">16. Informazioni sul Progetto e Contatti</h2>
+      </section><h2 id="info">16. Informazioni sul Progetto e Contatti</h2>
       <p><strong>HEVC-Video Converter</strong> — progetto 2025</p>
       <p>Creato e mantenuto da <strong>LorisPaganiniHomeStudio</strong>.</p>
       <p>Per info/bug report/suggerimenti:</p>
@@ -648,18 +654,18 @@ ffprobe -version</pre>
       <div class="note">
         <b>Suggerimento per bug report efficace:</b> incolla il log dal click su “Converti/Estrai” fino all’errore.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="note-legali">17. Note Legali e Disclaimer</h2>
-      <p style="font-weight:bold; color:#b91c1c;">HEVC-Video Converter è fornito "così com’è" senza garanzie di alcun tipo.</p>
-      <p style="font-weight:bold; color:#b91c1c;">L’autore non è responsabile per danni diretti o indiretti derivanti dall’uso del software.</p>
+      </section><h2 id="note-legali">17. Note Legali e Disclaimer</h2>
+      <p style="font-weight: bold; color: rgb(185, 28, 28);">HEVC-Video Converter è fornito "così com’è" senza garanzie di alcun tipo.</p>
+      <p style="font-weight: bold; color: rgb(185, 28, 28);">L’autore non è responsabile per danni diretti o indiretti derivanti dall’uso del software.</p>
       <p>FFmpeg e altri componenti terzi mantengono le loro rispettive licenze.</p>
       <p>È responsabilità dell’utente verificare la conformità alle leggi locali relative a copyright e uso dei codec.</p>
 
       <button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF (A4)</button>
       <footer><small>© 2025 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
-    </section>
+    
 
   </div>
 
@@ -667,10 +673,12 @@ ffprobe -version</pre>
   <div id="lang-en" class="lang">
 
     <section>
-      <h2 id="en-intro">1. Introduction</h2>
+      </section><h2 id="en-intro">1. Introduction</h2>
 
       <p><strong>HEVC-Video Converter</strong> is an open-source GUI that helps you encode videos to <strong>HEVC (H.265)</strong>
-      without having to manually type long FFmpeg commands. It also includes advanced tools (preview, filters, audio, subtitles, chapters, queue/batch).</p>
+without having to manually type long FFmpeg commands. It also includes
+advanced tools (preview, filters, audio, subtitles, chapters,
+queue/batch).</p>
 
       <p>The idea is simple: the app hides the complexity, but keeps the important controls available to you:
       quality, preset, audio tracks, subtitles/chapters, and a safe “check-before-encode” workflow.</p>
@@ -678,32 +686,41 @@ ffprobe -version</pre>
       <div class="note">
         <b>Main highlights (current version):</b>
         <ul>
-          <li><b>Icon-only toolbar</b> (buttons are PNG icons, LDVD-style).</li>
-          <li><b>File → Restart…</b> menu entry to restart the app cleanly (RAM state reset).</li>
-          <li>Integrated <b>LDVD Ripper</b>: DVD → local files + (optional) subtitle OCR to SRT + handoff to HEVC.</li>
-          <li>Qt resources use <code>:/icons/...</code> (generated during <code>.deb</code> packaging).</li>
+          <li><b>Icon-only toolbar</b> (buttons are PNG icons, LDVD-style).<br>
+</li>
+          <li><b>File → Restart…</b> menu entry to restart the app cleanly (RAM state reset).<br>
+</li>
+          <li>Integrated <b>LDVD Ripper</b>: DVD → local files + (optional) subtitle OCR to SRT + handoff to HEVC.<br>
+</li>
+          <li>Qt resources use <code>:/icons/...</code> (generated during <code>.deb</code> packaging).<br>
+</li>
         </ul>
       </div>
 
       <div class="danger">
         <b>Disclaimer:</b> software is provided “as-is”, without any warranty. Users are responsible for local copyright/codec compliance.
       </div>
-    </section>
+    
 
     <section>
-      <h2>2. Requirements</h2>
+      </section><h2>2. Requirements</h2>
 
       <h3>2.1 Supported operating systems</h3>
       <ul>
-        <li><strong>Linux</strong> (Mint/Ubuntu derivatives) — main target.</li>
-        <li><strong>macOS</strong> — supported via build scripts and installable dependencies.</li>
-        <li><strong>Windows</strong> — possible, but setup is more manual and some features depend on external tools.</li>
+        <li><strong>Linux</strong> (Mint/Ubuntu derivatives) — main target.<br>
+</li>
+        <li><strong>macOS</strong> — supported via build scripts and installable dependencies.<br>
+</li>
+        <li><strong>Windows</strong> — possible, but setup is more manual and some features depend on external tools.<br>
+</li>
       </ul>
 
       <h3>2.2 Core dependencies (all OS)</h3>
       <ul>
-        <li><strong>FFmpeg + FFprobe</strong> available in your PATH.</li>
-        <li><strong>Python 3</strong> + <strong>PyQt5</strong> if running from sources.</li>
+        <li><strong>FFmpeg + FFprobe</strong> available in your PATH.<br>
+</li>
+        <li><strong>Python 3</strong> + <strong>PyQt5</strong> if running from sources.<br>
+</li>
       </ul>
 
       <div class="note">
@@ -715,33 +732,42 @@ ffprobe -version</pre>
 
       <h3>2.3 Optional tools (only if you need those features)</h3>
       <ul>
-        <li><b>Subtitle Edit</b> (recommended fallback) if automatic OCR fails.</li>
-        <li><b>Mono</b> (Linux/macOS) if you use the .NET version of Subtitle Edit.</li>
-        <li>DVD helper tools (depending on your LDVD workflow).</li>
+        <li><b>Subtitle Edit</b> (recommended fallback) if automatic OCR fails.<br>
+</li>
+        <li><b>Mono</b> (Linux/macOS) if you use the .NET version of Subtitle Edit.<br>
+</li>
+        <li>DVD helper tools (depending on your LDVD workflow).<br>
+</li>
       </ul>
-    </section>
+    
 
     <section>
-      <h2>3. Install & Run (Linux / macOS / Windows)</h2>
+      </section><h2>3. Install &amp; Run (Linux / macOS / Windows)</h2>
 
       <h3>3.1 Linux — .deb package (recommended)</h3>
       <ol>
-        <li>Download the <code>.deb</code> release.</li>
+        <li>Download the <code>.deb</code> release.<br>
+</li>
         <li>Install:
           <pre>sudo apt install ./hevc-video-converter_*.deb</pre>
-        </li>
+        <br>
+</li>
         <li>Run:
           <pre>hevc-video-converter</pre>
-        </li>
+        <br>
+</li>
       </ol>
 
       <h3>3.2 Linux — run from sources (development)</h3>
       <ol>
-        <li>Clone the repository.</li>
-        <li>Install Python dependencies (if needed) and make sure FFmpeg works.</li>
+        <li>Clone the repository.<br>
+</li>
+        <li>Install Python dependencies (if needed) and make sure FFmpeg works.<br>
+</li>
         <li>Run:
           <pre>python3 main.py</pre>
-        </li>
+        <br>
+</li>
       </ol>
 
       <div class="warn">
@@ -753,39 +779,54 @@ ffprobe -version</pre>
       <ol>
         <li>Install FFmpeg (Homebrew):
           <pre>brew install ffmpeg</pre>
-        </li>
-        <li>Ensure Python 3 + PyQt5.</li>
+        <br>
+</li>
+        <li>Ensure Python 3 + PyQt5.<br>
+</li>
         <li>Run:
           <pre>python3 main.py</pre>
-        </li>
+        <br>
+</li>
       </ol>
 
       <h3>3.4 Windows — guidelines</h3>
       <ol>
-        <li>Install Python 3.</li>
-        <li>Install FFmpeg (ZIP) and add <code>bin</code> to PATH.</li>
-        <li>Install PyQt5 and project dependencies.</li>
+        <li>Install Python 3.<br>
+</li>
+        <li>Install FFmpeg (ZIP) and add <code>bin</code> to PATH.<br>
+</li>
+        <li>Install PyQt5 and project dependencies.<br>
+</li>
         <li>Run:
           <pre>python main.py</pre>
-        </li>
+        <br>
+</li>
       </ol>
       <div class="warn">
         On Windows, always double-check PATH and FFmpeg installation first if something fails.
       </div>
-    </section>
+    
 
     <section>
-      <h2>4. User Interface Overview</h2>
+      </section><h2>4. User Interface Overview</h2>
 
       <ul>
-        <li><strong>Menu bar + icon-only toolbar</strong> for the main actions.</li>
-        <li><strong>Input path</strong> to open/drag a video file.</li>
-        <li><strong>Video settings</strong> (CRF/bitrate, preset, filters).</li>
-        <li><strong>Tools</strong>: Preview, Filtered Preview, Crop, Trim, Color, Aspect.</li>
-        <li><strong>Audio</strong>: track selection and profiles (downmix, etc.).</li>
-        <li><strong>Subtitles / Chapters</strong>: include embedded streams or external files.</li>
-        <li><strong>Logs + progress</strong>: status, errors, timing.</li>
-        <li><strong>Queue</strong>: batch processing.</li>
+        <li><strong>Menu bar + icon-only toolbar</strong> for the main actions.<br>
+</li>
+        <li><strong>Input path</strong> to open/drag a video file.<br>
+</li>
+        <li><strong>Video settings</strong> (CRF/bitrate, preset, filters).<br>
+</li>
+        <li><strong>Tools</strong>: Preview, Filtered Preview, Crop, Trim, Color, Aspect.<br>
+</li>
+        <li><strong>Audio</strong>: track selection and profiles (downmix, etc.).<br>
+</li>
+        <li><strong>Subtitles / Chapters</strong>: include embedded streams or external files.<br>
+</li>
+        <li><strong>Logs + progress</strong>: status, errors, timing.<br>
+</li>
+        <li><strong>Queue</strong>: batch processing.<br>
+</li>
       </ul>
 
       <div class="note">
@@ -794,38 +835,50 @@ ffprobe -version</pre>
       </div>
 
       <table>
-        <tr>
-          <th>Term</th>
-          <th>Simple explanation</th>
+        <tbody><tr>
+          <th>Term<br>
+</th>
+          <th>Simple explanation<br>
+</th>
         </tr>
         <tr>
-          <td><b>CRF</b></td>
-          <td>“Quality mode”: you pick a number (e.g. 20–24). Lower = better quality = bigger file.</td>
+          <td><b>CRF</b><br>
+</td>
+          <td>“Quality mode”: you pick a number (e.g. 20–24). Lower = better quality = bigger file.<br>
+</td>
         </tr>
         <tr>
-          <td><b>Bitrate</b></td>
-          <td>“Size budget mode”: you pick a bitrate. Quality adapts to that limit. Useful for consistent output sizes.</td>
+          <td><b>Bitrate</b><br>
+</td>
+          <td>“Size budget mode”: you pick a bitrate. Quality adapts to that limit. Useful for consistent output sizes.<br>
+</td>
         </tr>
         <tr>
-          <td><b>Preset</b></td>
-          <td>Speed vs efficiency: slower presets usually compress better but take longer.</td>
+          <td><b>Preset</b><br>
+</td>
+          <td>Speed vs efficiency: slower presets usually compress better but take longer.<br>
+</td>
         </tr>
-      </table>
-    </section>
+      </tbody></table>
+    
 
     <section>
-      <h2>5. How to Encode (step-by-step)</h2>
+      </section><h2>5. How to Encode (step-by-step)</h2>
 
       <h3>5.1 Open a file</h3>
       <ol>
-        <li>Click <b>Open</b> (toolbar icon) and select your video.</li>
-        <li>Do a <b>Preview</b> first to confirm it’s the right file.</li>
+        <li>Click <b>Open</b> (toolbar icon) and select your video.<br>
+</li>
+        <li>Do a <b>Preview</b> first to confirm it’s the right file.<br>
+</li>
       </ol>
 
       <h3>5.2 Choose quality and preset</h3>
       <ul>
-        <li><b>New users:</b> use <b>CRF</b> and a medium/slow preset.</li>
-        <li><b>Don’t change 10 things at once:</b> change one setting, then test with filtered preview.</li>
+        <li><b>New users:</b> use <b>CRF</b> and a medium/slow preset.<br>
+</li>
+        <li><b>Don’t change 10 things at once:</b> change one setting, then test with filtered preview.<br>
+</li>
       </ul>
 
       <h3>5.3 If you use tools (crop/trim/color): Filtered Preview</h3>
@@ -836,62 +889,82 @@ ffprobe -version</pre>
 
       <h3>5.4 Convert</h3>
       <ol>
-        <li>Click <b>Convert</b>.</li>
-        <li>Wait for completion and verify the output.</li>
+        <li>Click <b>Convert</b>.<br>
+</li>
+        <li>Wait for completion and verify the output.<br>
+</li>
       </ol>
 
       <div class="note">
         <b>Zero-surprise method:</b> do a 60–120 second test (short trim) first, then encode the full file.
       </div>
-    </section>
+    
 
     <section>
-      <h2>6. Ready-made recipes (quick results)</h2>
+      </section><h2>6. Ready-made recipes (quick results)</h2>
 
       <h3>6.1 “My video has black bars”</h3>
       <ol>
-        <li>Open the video.</li>
-        <li>Use <b>Crop</b> to remove only the black bars.</li>
-        <li>Run <b>Filtered Preview</b>.</li>
-        <li>Convert.</li>
+        <li>Open the video.<br>
+</li>
+        <li>Use <b>Crop</b> to remove only the black bars.<br>
+</li>
+        <li>Run <b>Filtered Preview</b>.<br>
+</li>
+        <li>Convert.<br>
+</li>
       </ol>
 
       <h3>6.2 “I want to cut intro/outro”</h3>
       <ol>
-        <li>Open <b>Trim</b>.</li>
-        <li>Set start/end and keep a small safety margin.</li>
-        <li>Filtered Preview, then Convert.</li>
+        <li>Open <b>Trim</b>.<br>
+</li>
+        <li>Set start/end and keep a small safety margin.<br>
+</li>
+        <li>Filtered Preview, then Convert.<br>
+</li>
       </ol>
 
       <h3>6.3 “5.1 audio: I hear sounds but no dialog”</h3>
       <ol>
-        <li>Open the <b>Audio</b> module.</li>
-        <li>Change downmix profile / audio track.</li>
-        <li>Test on 1–2 minutes with clear dialog.</li>
+        <li>Open the <b>Audio</b> module.<br>
+</li>
+        <li>Change downmix profile / audio track.<br>
+</li>
+        <li>Test on 1–2 minutes with clear dialog.<br>
+</li>
       </ol>
 
       <h3>6.4 “I have a DVD and want SRT subtitles”</h3>
       <ol>
-        <li>Use <b>LDVD Ripper</b> to extract the DVD to local files.</li>
-        <li>Try <b>OCR SRT</b>.</li>
-        <li>If OCR fails, use <b>Subtitle Edit</b> (see dedicated section).</li>
-        <li>Handoff to HEVC and convert.</li>
+        <li>Use <b>LDVD Ripper</b> to extract the DVD to local files.<br>
+</li>
+        <li>Try <b>OCR SRT</b>.<br>
+</li>
+        <li>If OCR fails, use <b>Subtitle Edit</b> (see dedicated section).<br>
+</li>
+        <li>Handoff to HEVC and convert.<br>
+</li>
       </ol>
-    </section>
+    
 
     <section>
-      <h2>7. Subtitles (embedded / external / from DVD)</h2>
+      </section><h2>7. Subtitles (embedded / external / from DVD)</h2>
 
       <h3>7.1 Embedded subtitles</h3>
       <ul>
-        <li>If your file contains subtitle streams (common in MKV), select the one you want.</li>
-        <li>If you don’t see any, the file might not actually contain subtitles.</li>
+        <li>If your file contains subtitle streams (common in MKV), select the one you want.<br>
+</li>
+        <li>If you don’t see any, the file might not actually contain subtitles.<br>
+</li>
       </ul>
 
       <h3>7.2 External subtitles (SRT)</h3>
       <ul>
-        <li>SRT is plain text and widely compatible.</li>
-        <li>Keep filenames clear when you have multiple languages.</li>
+        <li>SRT is plain text and widely compatible.<br>
+</li>
+        <li>Keep filenames clear when you have multiple languages.<br>
+</li>
       </ul>
 
       <h3>7.3 DVD subtitles (VobSub → SRT)</h3>
@@ -899,30 +972,37 @@ ffprobe -version</pre>
         DVD subtitles are often image-based (VobSub). To get SRT text you need OCR:
         automatic OCR or assisted OCR using Subtitle Edit.
       </div>
-    </section>
+    
 
     <section>
-      <h2>8. LDVD Ripper (DVD → local files + OCR + handoff)</h2>
+      </section><h2>8. LDVD Ripper (DVD → local files + OCR + handoff)</h2>
 
       <p><b>Goal:</b> rip only once from the physical disc, then work on fast local files.</p>
 
       <ol>
-        <li>Open <b>DVD Ripper</b>.</li>
-        <li>Select the DVD / <code>VIDEO_TS</code>.</li>
-        <li>Queue the needed files (VTS + matching IFO).</li>
-        <li>Click <b>Extract</b> and wait.</li>
-        <li>(Optional) Click <b>OCR SRT</b>.</li>
-        <li>If OCR fails, use <b>Subtitle Edit</b> (next section).</li>
-        <li>Click <b>Handoff to HEVC</b>.</li>
+        <li>Open <b>DVD Ripper</b>.<br>
+</li>
+        <li>Select the DVD / <code>VIDEO_TS</code>.<br>
+</li>
+        <li>Queue the needed files (VTS + matching IFO).<br>
+</li>
+        <li>Click <b>Extract</b> and wait.<br>
+</li>
+        <li>(Optional) Click <b>OCR SRT</b>.<br>
+</li>
+        <li>If OCR fails, use <b>Subtitle Edit</b> (next section).<br>
+</li>
+        <li>Click <b>Handoff to HEVC</b>.<br>
+</li>
       </ol>
 
       <div class="warn">
         Many DVDs have multiple titles/streams. Wrong title/IFO selection is a common reason for missing subtitles.
       </div>
-    </section>
+    
 
     <section>
-      <h2 id="en-subtitle-edit">9. Subtitle Edit (fallback when OCR fails)</h2>
+      </section><h2 id="en-subtitle-edit">9. Subtitle Edit (fallback when OCR fails)</h2>
 
       <p>
         If automatic OCR produces an empty/broken SRT (or no SRT at all), use <b>Subtitle Edit</b> as a guided fallback.
@@ -932,29 +1012,41 @@ ffprobe -version</pre>
       <div class="note">
         <b>When should you use Subtitle Edit?</b>
         <ul>
-          <li>Automatic OCR creates an empty SRT, garbage characters, or unreadable text.</li>
-          <li>Subtitles are “forced/SDH” or use difficult fonts.</li>
-          <li>You want to quickly fix accents, names, and common OCR errors before muxing.</li>
+          <li>Automatic OCR creates an empty SRT, garbage characters, or unreadable text.<br>
+</li>
+          <li>Subtitles are “forced/SDH” or use difficult fonts.<br>
+</li>
+          <li>You want to quickly fix accents, names, and common OCR errors before muxing.<br>
+</li>
         </ul>
       </div>
 
       <h3>9.1 Beginner-friendly workflow</h3>
       <ol>
-        <li>Use <b>LDVD Ripper</b> to <b>Extract</b> first (work on local files).</li>
-        <li>Open <b>Subtitle Edit</b>.</li>
+        <li>Use <b>LDVD Ripper</b> to <b>Extract</b> first (work on local files).<br>
+</li>
+        <li>Open <b>Subtitle Edit</b>.<br>
+</li>
         <li>Open the DVD subtitle source:
           <ul>
-            <li>Typically you open a VobSub pair (<code>.idx</code>/<code>.sub</code>) if available, or open from DVD structure if supported.</li>
+            <li>Typically you open a VobSub pair (<code>.idx</code>/<code>.sub</code>) if available, or open from DVD structure if supported.<br>
+</li>
           </ul>
-        </li>
+        <br>
+</li>
         <li>If you see the subtitles (as images), run OCR:
           <ul>
-            <li>Select the correct OCR language (e.g. Italian).</li>
-            <li>Run “Recognize / OCR” and confirm/correct prompts.</li>
+            <li>Select the correct OCR language (e.g. Italian).<br>
+</li>
+            <li>Run “Recognize / OCR” and confirm/correct prompts.<br>
+</li>
           </ul>
-        </li>
-        <li>Save as <b>SRT</b>.</li>
-        <li>Back in HEVC, include the saved SRT in your final output.</li>
+        <br>
+</li>
+        <li>Save as <b>SRT</b>.<br>
+</li>
+        <li>Back in HEVC, include the saved SRT in your final output.<br>
+</li>
       </ol>
 
       <div class="warn">
@@ -964,14 +1056,17 @@ ffprobe -version</pre>
 
       <h3>9.2 If Subtitle Edit cannot find subtitles</h3>
       <ul>
-        <li>Try a different DVD title/VTS/IFO (common on multi-title DVDs).</li>
-        <li>Check you are opening the correct movie segment, not extras/menus.</li>
-        <li>If OCR is poor, try changing language or improving contrast/zoom inside Subtitle Edit.</li>
+        <li>Try a different DVD title/VTS/IFO (common on multi-title DVDs).<br>
+</li>
+        <li>Check you are opening the correct movie segment, not extras/menus.<br>
+</li>
+        <li>If OCR is poor, try changing language or improving contrast/zoom inside Subtitle Edit.<br>
+</li>
       </ul>
-    </section>
+    
 
     <section>
-      <h2>10. Troubleshooting</h2>
+      </section><h2>10. Troubleshooting</h2>
 
       <h3>Icons missing / empty toolbar buttons</h3>
       <div class="danger">
@@ -989,19 +1084,18 @@ ffprobe -version</pre>
       <div class="note">
         <b>File → Restart…</b> restarts the app cleanly (RAM state reset).
       </div>
-    </section>
+    
 
     <section>
-      <h2>11. Project Info / Contact</h2>
+      </section><h2>11. Project Info / Contact</h2>
       <p>Maintained by <strong>LorisPaganiniHomeStudio</strong> — 2025</p>
       <p><a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a></p>
 
       <button class="btn-print" onclick="printManual()" aria-label="Print or export manual to PDF">📄 Print / Export PDF (A4)</button>
       <footer><small>© 2025 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
-    </section>
+    
 
   </div>
 
-</body>
-</html>
 
+</body></html>

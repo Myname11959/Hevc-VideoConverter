@@ -5528,8 +5528,8 @@ Sends VOBs to HEVC for conversion.</translation>
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="453"/>
-        <source>Ver. 2.0.0&lt;br&gt;&lt;br&gt;</source>
-        <translation>Ver. 2.0.0&amp;lt;br&amp;gt;&amp;lt;br&amp;gt;</translation>
+        <source>Ver. {0}&lt;br&gt;&lt;br&gt;</source>
+        <translation>Ver. {0}&amp;lt;br&amp;gt;&amp;lt;br&amp;gt;</translation>
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="514"/>

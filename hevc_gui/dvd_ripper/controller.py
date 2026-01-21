@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from hevc_gui.i18n import L
 
 import os
 import sys
@@ -964,13 +965,13 @@ class DVDExtractorController(QObject):
     def _on_open_in_vlc(self) -> None:
         dev = self._guess_dvd_device()
         if not dev:
-            self.view.set_status("Nessun lettore DVD trovato (/dev/sr0, /dev/dvd, /dev/cdrom).")
+            self.view.set_status(L("Nessun lettore DVD trovato (/dev/sr0, /dev/dvd, /dev/cdrom)."))
             return
 
         if self._vlc_proc is not None:
             try:
                 if self._vlc_proc.poll() is None:
-                    self.view.set_status("VLC è già in esecuzione.")
+                    self.view.set_status(L("VLC è già in esecuzione."))
                     return
             except Exception:
                 self._vlc_proc = None
@@ -981,7 +982,7 @@ class DVDExtractorController(QObject):
             self._vlc_prev_status = None
 
         cmd = self._build_vlc_dvd_cmd(dev)
-        self.view.set_status(f"Avvio VLC su {dev}…")
+        self.view.set_status(L("Avvio VLC su {0}…").format(dev))
         try:
             print(f"[LDVD] Avvio VLC: {cmd}")
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -995,7 +996,7 @@ class DVDExtractorController(QObject):
                 self._vlc_timer.start()
 
         except Exception as e:
-            self.view.set_status(f"Errore avvio VLC: {e}")
+            self.view.set_status(L("Errore avvio VLC: {0}").format(e))
 
     def _guess_dvd_device(self) -> str | None:
         for cand in ("/dev/sr0", "/dev/dvd", "/dev/cdrom"):
@@ -1037,18 +1038,18 @@ class DVDExtractorController(QObject):
             if prev:
                 self.view.set_status(prev)
             else:
-                self.view.set_status("Pronto.")
+                self.view.set_status(L("Pronto."))
         self._vlc_prev_status = None
 
     def _open_with_xdg(self, path: str) -> None:
         if not path or not os.path.isfile(path):
-            QMessageBox.information(self.view, "Apri .srt", "Il file selezionato non esiste più sul disco.")
+            QMessageBox.information(self.view, L(L("Apri .srt")), L("Il file selezionato non esiste più sul disco."))
             return
         try:
             subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.view.set_status(f"Apro .srt: {os.path.basename(path)}")
+            self.view.set_status(L("Apro .srt: {0}").format(os.path.basename(path)))
         except Exception as e:
-            QMessageBox.warning(self.view, "Apri .srt", f"Impossibile aprire il file:\n{e}")
+            QMessageBox.warning(self.view, L(L("Apri .srt")), L("Impossibile aprire il file:\\n{0}").format(e))
 
     # --- Apri .srt collegati -------------------------------------------------
     def _on_open_srt(self) -> None:
@@ -1075,22 +1076,14 @@ class DVDExtractorController(QObject):
                     pass
 
         if base_dir is None or not base_dir.exists():
-            QMessageBox.information(
-                self.view,
-                "Apri .srt",
-                "Non ho trovato nessuna cartella con file .srt collegati.\n"
-                "Assicurati di aver estratto almeno un VOB e/o completato l'OCR.",
-            )
+            QMessageBox.information(self.view, L(L("Apri .srt")), "Non ho trovato nessuna cartella con file .srt collegati.\n"
+                "Assicurati di aver estratto almeno un VOB e/o completato l'OCR.", )
             return
 
         try:
             if str(base_dir).startswith("/dev/"):
-                QMessageBox.information(
-                    self.view,
-                    "Apri .srt",
-                    "La sorgente attuale sembra essere un device (/dev/...).\n"
-                    "Non apro la root del DVD. Estrai prima il VOB su disco.",
-                )
+                QMessageBox.information(self.view, L(L("Apri .srt")), "La sorgente attuale sembra essere un device (/dev/...).\n"
+                    "Non apro la root del DVD. Estrai prima il VOB su disco.", )
                 return
         except Exception:
             pass
@@ -1098,7 +1091,7 @@ class DVDExtractorController(QObject):
         base_dir_str = str(base_dir)
 
         try:
-            self.view.set_status(f"Apro cartella VOB/.srt: {base_dir_str}")
+            self.view.set_status(L("Apro cartella VOB/.srt: {0}").format(base_dir_str))
         except Exception:
             pass
 
@@ -1110,7 +1103,7 @@ class DVDExtractorController(QObject):
             else:
                 subprocess.Popen(["xdg-open", base_dir_str])
         except Exception as e:
-            QMessageBox.warning(self.view, "Apri .srt", f"Impossibile aprire la cartella:\n{e}")
+            QMessageBox.warning(self.view, L(L("Apri .srt")), L("Impossibile aprire la cartella:\\n{0}").format(e))
 
     # --- Subtitle Edit -------------------------------------------------
     def _find_subtitle_edit_cmd(self) -> Optional[List[str]]:
@@ -1173,12 +1166,8 @@ class DVDExtractorController(QObject):
         # 2) trova comando Subtitle Edit
         cmd_base = self._find_subtitle_edit_cmd()
         if not cmd_base:
-            QMessageBox.warning(
-                self.view,
-                "Subtitle Edit",
-                "Impossibile trovare Subtitle Edit.\n"
-                "Installa 'subtitle-edit' oppure definisci SUBTITLE_EDIT_CMD.",
-            )
+            QMessageBox.warning(self.view, L(L("Subtitle Edit")), "Impossibile trovare Subtitle Edit.\n"
+                "Installa 'subtitle-edit' oppure definisci SUBTITLE_EDIT_CMD.", )
             return
 
         cmd = list(cmd_base)
@@ -1195,9 +1184,9 @@ class DVDExtractorController(QObject):
         # 4) avvio
         try:
             subprocess.Popen(cmd, cwd=workdir or None, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.view.set_status(f"Aperto Subtitle Edit (cartella: {os.path.basename(workdir)})")
+            self.view.set_status(L("Aperto Subtitle Edit (cartella: {0})").format(os.path.basename(workdir)))
         except Exception as e:
-            QMessageBox.warning(self.view, "Subtitle Edit", f"Errore avviando Subtitle Edit:\n{e}")
+            QMessageBox.warning(self.view, L(L("Subtitle Edit")), L("Errore avviando Subtitle Edit:\\n{0}").format(e))
 
     # --------------- Housekeeping ---------------
     def _housekeep_tick(self):
@@ -1228,10 +1217,10 @@ class DVDExtractorController(QObject):
                 self.view.select_in_tree(target)
             except Exception:
                 pass
-            self.view.set_status(f"Sorgente non disponibile: root impostata a {target}")
-            self.view.set_dvd_title("Nessun titolo")
+            self.view.set_status(L("Sorgente non disponibile: root impostata a {0}").format(target))
+            self.view.set_dvd_title(L("Nessun titolo"))
             try:
-                self.view.set_movie_title("—")
+                self.view.set_movie_title(L("—"))
             except Exception:
                 pass
 
@@ -1285,12 +1274,12 @@ class DVDExtractorController(QObject):
             if not mp or not os.path.isdir(mp):
                 return False
             self.view.set_root_path(mp)
-            self.view.set_status(f"Root DVD: {mp}")
+            self.view.set_status(L("Root DVD: {0}").format(mp))
             self.last_dir = mp
             self._save_prefs()
             return True
         except Exception as e:
-            self.view.set_status(f"Errore mount: {e}")
+            self.view.set_status(L("Errore mount: {0}").format(e))
             return False
 
     def _try_mount_via_udisksctl(self) -> bool:
@@ -1309,16 +1298,16 @@ class DVDExtractorController(QObject):
             self.view.set_status(out or "Mount non riuscito.")
             return False
         except FileNotFoundError:
-            self.view.set_status("udisksctl non disponibile (sudo apt install udisks2).")
+            self.view.set_status(L("udisksctl non disponibile (sudo apt install udisks2)."))
             return False
         except Exception as e:
-            self.view.set_status(f"Errore mount: {e}")
+            self.view.set_status(L("Errore mount: {0}").format(e))
             return False
 
     # --------------- Eventi View: drive / lingua ---------------
     def _on_refresh_dvd(self):
         try:
-            self.view.set_movie_title("—")
+            self.view.set_movie_title(L("—"))
         except Exception:
             pass
 
@@ -1328,28 +1317,24 @@ class DVDExtractorController(QObject):
         if self._try_mount_via_udisksctl():
             QTimer.singleShot(1500, lambda: (self._set_root_to_mount(), self._refresh_titles_once()))
         else:
-            self.view.set_status("DVD non montato (inserisci il disco e riprova).")
+            self.view.set_status(L("DVD non montato (inserisci il disco e riprova)."))
 
     def _run_eject(self, cmd: list[str], action: str) -> bool:
         try:
             proc = subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
             if proc.returncode == 0:
-                self.view.set_status(f"Cassetto: {action} OK")
+                self.view.set_status(L("Cassetto: {0} OK").format(action))
                 return True
             err = (proc.stderr or "").strip()
             if err:
                 err = f"\nDettagli: {err}"
-            QMessageBox.information(
-                self.view,
-                "Info",
-                f"Impossibile {action} il cassetto (rc={proc.returncode}).{err}",
-            )
+            QMessageBox.information(self.view, L(L("Info")), L("Impossibile {0} il cassetto (rc={1}).{2}").format(action, proc.returncode, err), )
             return False
         except FileNotFoundError:
-            QMessageBox.warning(self.view, "Errore", 'Il comando "eject" non è disponibile.')
+            QMessageBox.warning(self.view, L(L("Errore")), L(L('Il comando "eject" non è disponibile.')))
             return False
         except Exception as e:
-            QMessageBox.warning(self.view, "Errore", f"Impossibile {action} il cassetto: {e}")
+            QMessageBox.warning(self.view, L(L("Errore")), L("Impossibile {0} il cassetto: {1}").format(action, e))
             return False
 
     def _on_eject(self):
@@ -1382,13 +1367,13 @@ class DVDExtractorController(QObject):
         self.last_dir = target_dir
         self._save_prefs()
 
-        self.view.set_dvd_title("Nessun titolo")
+        self.view.set_dvd_title(L("Nessun titolo"))
         try:
-            self.view.set_movie_title("—")
+            self.view.set_movie_title(L("—"))
         except Exception:
             pass
 
-        self.view.set_status(f"DVD espulso. Root: {target_dir}")
+        self.view.set_status(L("DVD espulso. Root: {0}").format(target_dir))
 
     def _on_close_tray(self):
         ok = self._run_eject(["eject", "-t", get_dvd_device()], "chiudere")
@@ -1397,7 +1382,7 @@ class DVDExtractorController(QObject):
                 act = getattr(self.view, "actCloseTray", None)
                 if act:
                     act.setEnabled(False)
-                    act.setToolTip("Chiusura via software non supportata da questo drive")
+                    act.setToolTip(L("Chiusura via software non supportata da questo drive"))
             except Exception:
                 pass
 
@@ -1427,7 +1412,7 @@ class DVDExtractorController(QObject):
         path = QFileDialog.getExistingDirectory(self.view, "Apri cartella", start_dir)
         if path:
             self.view.set_root_path(path)
-            self.view.set_status(f"Root: {path}")
+            self.view.set_status(L("Root: {0}").format(path))
             self.last_dir = path
             self._save_prefs()
 
@@ -1451,7 +1436,7 @@ class DVDExtractorController(QObject):
         if not path or not os.path.isdir(path):
             return
         self.view.set_file_panel_path(path)
-        self.view.set_status(f"Dir: {path}")
+        self.view.set_status(L("Dir: {0}").format(path))
         self.last_dir = path
         self._save_prefs()
 
@@ -1585,7 +1570,7 @@ class DVDExtractorController(QObject):
 
     def _on_extract(self):
         if not self.queue:
-            QMessageBox.warning(self.view, "Errore", "La coda è vuota. Aggiungi uno o più .vob.")
+            QMessageBox.warning(self.view, L(L("Errore")), L("La coda è vuota. Aggiungi uno o più .vob."))
             return
 
         out = self._choose_output(default_ext="vob")
@@ -1623,7 +1608,7 @@ class DVDExtractorController(QObject):
             pass
 
         if not vobs:
-            QMessageBox.warning(self.view, "LDVD Ripper", "Nessun VOB in coda.")
+            QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Nessun VOB in coda."))
             return
 
         # ordina “naturale” se disponibile
@@ -1647,7 +1632,7 @@ class DVDExtractorController(QObject):
                     mount = ""
 
             if not mount or not os.path.isdir(mount):
-                QMessageBox.warning(self.view, "LDVD Ripper", "Non riesco a determinare il mount del DVD.")
+                QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Non riesco a determinare il mount del DVD."))
                 return
 
             # 2) VTS
@@ -1657,7 +1642,7 @@ class DVDExtractorController(QObject):
             except Exception:
                 vts_num = None
             if vts_num is None:
-                QMessageBox.warning(self.view, "LDVD Ripper", "Non riesco a capire il VTS (VTS_01, VTS_02...).")
+                QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Non riesco a capire il VTS (VTS_01, VTS_02...)."))
                 return
 
             # 3) destinazione: <DVD_TITLE>_VTS accanto al fileone
@@ -1683,7 +1668,7 @@ class DVDExtractorController(QObject):
             try:
                 vts_dir.mkdir(parents=True, exist_ok=True)
             except Exception as e:
-                QMessageBox.warning(self.view, "LDVD Ripper", f"Impossibile creare:\n{vts_dir}\n{e}")
+                QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Impossibile creare:\\n{0}\\n{1}").format(vts_dir, e))
                 return
 
             # 4) pulisci residui del VTS
@@ -1705,15 +1690,15 @@ class DVDExtractorController(QObject):
                     wanted_names = [os.path.basename(x) for x in vobs]
 
             if not wanted_names:
-                QMessageBox.warning(self.view, "LDVD Ripper", "Nessun file VTS valido in coda (solo .vob/.ifo/.bup).")
+                QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Nessun file VTS valido in coda (solo .vob/.ifo/.bup)."))
                 return
 
             # 6) avvia staging
             import time
             self.view.set_busy(True)
-            self.view.set_status("Preparazione segmenti (vobcopy -O) su disco…")
+            self.view.set_status(L("Preparazione segmenti (vobcopy -O) su disco…"))
             try:
-                self.view.set_progress_stage(f"Vobcopy: staging VTS_{int(vts_num):02d} → {vts_dir.name}")
+                self.view.set_progress_stage(L("Vobcopy: staging VTS_{{0:02d}} → {1}").format(int(vts_num), vts_dir.name))
             except Exception:
                 pass
             self.view.set_progress(0)
@@ -1739,9 +1724,9 @@ class DVDExtractorController(QObject):
         # ───────────────────────── sorgenti locali su disco → concat diretto
         import time
         self.view.set_busy(True)
-        self.view.set_status("Estrazione in corso…")
+        self.view.set_status(L("Estrazione in corso…"))
         try:
-            self.view.set_progress_stage("Copia VOB → file unico .vob")
+            self.view.set_progress_stage(L("Copia VOB → file unico .vob"))
         except Exception:
             pass
         self.view.set_progress(0)
@@ -1816,11 +1801,11 @@ class DVDExtractorController(QObject):
             self.view.set_busy(False)
             self.view.set_progress(0)
             try:
-                self.view.set_progress_stage("Errore")
+                self.view.set_progress_stage(L(L("Errore")))
             except Exception:
                 pass
-            self.view.set_status("Estrazione fallita.")
-            QMessageBox.warning(self.view, "Estrazione (segmenti VTS)", msg or "Staging fallito.")
+            self.view.set_status(L("Estrazione fallita."))
+            QMessageBox.warning(self.view, L("Estrazione (segmenti VTS)"), msg or L("Staging fallito."))
             return
 
         # staging OK: registra workdir per Subtitle Edit
@@ -1838,19 +1823,19 @@ class DVDExtractorController(QObject):
         vobs_local = [p for p in (staged_vobs or []) if p and os.path.isfile(p) and p.lower().endswith(".vob")]
         if not vobs_local:
             self.view.set_busy(False)
-            QMessageBox.warning(self.view, "Estrazione", "Segmenti staging OK ma lista VOB vuota.")
+            QMessageBox.warning(self.view, L(L("Estrazione")), L("Segmenti staging OK ma lista VOB vuota."))
             return
 
         out_path = getattr(self, "_current_out_path", None)
         if not out_path:
             self.view.set_busy(False)
-            QMessageBox.warning(self.view, "Estrazione", "Percorso output mancante.")
+            QMessageBox.warning(self.view, L(L("Estrazione")), L("Percorso output mancante."))
             return
 
         import time
-        self.view.set_status("Creo fileone .vob (concat locale)…")
+        self.view.set_status(L("Creo fileone .vob (concat locale)…"))
         try:
-            self.view.set_progress_stage("Copia segmenti locali → fileone .vob")
+            self.view.set_progress_stage(L("Copia segmenti locali → fileone .vob"))
         except Exception:
             pass
         self.view.set_progress(0)
@@ -2017,9 +2002,9 @@ class DVDExtractorController(QObject):
         snap = base.with_suffix(".lsdvd.json")
 
         if not snap.exists():
-            self.view.set_status("Analisi DVD (lsdvd)…")
+            self.view.set_status(L("Analisi DVD (lsdvd)…"))
             try:
-                self.view.set_progress_stage("Analisi DVD (lsdvd)…")
+                self.view.set_progress_stage(L("Analisi DVD (lsdvd)…"))
             except Exception:
                 pass
             self._try_write_lsdvd_snapshot(vob_path)
@@ -2027,9 +2012,9 @@ class DVDExtractorController(QObject):
         srt_mode = self._get_srt_mode_for_sidecar()
         want_srt = bool(getattr(self, "ocr_srt_enabled", False))
 
-        self.view.set_status("Scrittura finale…")
+        self.view.set_status(L("Scrittura finale…"))
         try:
-            self.view.set_progress_stage("Scrittura finale…")
+            self.view.set_progress_stage(L("Scrittura finale…"))
         except Exception:
             pass
 
@@ -2043,7 +2028,7 @@ class DVDExtractorController(QObject):
 
             meta = postprocess_vob(
                 vob_path,
-                status_cb=lambda s: self.view.set_progress_stage(f"Postprocess: {s}"),
+                status_cb=lambda s: self.view.set_progress_stage(L("Postprocess: {0}").format(s)),
                 make_srt=want_srt,
                 srt_mode=srt_mode,
             )
@@ -2055,12 +2040,12 @@ class DVDExtractorController(QObject):
                 self.view.set_busy(False)
             except Exception:
                 pass
-            self.view.set_status("Postprocess fallito.")
+            self.view.set_status(L("Postprocess fallito."))
             try:
-                self.view.set_progress_stage("Errore")
+                self.view.set_progress_stage(L(L("Errore")))
             except Exception:
                 pass
-            QMessageBox.warning(self.view, "Postprocess", f"Sidecar non generati: {e}")
+            QMessageBox.warning(self.view, L(L("Postprocess")), L("Sidecar non generati: {0}").format(e))
             return
         finally:
             try:
@@ -2076,9 +2061,9 @@ class DVDExtractorController(QObject):
             if LDVD_DEBUG:
                 _dprint(f"[DVD-Ripper] [OCR] Errore durante OCR: {e}")
 
-        self.view.set_status("Completato.")
+        self.view.set_status(L("Completato."))
         try:
-            self.view.set_progress_stage("Completato")
+            self.view.set_progress_stage(L("Completato"))
         except Exception:
             pass
         self.view.set_busy(False)
@@ -2213,7 +2198,7 @@ class DVDExtractorController(QObject):
             except Exception:
                 pass
             try:
-                self.view.set_progress_stage(f"OCR SRT… {v}%")
+                self.view.set_progress_stage(L("OCR SRT… {0}%").format(v))
             except Exception:
                 pass
 
@@ -2305,11 +2290,11 @@ class DVDExtractorController(QObject):
             self.view.set_busy(False)
             self.view.set_progress(0)
             try:
-                self.view.set_progress_stage("Errore")
+                self.view.set_progress_stage(L(L("Errore")))
             except Exception:
                 pass
-            self.view.set_status("Estrazione fallita.")
-            QMessageBox.warning(self.view, "Estrazione", msg or "Estrazione fallita.")
+            self.view.set_status(L("Estrazione fallita."))
+            QMessageBox.warning(self.view, L(L("Estrazione")), msg or L("Estrazione fallita."))
             return
 
         # OK
@@ -2318,20 +2303,20 @@ class DVDExtractorController(QObject):
         self.view.set_busy(True)
         self.view.set_progress(100)
         try:
-            self.view.set_progress_stage("Scrittura finale…")
+            self.view.set_progress_stage(L("Scrittura finale…"))
         except Exception:
             pass
-        self.view.set_status("Scrittura finale…")
+        self.view.set_status(L("Scrittura finale…"))
 
         out_vob = getattr(self, "_current_out_path", None)
         if not out_vob or not os.path.isfile(out_vob):
             self.view.set_busy(False)
-            self.view.set_status("Completato.")
+            self.view.set_status(L("Completato."))
             try:
-                self.view.set_progress_stage("Completato")
+                self.view.set_progress_stage(L("Completato"))
             except Exception:
                 pass
-            QMessageBox.information(self.view, "Estrazione", msg or "Estrazione completata.")
+            QMessageBox.information(self.view, L(L("Estrazione")), msg or L("Estrazione completata."))
             return
 
         self._run_postprocess_vob(out_vob)
@@ -2347,10 +2332,10 @@ class DVDExtractorController(QObject):
 
         box = QMessageBox(self.view)
         box.setIcon(QMessageBox.Information)
-        box.setWindowTitle("Estrazione completata")
+        box.setWindowTitle(L("Estrazione completata"))
         base = os.path.basename(out_vob)
         box.setText(f"{msg or 'Estrazione completata.'}\n\nCreati i sidecar accanto a:\n{base}")
-        btn_hevc = box.addButton("Passa a HEVC", QMessageBox.AcceptRole)
+        btn_hevc = box.addButton(L("Passa a HEVC"), QMessageBox.AcceptRole)
         btn_open = box.addButton("Apri cartella", QMessageBox.ActionRole)
         btn_close = box.addButton("Chiudi", QMessageBox.RejectRole)
         box.setDefaultButton(btn_hevc)
@@ -2379,7 +2364,7 @@ class DVDExtractorController(QObject):
             out_path = ""
 
         if not out_path:
-            QMessageBox.warning(self.view, "LDVD Ripper", "Fallback richiesto ma non ho un percorso di output valido.")
+            QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Fallback richiesto ma non ho un percorso di output valido."))
             return
 
         self._fallback_in_progress = True
@@ -2403,7 +2388,7 @@ class DVDExtractorController(QObject):
                 mount = ""
 
         if not mount or not os.path.isdir(mount):
-            QMessageBox.warning(self.view, "LDVD Ripper", "Fallback: non riesco a determinare il mount del DVD.")
+            QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Fallback: non riesco a determinare il mount del DVD."))
             return
 
         # 2) VTS
@@ -2413,7 +2398,7 @@ class DVDExtractorController(QObject):
         except Exception:
             vts_num = None
         if vts_num is None:
-            QMessageBox.warning(self.view, "LDVD Ripper", "Fallback: non riesco a capire il VTS (VTS_01, VTS_02...).")
+            QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Fallback: non riesco a capire il VTS (VTS_01, VTS_02...)."))
             return
 
         # 3) destinazione: <DVD_TITLE>_VTS accanto al fileone
@@ -2439,7 +2424,7 @@ class DVDExtractorController(QObject):
         try:
             vts_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            QMessageBox.warning(self.view, "LDVD Ripper", f"Fallback: impossibile creare:\n{vts_dir}\n{e}")
+            QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Fallback: impossibile creare:\\n{0}\\n{1}").format(vts_dir, e))
             return
 
         # 4) pulisci residui
@@ -2461,15 +2446,15 @@ class DVDExtractorController(QObject):
                 wanted_names = [os.path.basename(x or "") for x in (sources or []) if x]
 
         if not wanted_names:
-            QMessageBox.warning(self.view, "LDVD Ripper", "Fallback: nessun file VTS valido in coda (solo .vob/.ifo/.bup).")
+            QMessageBox.warning(self.view, L(L("LDVD Ripper")), L("Fallback: nessun file VTS valido in coda (solo .vob/.ifo/.bup)."))
             return
 
         # 6) avvio stage
         import time
         self.view.set_busy(True)
-        self.view.set_status("Recupero I/O: staging segmenti (vobcopy -O) su disco…")
+        self.view.set_status(L("Recupero I/O: staging segmenti (vobcopy -O) su disco…"))
         try:
-            self.view.set_progress_stage(f"Vobcopy: staging VTS_{int(vts_num):02d} → {vts_dir.name}")
+            self.view.set_progress_stage(L("Vobcopy: staging VTS_{{0:02d}} → {1}").format(int(vts_num), vts_dir.name))
         except Exception:
             pass
         self.view.set_progress(0)
@@ -2517,7 +2502,7 @@ class DVDExtractorController(QObject):
     def _on_handoff_to_hevc(self):
         path = self._pick_vob_for_handoff()
         if not path:
-            QMessageBox.information(self.view, "Passa a HEVC", "Nessun VOB disponibile. Estrai prima un titolo.")
+            QMessageBox.information(self.view, L(L("Passa a HEVC")), L("Nessun VOB disponibile. Estrai prima un titolo."))
             return
 
         self.last_output_vob = path
@@ -2538,7 +2523,7 @@ class DVDExtractorController(QObject):
 
         try:
             print(f"HEVC_HANDOFF:{path}", flush=True)
-            self.view.set_status(f"Inoltrato a HEVC: {os.path.basename(path)}")
+            self.view.set_status(L("Inoltrato a HEVC: {0}").format(os.path.basename(path)))
         except Exception:
             pass
 
@@ -2564,8 +2549,8 @@ class DVDExtractorController(QObject):
 
                 self.view.set_busy(False)
                 self.view.set_progress(0)
-                self.view.set_status("Annullato")
-                QMessageBox.information(self.view, "Annullato", "Estrazione annullata.")
+                self.view.set_status(L(L("Annullato")))
+                QMessageBox.information(self.view, L(L("Annullato")), L("Estrazione annullata."))
                 return
 
             # VobcopyStageVTSWorker: stop (termina subprocess)
@@ -2585,19 +2570,19 @@ class DVDExtractorController(QObject):
 
                 self.view.set_busy(False)
                 self.view.set_progress(0)
-                self.view.set_status("Annullato")
-                QMessageBox.information(self.view, "Annullato", "Operazione annullata.")
+                self.view.set_status(L(L("Annullato")))
+                QMessageBox.information(self.view, L(L("Annullato")), L("Operazione annullata."))
                 return
 
-            QMessageBox.information(self.view, "Info", "Questo job non supporta annullamento.")
+            QMessageBox.information(self.view, L(L("Info")), L("Questo job non supporta annullamento."))
             return
 
-        QMessageBox.information(self.view, "Info", "Nessun job in corso.")
+        QMessageBox.information(self.view, L(L("Info")), L("Nessun job in corso."))
 
     def _on_exit(self):
         try:
             if self._worker and self._worker.isRunning():
-                QMessageBox.warning(self.view, "Uscita", "Attendi la fine dell'operazione o annulla.")
+                QMessageBox.warning(self.view, L(L("Uscita")), L("Attendi la fine dell'operazione o annulla."))
                 return
         except Exception:
             pass
@@ -2627,7 +2612,7 @@ class DVDExtractorController(QObject):
 
     def _on_clear_all(self):
         if getattr(self, "_worker", None) and self._worker.isRunning():
-            QMessageBox.warning(self.view, "Operazione in corso", "Impossibile pulire mentre un'operazione è in corso.")
+            QMessageBox.warning(self.view, L(L("Operazione in corso")), L("Impossibile pulire mentre un'operazione è in corso."))
             return
 
         try:
@@ -2666,9 +2651,9 @@ class DVDExtractorController(QObject):
             pass
 
         self._set_handoff_enabled(False)
-        self.view.set_status("Pulito. Pronto.")
+        self.view.set_status(L("Pulito. Pronto."))
         if hasattr(self.view, "set_progress_stage"):
-            self.view.set_progress_stage("Pronto")
+            self.view.set_progress_stage(L("Pronto"))
 
     # --------------- Helpers per staging VTS ---------------
     def _guess_mount_from_path(self, any_path: str) -> Optional[str]:
@@ -2750,3 +2735,104 @@ class DVDExtractorController(QObject):
 
         except Exception:
             pass
+
+
+# AUTO: guard movie title from output-dir handlers
+# Problema: in alcuni flussi, scegliendo output dir (magari rimasto al DVD precedente) viene ri-scritto il movie title.
+# Soluzione safe: wrappiamo i metodi “output/dest” e ripristiniamo movie title se hanno provato a cambiarlo.
+
+def _hevc__get_movie_title_any(self):
+    # 1) se controller ha attr movie_title
+    mt = getattr(self, "movie_title", None)
+    if isinstance(mt, str) and mt.strip():
+        return mt
+
+    # 2) prova a leggere dalla view label
+    view = getattr(self, "view", None) or getattr(self, "v", None) or getattr(self, "_view", None)
+    if view is None:
+        return None
+
+    for name in ("lbl_movie_title", "lbl_film_title", "lbl_title_film", "lbl_movie", "lbl_film"):
+        w = getattr(view, name, None)
+        if w is not None and hasattr(w, "text"):
+            try:
+                t = w.text()
+                if isinstance(t, str) and t.strip():
+                    return t
+            except Exception:
+                pass
+    return None
+
+def _hevc__set_movie_title_any(self, title: str):
+    if isinstance(getattr(self, "movie_title", None), str):
+        try:
+            self.movie_title = title
+        except Exception:
+            pass
+
+    view = getattr(self, "view", None) or getattr(self, "v", None) or getattr(self, "_view", None)
+    if view is None:
+        return
+
+    # preferisci setter ufficiale se esiste
+    if hasattr(view, "set_movie_title"):
+        try:
+            view.set_movie_title(title)
+            return
+        except Exception:
+            pass
+
+    for name in ("lbl_movie_title", "lbl_film_title", "lbl_title_film", "lbl_movie", "lbl_film"):
+        w = getattr(view, name, None)
+        if w is not None and hasattr(w, "setText"):
+            try:
+                w.setText(title)
+            except Exception:
+                pass
+
+def _hevc__install_output_movie_guard():
+    for _name, _obj in list(globals().items()):
+        if not isinstance(_obj, type):
+            continue
+
+        # euristica: controller tipico ha self.view e roba action/handlers
+        if not any(hasattr(_obj, a) for a in ("view", "_view", "v")):
+            pass  # non filtro troppo: il wrap è comunque innocuo
+
+        for mname in dir(_obj):
+            low = mname.lower()
+            if not (("output" in low) or ("dest" in low) or ("destination" in low)):
+                continue
+            if low.startswith("__"):
+                continue
+
+            try:
+                orig = getattr(_obj, mname)
+            except Exception:
+                continue
+            if not callable(orig):
+                continue
+            if getattr(orig, "_hevc_wrapped_output_guard", False):
+                continue
+
+            def _make_wrapper(_orig, _mname):
+                def _wrapped(self, *a, **k):
+                    prev = _hevc__get_movie_title_any(self)
+                    r = _orig(self, *a, **k)
+                    # se il metodo output ha cambiato movie title, ripristina
+                    if prev:
+                        now = _hevc__get_movie_title_any(self)
+                        if now and now != prev:
+                            _hevc__set_movie_title_any(self, prev)
+                    return r
+                _wrapped._hevc_wrapped_output_guard = True
+                _wrapped.__name__ = getattr(_orig, "__name__", _mname)
+                return _wrapped
+
+            try:
+                setattr(_obj, mname, _make_wrapper(orig, mname))
+            except Exception:
+                pass
+
+_hevc__install_output_movie_guard()
+

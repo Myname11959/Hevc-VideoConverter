@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # hevc_gui/gui/appearance_dialog.py
-
+from hevc_gui.i18n import L, restart_app
 from PyQt5.QtWidgets import (
+    QMessageBox,
     QDialog,
     QVBoxLayout,
     QLabel,
@@ -17,7 +18,7 @@ from PyQt5.QtWidgets import (
     QApplication,
     QStyledItemDelegate,
 )
-from PyQt5.QtCore import QModelIndex
+from PyQt5.QtCore import QModelIndex, Qt
 from PyQt5.QtGui import QFont
 
 from hevc_gui.gui.appearance_settings import (
@@ -27,6 +28,34 @@ from hevc_gui.gui.appearance_settings import (
     reset_to_defaults,
 )
 
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Combo helpers: testo mostrato tradotto, valore interno stabile (UserRole)
+# ─────────────────────────────────────────────────────────────────────
+_ICON_THEME_ITEMS = [
+    "Hevc - Video Converter (richiede riavvio)",
+    "Numix",
+    "Mint-Y",
+    "Tango",
+    "ubuntu-mono",
+]
+
+def _combo_add_src(cb: QComboBox, items):
+    cb.clear()
+    for s in items:
+        cb.addItem(L(s), s)  # testo tradotto, data=source
+
+def _combo_current_src(cb: QComboBox) -> str:
+    d = cb.currentData()
+    return d if d is not None else cb.currentText()
+
+def _combo_set_src(cb: QComboBox, value: str) -> None:
+    for i in range(cb.count()):
+        if cb.itemData(i) == value:
+            cb.setCurrentIndex(i)
+            return
+    cb.setCurrentText(value)
 
 # ─────────────────────────────────────────────────────────────────────
 # Delegate per “font preview”: ogni voce è disegnata col proprio font
@@ -43,7 +72,7 @@ class FontPreviewDelegate(QStyledItemDelegate):
 class AppearanceDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Impostazioni Aspetto")
+        self.setWindowTitle(L("Impostazioni Aspetto"))
 
         # Carica le impostazioni attuali
         self.original = load_appearance()  # (style, font_family, font_size, theme_mode, icon_theme, button_style)
@@ -72,55 +101,46 @@ class AppearanceDialog(QDialog):
         self.spin_font_size.setRange(6, 32)
 
         # Tema chiaro/scuro
-        self.radio_light = QRadioButton("Chiaro")
-        self.radio_dark = QRadioButton("Scuro")
+        self.radio_light = QRadioButton(L("Chiaro"))
+        self.radio_dark = QRadioButton(L("Scuro"))
 
         # Tema icone
         self.combo_icon_theme = QComboBox()
-        self.combo_icon_theme.addItems(
-            [
-                "Hevc - Video Converter (richiede riavvio)",
-                "Numix",
-                "Mint-Y",
-                "Tango",
-                "ubuntu-mono",
-            ]
-        )
-
+        _combo_add_src(self.combo_icon_theme, _ICON_THEME_ITEMS)
         # Stile pulsanti
         self.combo_button_style = QComboBox()
-        self.combo_button_style.addItems(["Predefinito", "Flat", "Icon Only", "Text Only"])
+        self.combo_button_style.addItems([L("Predefinito"), L("Flat"), L("Icon Only"), L("Text Only")])
 
         # Pulsanti
-        self.btn_reset = QPushButton("Ripristina predefiniti")
-        self.btn_apply = QPushButton("Applica")
-        self.btn_undo = QPushButton("Annulla Mod.")
-        self.btn_ok = QPushButton("OK")
-        self.btn_cancel = QPushButton("Cancel")
+        self.btn_reset = QPushButton(L("Ripristina predefiniti"))
+        self.btn_apply = QPushButton(L("Applica"))
+        self.btn_undo = QPushButton(L("Annulla Mod."))
+        self.btn_ok = QPushButton(L("OK"))
+        self.btn_cancel = QPushButton(L("Annulla"))
 
     def create_layout(self):
         layout = QVBoxLayout()
 
-        layout.addWidget(QLabel("Temi:"))
+        layout.addWidget(QLabel(L("Temi:")))
         layout.addWidget(self.combo_style)
 
-        layout.addWidget(QLabel("Font:"))
+        layout.addWidget(QLabel(L("Font:")))
         layout.addWidget(self.combo_font)
 
-        layout.addWidget(QLabel("Dimensione font:"))
+        layout.addWidget(QLabel(L("Dimensione font:")))
         layout.addWidget(self.spin_font_size)
 
-        theme_group = QGroupBox("Modalità tema")
+        theme_group = QGroupBox(L("Modalità tema"))
         theme_layout = QHBoxLayout()
         theme_layout.addWidget(self.radio_light)
         theme_layout.addWidget(self.radio_dark)
         theme_group.setLayout(theme_layout)
         layout.addWidget(theme_group)
 
-        layout.addWidget(QLabel("Tema icone:"))
+        layout.addWidget(QLabel(L("Tema icone:")))
         layout.addWidget(self.combo_icon_theme)
 
-        layout.addWidget(QLabel("Stile pulsanti:"))
+        layout.addWidget(QLabel(L("Stile pulsanti:")))
         layout.addWidget(self.combo_button_style)
 
         btn_layout = QHBoxLayout()
@@ -149,7 +169,7 @@ class AppearanceDialog(QDialog):
         font_family = self.combo_font.currentFont().family()
         font_size = self.spin_font_size.value()
         theme_mode = "dark" if self.radio_dark.isChecked() else "light"
-        icon_theme = self.combo_icon_theme.currentText()
+        icon_theme = _combo_current_src(self.combo_icon_theme)
         button_style = self.combo_button_style.currentIndex()
         return style, font_family, font_size, theme_mode, icon_theme, button_style
 
@@ -162,41 +182,75 @@ class AppearanceDialog(QDialog):
             self.radio_dark.setChecked(True)
         else:
             self.radio_light.setChecked(True)
-
-        self.combo_icon_theme.setCurrentText(icon_theme)
+        _combo_set_src(self.combo_icon_theme, icon_theme)
         self.combo_button_style.setCurrentIndex(button_style)
 
     # ─────────────────────────────────────────────────────────────────
     # Azioni
     # ─────────────────────────────────────────────────────────────────
+    def _refresh_icons(self):
+        win = self.parent()
+        if not win:
+            return
+        # refresh centralizzato menubar/toolbar
+        try:
+            from hevc_gui.gui.menubar import refresh_icons as _refresh_icons
+            _refresh_icons(win)
+        except Exception:
+            pass
+        # fallback: se il parent espone refresh_icons, chiamalo
+        try:
+            fn = getattr(win, 'refresh_icons', None)
+            if callable(fn):
+                fn()
+        except Exception:
+            pass
+
     def on_ok(self):
         values = self.get_values()
+        # se cambia il tema icone → riavvio obbligatorio su OK
+        try:
+            old_icon = (self.original[4] or '').strip()
+        except Exception:
+            old_icon = ''
+        new_icon = (values[4] or '').strip()
+
         save_appearance(*values)
         apply_appearance(QApplication.instance())
-        if self.parent() and hasattr(self.parent(), "refresh_icons"):
-            self.parent().refresh_icons()
+        try:
+            if self.parent() and hasattr(self.parent(), 'refresh_icons'):
+                self.parent().refresh_icons()
+        except Exception:
+            pass
+
+        if old_icon != new_icon:
+            QMessageBox.information(
+                self,
+                L('Riavvio necessario'),
+                L("Il cambio delle icone verrà applicato dopo il riavvio dell'app.\n\nRiavvio ora…")
+            )
+            restart_app()
+            return
+
         self.accept()
+
 
     def on_apply(self):
         values = self.get_values()
         # apply con anteprima (senza persistere subito)
         apply_appearance(QApplication.instance(), *values)
         self.preview = values
-        if self.parent() and hasattr(self.parent(), "refresh_icons"):
-            self.parent().refresh_icons()
-
+        self._refresh_icons()
     def on_undo(self):
         if self.preview:
             # torna allo stato salvato originale (non l’ultimo apply)
             self.set_values(*self.original)
             apply_appearance(QApplication.instance())
-            if self.parent() and hasattr(self.parent(), "refresh_icons"):
-                self.parent().refresh_icons()
+            self._refresh_icons()
             self.preview = None
 
     def on_reset(self):
         reset_to_defaults()
         self.set_values(*load_appearance())
         apply_appearance(QApplication.instance())
-        if self.parent() and hasattr(self.parent(), "refresh_icons"):
-            self.parent().refresh_icons()
+        self._refresh_icons()

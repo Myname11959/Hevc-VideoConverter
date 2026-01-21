@@ -17,6 +17,7 @@ Comportamento:
 """
 
 from __future__ import annotations
+from hevc_gui.i18n import L
 
 import os
 import subprocess
@@ -107,7 +108,7 @@ class ColorDialog(QDialog):
         parent: Optional[QWidget] = None,
     ):
         super().__init__(parent)
-        self.setWindowTitle("Luminosità / Colore…")
+        self.setWindowTitle(L("Luminosità / Colore…"))
         self.setModal(True)
 
         self.input_path = input_path
@@ -150,16 +151,16 @@ class ColorDialog(QDialog):
         left.addWidget(self.view, 1)
 
         # bottom row: tempo + slider + pulsanti (a destra)
-        self.lbl_time = QLabel("00:00 / 00:00", self)
+        self.lbl_time = QLabel(L("00:00 / 00:00"), self)
 
         self.sld_time = QSlider(Qt.Horizontal, self)
         self.sld_time.setMinimum(0)
         self.sld_time.valueChanged.connect(self._on_seek_changed)
         self.sld_time.actionTriggered.connect(self._on_seek_action)
 
-        self.btn_preview = QPushButton("Preview filtrata", self)
-        self.btn_apply = QPushButton("Applica", self)
-        self.btn_cancel = QPushButton("Annulla (spegni)", self)
+        self.btn_preview = QPushButton(L("Preview filtrata"), self)
+        self.btn_apply = QPushButton(L("Applica"), self)
+        self.btn_cancel = QPushButton(L("Annulla (spegni)"), self)
 
         self.btn_preview.clicked.connect(self._on_preview)
         self.btn_apply.clicked.connect(self._apply)
@@ -185,7 +186,7 @@ class ColorDialog(QDialog):
         right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(10)
 
-        right.addWidget(QLabel("Correzione colore", self))
+        right.addWidget(QLabel(L("Correzione colore"), self))
 
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignLeft)
@@ -198,19 +199,19 @@ class ColorDialog(QDialog):
         self.sp_saturation = self._mk_dspin(0.0, 3.0, 0.05, 3)
         self.sp_gamma = self._mk_dspin(0.1, 3.0, 0.05, 3)
 
-        form.addRow("Luminosità:", self.sp_bright)
-        form.addRow("Contrasto:", self.sp_contrast)
-        form.addRow("Saturazione:", self.sp_saturation)
-        form.addRow("Gamma:", self.sp_gamma)
+        form.addRow(L("Luminosità:"), self.sp_bright)
+        form.addRow(L("Contrasto:"), self.sp_contrast)
+        form.addRow(L("Saturazione:"), self.sp_saturation)
+        form.addRow(L("Gamma:"), self.sp_gamma)
 
         right.addLayout(form)
 
-        self.chk_enable = QCheckBox("Abilita correzione colore", self)
+        self.chk_enable = QCheckBox(L("Abilita correzione colore"), self)
         self.chk_enable.stateChanged.connect(lambda _s: self._seek_timer.start(150))
         right.addWidget(self.chk_enable)
 
-        self.btn_reset = QPushButton("Reset valori", self)
-        self.btn_reset.setToolTip("Riporta i parametri ai default (non lancia preview).")
+        self.btn_reset = QPushButton(L("Reset valori"), self)
+        self.btn_reset.setToolTip(L("Riporta i parametri ai default (non lancia preview)."))
         self.btn_reset.clicked.connect(self._on_reset)
         right.addWidget(self.btn_reset)
 
@@ -322,7 +323,7 @@ class ColorDialog(QDialog):
 
     def _grab_frame(self):
         if not self.input_path:
-            QMessageBox.warning(self, "Attenzione", "Seleziona prima un file video nella finestra principale.")
+            QMessageBox.warning(self, "Attenzione", L('Seleziona prima un file video nella finestra principale.'))
             return
 
         FRAME_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -345,12 +346,12 @@ class ColorDialog(QDialog):
         try:
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
-            QMessageBox.critical(self, "Errore", "Impossibile estrarre un frame con ffmpeg.")
+            QMessageBox.critical(self, L("Errore"), L("Impossibile estrarre un frame con ffmpeg."))
             return
 
         pix = QPixmap(str(FRAME_PATH))
         if pix.isNull():
-            QMessageBox.critical(self, "Errore", "Frame non valido.")
+            QMessageBox.critical(self, L("Errore"), L('Frame non valido.'))
             return
 
         self.pix = pix
@@ -422,7 +423,7 @@ class ColorDialog(QDialog):
 
         parent = self.parent()
         if parent is None:
-            QMessageBox.warning(self, "Preview", "Preview filtrata non disponibile (finestra principale assente).")
+            QMessageBox.warning(self, "Preview", L('Preview filtrata non disponibile (finestra principale assente).'))
             return
 
         # Preferisci preview_filtered() se c'è
@@ -432,12 +433,12 @@ class ColorDialog(QDialog):
                 fn()
                 return
             except Exception as e:
-                QMessageBox.critical(self, "Preview", f"Errore Preview filtrata:\n{e}")
+                QMessageBox.critical(self, L("Preview"), L("Errore Preview filtrata:\n{0}").format(e))
                 return
 
         launch = getattr(parent, "launch_preview", None)
         if not callable(launch):
-            QMessageBox.warning(self, "Preview", "La finestra principale non espone preview_filtered() né launch_preview().")
+            QMessageBox.warning(self, "Preview", L("La finestra principale non espone preview_filtered() né launch_preview()."))
             return
 
         try:
@@ -446,4 +447,4 @@ class ColorDialog(QDialog):
             except TypeError:
                 launch(True)
         except Exception as e:
-            QMessageBox.critical(self, "Preview", f"Errore durante la Preview filtrata:\n{e}")
+            QMessageBox.critical(self, L("Preview"), L("Errore durante la Preview filtrata:\n{0}").format(e))

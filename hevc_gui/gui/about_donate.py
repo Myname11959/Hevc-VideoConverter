@@ -6,6 +6,7 @@ Non crea nuove voci di menu.
 """
 
 from __future__ import annotations
+from hevc_gui.i18n import L
 
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtGui import QDesktopServices
@@ -44,7 +45,7 @@ def _open_url(url: str) -> None:
 
 def make_about_dialog(parent) -> QDialog:
     dlg = QDialog(parent)
-    dlg.setWindowTitle(f"Informazioni su {APP_NAME}")
+    dlg.setWindowTitle(L('Informazioni su {0}').format(APP_NAME))
     dlg.setModal(True)
 
     v = QVBoxLayout(dlg)
@@ -63,9 +64,9 @@ def make_about_dialog(parent) -> QDialog:
     desc.setWordWrap(True)
     desc.setOpenExternalLinks(True)
 
-    donate_btn = QPushButton("Dona (PayPal)")
+    donate_btn = QPushButton(L("Dona (PayPal)"))
     donate_btn.setCursor(Qt.PointingHandCursor)
-    donate_btn.setToolTip("Apri la pagina PayPal per una donazione")
+    donate_btn.setToolTip(L("Apri la pagina PayPal per una donazione"))
     donate_btn.clicked.connect(lambda: _open_url(DONATE_URL))
     donate_btn.setStyleSheet(
         """
@@ -86,9 +87,7 @@ def make_about_dialog(parent) -> QDialog:
     h_badge.addWidget(donate_btn, 0, Qt.AlignLeft)
     h_badge.addStretch(1)
 
-    links = QLabel(
-        'Sorgenti e licenza: vedi <code>README.md</code> e <code>LICENSE</code> nel repository.'
-    )
+    links = QLabel(L('Sorgenti e licenza: vedi <code>README.md</code> e <code>LICENSE</code> nel repository.'))
     links.setTextFormat(Qt.RichText)
     links.setWordWrap(True)
 

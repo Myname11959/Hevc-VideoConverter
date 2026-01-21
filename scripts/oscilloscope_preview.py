@@ -13,6 +13,7 @@ Oscilloscopio multi-canale (verticale) per preview audio — grafica + avvio rap
 - Priming muto del player per ridurre la latenza del primo Play (configurabile via env).
 - Nessun autoplay; stop certo e cleanup del WAV alla chiusura.
 """
+from hevc_gui.i18n import L
 
 import os
 
@@ -150,7 +151,7 @@ class _ChannelRow(QWidget):
         self.name_lbl.setAlignment(Qt.AlignVCenter | Qt.AlignRight)  # ← allinea a dx: pallini in colonna
         self.name_lbl.setStyleSheet("color:#000; font-weight:600; margin:0; padding:0;")
 
-        self.dot_lbl = QLabel("●", self.label_col)
+        self.dot_lbl = QLabel(L("●"), self.label_col)
         self.dot_lbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self.dot_lbl.setStyleSheet(f"color:{color}; margin:0; padding:0;")
 
@@ -326,7 +327,7 @@ class PreviewDialog(QDialog):
         auto_cleanup: bool = True,
     ):
         super().__init__(parent)
-        self.setWindowTitle("Preview Audio con Oscilloscopio")
+        self.setWindowTitle(L("Preview Audio con Oscilloscopio"))
         self.setAttribute(Qt.WA_DeleteOnClose, True)
 
         self.audio_file = audio_file
@@ -376,7 +377,7 @@ class PreviewDialog(QDialog):
         self.slider.setRange(0, 1)
         self.slider.setFixedHeight(SLIDER_H)
 
-        self.time_label = QLabel("00:00 / 00:00", self)
+        self.time_label = QLabel(L("00:00 / 00:00"), self)
         self.time_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.time_label.setMinimumWidth(120)
 
@@ -574,7 +575,7 @@ class PreviewDialog(QDialog):
 
     def _on_duration_changed(self, dur: int):
         self.slider.setRange(0, max(1, dur or 1))
-        self.time_label.setText(f"00:00 / {_fmt_ms(dur or 0)}")
+        self.time_label.setText(L('00:00 / {0}').format(_fmt_ms(dur or 0)))
 
 
 def _fmt_ms(ms: int) -> str:

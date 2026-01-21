@@ -19,4 +19,4 @@ ignore = ["E501"]
 
 [project]
 name = "hevc-video-converter"
-version = "2.1.0"
+version = "2.1.0.0"

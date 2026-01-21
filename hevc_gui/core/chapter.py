@@ -1,3 +1,4 @@
+from hevc_gui.i18n import L
 # ----------------------------------------------------------------------
 #  Nuova versione "robusta" di ChapterManager
 #  • usa capitoli già compatibili                       (ffmpeg → OK)
@@ -377,23 +378,22 @@ class ChapterManager:
                 QMessageBox.question(
                     parent,
                     "Chapters",
-                    f"Trovati {count} capitoli incorporati. Vuoi usarli?",
+                    L('Trovati {0} capitoli incorporati. Vuoi usarli?').format(count),
                     QMessageBox.Yes | QMessageBox.No,
                     QMessageBox.Yes,
                 )
                 == QMessageBox.Yes
             ):
                 meta = cls.get_or_convert_chapters(input_file)
-                QMessageBox.information(parent, "Chapters", f"Usati {count} capitoli incorporati.")
+                QMessageBox.information(parent, "Chapters", L('Usati {0} capitoli incorporati.').format(count))
                 # map_metadata placeholder → MainWindow lo sostituirà
                 return ["-i", str(meta), "-map_metadata", "DUMMY"]
 
         # generazione automatica via threshold
         thr, ok = QInputDialog.getDouble(
             parent,
-            "Threshold Scene Change",
-            "Inserisci soglia (0.0 – 1.0):",
-            0.4,
+            L('Threshold Scene Change'),
+            L('Inserisci soglia (0.0 – 1.0):'),            0.4,
             0.0,
             1.0,
             2,
@@ -408,13 +408,13 @@ class ChapterManager:
             QMessageBox.question(
                 parent,
                 "Chapters",
-                f"Generati {gen_cnt} capitoli. Vuoi usarli?",
+                L('Generati {0} capitoli. Vuoi usarli?').format(gen_cnt),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes,
             )
             == QMessageBox.Yes
         ):
-            QMessageBox.information(parent, "Chapters", f"Usati {gen_cnt} capitoli generati.")
+            QMessageBox.information(parent, "Chapters", L('Usati {0} capitoli generati.').format(gen_cnt))
             return ["-i", meta_path, "-map_metadata", "DUMMY"]
 
         return []

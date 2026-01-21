@@ -17,6 +17,9 @@ Nessuna logica di dominio qui dentro.
 """
 
 from __future__ import annotations
+import hevc_gui.resources.icons_rc  # noqa: F401
+from hevc_gui.i18n import L
+
 from typing import List
 import os
 
@@ -65,13 +68,133 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
 )
 
-# ── Assicura caricamento risorse QRC (ph_*.png, logo.png) ─────────────
+
+# === LDVD_QRC_ICON_BEGIN ===
+# LDVD standalone: eredita tema+icone da HEVC (stesso processo/QApplication),
+# poi fallback su QRC, poi su PNG locali.
 try:
     import hevc_gui.resources.icons_rc  # noqa: F401
 except Exception:
     pass
 
+
+def _ldvd_apply_icon_theme_from_settings() -> None:
+    """Allinea il tema icone di LDVD a HEVC leggendo load_appearance()."""
+    icon_theme = ''
+    try:
+        from hevc_gui.gui.appearance_settings import load_appearance
+        icon_theme = (load_appearance()[4] or '').strip()
+    except Exception:
+        icon_theme = ''
+    try:
+        if icon_theme and not icon_theme.lower().startswith('hevc - video converter'):
+            os.environ['HEVC_ICON_PACK'] = 'theme'
+            QIcon.setThemeName(icon_theme)
+        else:
+            os.environ['HEVC_ICON_PACK'] = 'qrc'
+            QIcon.setThemeName('fallback-only')
+    except Exception:
+        pass
+
+# applica subito (safe)
+try:
+    _ldvd_apply_icon_theme_from_settings()
+except Exception:
+    pass
+
+
+def _apply_icon_theme_from_env() -> None:
+
+
+    # DISABLED: rompeva l'ereditarietà (forzava QIcon.themeSearchPaths su :/icons)
+
+
+    return
+
+
+
+# Alias icone (tema -> QRC -> locale)
+LDVD_ICON_ALIASES = {
+    'open': ['document-open', 'open'],
+    'save': ['document-save', 'save'],
+    'send': ['document-send', 'mail-send', 'send'],
+    'folder-open': ['folder-open', 'folder'],
+    'folder': ['folder-open', 'folder'],
+    'add': ['list-add', 'add', 'document-new', 'new'],
+    'remove': ['list-remove', 'remove', 'edit-delete', 'delete'],
+    'clear': ['edit-clear', 'clear', 'user-trash', 'trash'],
+    'refresh': ['view-refresh', 'reload', 'refresh'],
+    'edit': ['accessories-text-editor', 'text-editor', 'edit'],
+    'up': ['go-up', 'arrow-up', 'up'],
+    'down': ['go-down', 'arrow-down', 'down'],
+    'cancel': ['process-stop', 'cancel', 'window-close'],
+    'exit': ['application-exit', 'exit'],
+    'info': ['help-about', 'dialog-information', 'info'],
+    'extract': ['audio-x-generic', 'extract'],
+    'subs': ['text-subtitle', 'insert-text', 'subs'],
+    'ldvd-logo': ['ldvd-logo'],
+}
+
+# Dir icone locali (fallback se tema/QRC non coprono la key)
+LDVD_LOCAL_ICON_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'resources', 'icons'))
+
+
+def _ldvd_icon(key: str) -> QIcon:
+    """Pipeline: Tema -> QRC -> locale. Coerente con HEVC, ma senza dipendere da menubar.py."""
+    if not key:
+        return QIcon()
+
+    # 1) Tema (eredita themeName/searchPaths già settati da HEVC)
+    for nm in LDVD_ICON_ALIASES.get(key, [key]):
+        ic = QIcon.fromTheme(nm)
+        if not ic.isNull():
+            return ic
+
+    # 2) QRC (safe: exists + not null)
+    for nm in [key] + LDVD_ICON_ALIASES.get(key, []):
+        for base in (f"ph_{nm}", nm):
+            qrc = f":/icons/{base}.png"
+            if QFile.exists(qrc):
+                ico = QIcon(qrc)
+                if not ico.isNull():
+                    return ico
+
+    # 3) PNG locali (fallback)
+    for nm in [key] + LDVD_ICON_ALIASES.get(key, []):
+        for base in (f"ph_{nm}.png", f"{nm}.png"):
+            fp = os.path.join(LDVD_LOCAL_ICON_DIR, base)
+            if os.path.exists(fp):
+                return QIcon(fp)
+
+    return QIcon()
+
+# compat: se restano chiamate _qrc_icon, le teniamo come wrapper
+def _qrc_icon(qrc_path: str):
+    """Compat legacy: QRC path -> risolve in key automaticamente (ph_xxx / xxx)."""
+    if not qrc_path:
+        return QIcon()
+    m = re.search(r"/([^/]+)\.png$", str(qrc_path))
+    if not m:
+        return QIcon(qrc_path)
+    name = m.group(1)
+    if name.startswith("ph_"):
+        name = name[3:]
+    return _ldvd_icon(name)
+# === LDVD_QRC_ICON_END ===
+
+
+# ── Assicura caricamento risorse QRC (ph_*.png, logo.png) ─────────────
+try:
+    import hevc_gui.resources.icons_rc
+  # noqa: F401
+except Exception:
+    pass
+
 # ===== Modello per l'albero: solo cartelle (opzione mostra file) + freccia solo se ci sono figli =====
+
+# ───────────────────────────────────────────────────────────────
+# FORCE: mostra icone nei menu (alcuni temi GTK le nascondono)
+# ───────────────────────────────────────────────────────────────
 class DirTreeModel(QFileSystemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -241,7 +364,7 @@ class _ForwardStatusBar(QStatusBar):
                 self._restore_prev_status()
             else:
                 if self._owner and hasattr(self._owner, "set_status"):
-                    self._owner.set_status("")
+                    self._owner.set_status(L(""))
         except Exception:
             pass
 
@@ -284,7 +407,7 @@ class DVDExtractorView(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LDVD Ripper — File Manager View")
+        self.setWindowTitle(L("LDVD Ripper — File Manager View"))
         self.setMinimumSize(900, 600)
 
         self._build_actions()
@@ -292,6 +415,20 @@ class DVDExtractorView(QMainWindow):
         self._build_toolbar()
         self._build_central()
         self._build_footer()
+        # HEVC: force QRC icon for 'Passa a HEVC' (menu + footer)
+        try:
+            from PyQt5.QtGui import QIcon
+            if hasattr(self, 'actHandoffHevc') and self.actHandoffHevc:
+                self.actHandoffHevc.setIcon(_ldvd_icon('send'))
+                try:
+                    self.actHandoffHevc.setIconVisibleInMenu(True)
+                except Exception:
+                    pass
+            if hasattr(self, 'btnHevc') and self.btnHevc:
+                self.btnHevc.setIcon(_ldvd_icon('send'))
+        except Exception:
+            pass
+
         self.set_splitter_handle_width(12)
 
         # Stato iniziale / pulizia completa
@@ -306,39 +443,21 @@ class DVDExtractorView(QMainWindow):
             pass
 
     def _qrc_ph_icon(self, name: str) -> QIcon:
-        """
-        Carica un'icona dal QRC provando PRIMA gli alias "puliti" (<name>.png),
-        poi i prefissi ph_/ps_, e cerca sia in :/icons/ che in :/icons/icons/.
-        """
-        n = (name or "").strip()
-        if not n:
-            return QIcon()
 
-        candidates = []
-
-        # Se già .png, prova esattamente quello
-        if n.lower().endswith(".png"):
-            candidates.append(n)
-        else:
-            # ✅ PRIORITÀ: alias senza prefisso (es: "folder-open" -> "folder-open.png")
-            candidates.append(f"{n}.png")
-
-            # poi prefissi
-            if n.startswith(("ph_", "ps_")):
-                # es: "ph_open" -> prova anche "open.png"
-                candidates.append(f"{n}.png")
-                candidates.append(f"{n[3:]}.png")
-            else:
-                candidates.append(f"ph_{n}.png")
-                candidates.append(f"ps_{n}.png")
-
-        for base in candidates:
-            p = f":/icons/{base}"
-            if QFile.exists(p):
-                return QIcon(p)
-
-        return QIcon()
-
+        # Delego al resolver unico: tema -> QRC -> locale (coerente con HEVC)
+        try:
+            key = str(name or "")
+        except Exception:
+            key = ""
+        # accetta anche path tipo ':/icons/ph_x.png' / 'ph_x.png'
+        key = key.split('/')[-1]
+        if key.lower().endswith('.png'):
+            key = key[:-4]
+        for pref in ('ph_', 'ps_'):
+            if key.startswith(pref):
+                key = key[len(pref):]
+                break
+        return _ldvd_icon(key)
     def _icon(self, ph_name=None, theme_names=None, standard=None) -> QIcon:
         # 1) priorità: QRC (alias/ph/ps/raw)
         if ph_name:
@@ -375,14 +494,13 @@ class DVDExtractorView(QMainWindow):
     def _build_actions(self) -> None:
         # ✅ icona finestra LDVD (questa è quella che vedi su finestra/pannello se lanci da terminale)
         try:
-            self.setWindowIcon(QIcon(":/icons/ldvd-logo.png"))
+            self.setWindowIcon(_ldvd_icon('ldvd-logo'))
         except Exception:
             pass
 
         # === Azioni base ===
         self.actOpenFolder = QAction(
-            self._icon("folder-open"),
-            "Apri cartella…",
+            self._icon("folder-open"),L("Apri cartella…"),
             self,
         )
         try:
@@ -392,8 +510,7 @@ class DVDExtractorView(QMainWindow):
         self.actOpenFolder.triggered.connect(self.request_open_folder.emit)
 
         self.actAddFiles = QAction(
-            self._icon("list-add"),
-            "Aggiungi file…",
+            self._icon("list-add"),L("Aggiungi file…"),
             self,
         )
         try:
@@ -404,8 +521,7 @@ class DVDExtractorView(QMainWindow):
 
         # “Apri/Refresh DVD”
         self.actRefresh = QAction(
-            self._icon("view-refresh"),
-            "Apri/Refresh DVD",
+            self._icon("view-refresh"),L("Apri/Refresh DVD"),
             self,
         )
         try:
@@ -417,14 +533,14 @@ class DVDExtractorView(QMainWindow):
         # Coda
         self.actAddToQueue = QAction(
             self._icon("go-next"),
-            "Aggiungi a coda",
+            L("Aggiungi a coda"),
             self,
         )
         self.actAddToQueue.triggered.connect(self._emit_add_selection)
 
         self.actRemoveFromQueue = QAction(
             self._icon("list-remove"),
-            "Rimuovi selezionati",
+            L("Rimuovi selezionati"),
             self,
         )
         self.actRemoveFromQueue.triggered.connect(
@@ -433,14 +549,13 @@ class DVDExtractorView(QMainWindow):
 
         self.actMoveUp = QAction(
             self._icon("go-up"),
-            "Sposta su",
+            L("Sposta su"),
             self,
         )
         self.actMoveUp.triggered.connect(lambda: self.request_move_up.emit(self.selected_queue_rows()))
 
         self.actMoveDown = QAction(
-            self._icon("go-down"),
-            "Sposta giù",
+            self._icon("go-down"),L("Sposta giù"),
             self,
         )
         self.actMoveDown.triggered.connect(lambda: self.request_move_down.emit(self.selected_queue_rows()))
@@ -448,7 +563,7 @@ class DVDExtractorView(QMainWindow):
         # ✅ Svuota coda: icona corretta + handler che pulisce SOLO la coda
         self.actClearQueue = QAction(
             self._icon("clear-queue"),
-            "Svuota coda",
+            L("Svuota coda"),
             self,
         )
         self.actClearQueue.triggered.connect(self._on_clear_queue_clicked)
@@ -456,7 +571,7 @@ class DVDExtractorView(QMainWindow):
         # ✅ Genera .srt OCR: NESSUNA icona (come richiesto)
         self.actOcrSrt = QAction(
             QIcon(),
-            "Genera SRT (.srt via OCR)",
+            L("Genera SRT (.srt via OCR)"),
             self,
         )
         self.actOcrSrt.setCheckable(True)
@@ -466,7 +581,7 @@ class DVDExtractorView(QMainWindow):
         # Operazioni
         self.actExtract = QAction(
             self._icon("media-record"),
-            "Estrai",
+            L("Estrai"),
             self,
         )
         try:
@@ -475,23 +590,27 @@ class DVDExtractorView(QMainWindow):
             self.actExtract.setShortcut("Ctrl+E")
         self.actExtract.triggered.connect(self.request_extract.emit)
 
-        # ✅ Passa a HEVC: NESSUNA icona (come richiesto)
+        # ✅ Passa a HEVC: icona nel menu + toolbar
         self.actHandoffHevc = QAction(
-            QIcon(),
-            "Passa a HEVC",
+            _ldvd_icon('send'),
+            L("Passa a HEVC"),
             self,
         )
+        try:
+            self.actHandoffHevc.setIconVisibleInMenu(True)
+        except Exception:
+            pass
         try:
             self.actHandoffHevc.setShortcut(QKeySequence("Ctrl+H"))
         except Exception:
             self.actHandoffHevc.setShortcut("Ctrl+H")
-        self.actHandoffHevc.setToolTip("Invia l'ultimo VOB estratto a HEVC-VC (stdout: HEVC_HANDOFF:<path>)")
+        self.actHandoffHevc.setToolTip(L("Invia l'ultimo VOB estratto a HEVC-VC (stdout: HEVC_HANDOFF:<path>)"))
         self.actHandoffHevc.triggered.connect(self.request_handoff_to_hevc.emit)
         self.actHandoffHevc.setEnabled(False)
 
         self.actCancel = QAction(
             self._icon("process-stop"),
-            "Annulla",
+            L("Annulla"),
             self,
         )
         try:
@@ -503,14 +622,14 @@ class DVDExtractorView(QMainWindow):
         # Lettore (cassetto)
         self.actEject = QAction(
             self._icon("media-eject"),
-            "Eject (apri cassetto)",
+            L("Eject (apri cassetto)"),
             self,
         )
         self.actEject.triggered.connect(self.request_eject.emit)
 
         self.actCloseTray = QAction(
             self._icon("media-playback-stop"),
-            "Chiudi cassetto",
+            L("Chiudi cassetto"),
             self,
         )
         self.actCloseTray.triggered.connect(self.request_close_tray.emit)
@@ -518,40 +637,39 @@ class DVDExtractorView(QMainWindow):
         # Apri DVD in VLC
         self.actOpenInVlc = QAction(
             self._icon("media-playback-start"),
-            "Apri in VLC",
+            L("Apri in VLC"),
             self,
         )
-        self.actOpenInVlc.setStatusTip("Riproduci il DVD attuale con VLC")
-        self.actOpenInVlc.setToolTip("Apri il DVD attuale in VLC")
+        self.actOpenInVlc.setStatusTip(L("Riproduci il DVD attuale con VLC"))
+        self.actOpenInVlc.setToolTip(L("Apri il DVD attuale in VLC"))
         self.actOpenInVlc.triggered.connect(self.request_open_in_vlc.emit)
 
         # Apri .srt
         self.actOpenSrt = QAction(
             self._icon("document-open"),
-            "Apri sottotitoli .srt",
+            L("Apri sottotitoli .srt"),
             self,
         )
-        self.actOpenSrt.setStatusTip("Apri i .srt generati/collegati all'ultimo titolo estratto")
-        self.actOpenSrt.setToolTip("Apri sottotitoli .srt")
+        self.actOpenSrt.setStatusTip(L("Apri i .srt generati/collegati all'ultimo titolo estratto"))
+        self.actOpenSrt.setToolTip(L("Apri sottotitoli .srt"))
         self.actOpenSrt.triggered.connect(self.request_open_srt.emit)
 
         # Apri Subtitle Edit
         self.actOpenSubtitleEdit = QAction(
-            self._icon("text-subtitle"),
-            "Apri Subtitle Edit…",
+            self._icon("text-subtitle"),L("Apri Subtitle Edit…"),
             self,
         )
-        self.actOpenSubtitleEdit.setStatusTip("Avvia Subtitle Edit per lavorare sui sottotitoli del DVD")
-        self.actOpenSubtitleEdit.setToolTip("Apri Subtitle Edit")
+        self.actOpenSubtitleEdit.setStatusTip(L("Avvia Subtitle Edit per lavorare sui sottotitoli del DVD"))
+        self.actOpenSubtitleEdit.setToolTip(L("Apri Subtitle Edit"))
         self.actOpenSubtitleEdit.triggered.connect(self.request_open_subtitle_edit.emit)
 
         # Alias compat
         self.actOpenSubEdit = self.actOpenSubtitleEdit
 
         # Lingua (menù)
-        self.actLangIt = QAction("Italiano (it)", self)
+        self.actLangIt = QAction(L("Italiano (it)"), self)
         self.actLangIt.setCheckable(True)
-        self.actLangEn = QAction("English (en)", self)
+        self.actLangEn = QAction(L("English (en)"), self)
         self.actLangEn.setCheckable(True)
         self.actLangGroup = [self.actLangIt, self.actLangEn]
         self.actLangIt.setChecked(True)
@@ -562,23 +680,43 @@ class DVDExtractorView(QMainWindow):
         # Help/About (qui puoi lasciare HEVC-style con ph_)
         self.actAbout = QAction(
             self._icon("ph_info", ["help-about", "dialog-information"], QStyle.SP_MessageBoxInformation),
-            "Informazioni…",
+            L("Informazioni…"),
             self,
         )
+        # Force context per la label: evita mismatch e usa la traduzione esatta (About…)
+        try:
+            from PyQt5.QtCore import QCoreApplication
+            self.actAbout.setText(QCoreApplication.translate("hevc_gui.dvd_ripper.gui", "Informazioni…"))
+        except Exception:
+            pass
         self.actAbout.triggered.connect(self._show_about)
 
         # Uscita (usa la tua ph_exit)
         self.actExit = QAction(
             self._icon("exit", ["application-exit"], QStyle.SP_DialogCloseButton),
-            "Esci",
+            L("Esci"),
             self,
         )
 
     def _build_menubar(self) -> None:
         mb: QMenuBar = self.menuBar()
+        # Forza icone visibili nei menu (alcuni temi le nascondono)
+        try:
+            from PyQt5.QtWidgets import QProxyStyle, QStyle, QApplication
+            from PyQt5.QtCore import Qt
+            class _MenuIconStyle(QProxyStyle):
+                def styleHint(self, hint, option=None, widget=None, returnData=None):
+                    if hint == getattr(QStyle, 'SH_DontShowIconsInMenus', None):
+                        return 0
+                    return super().styleHint(hint, option, widget, returnData)
+            QApplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
+            mb.setStyle(_MenuIconStyle(mb.style()))
+        except Exception:
+            pass
+
 
         # --- File ---
-        m_file: QMenu = mb.addMenu("&File")
+        m_file: QMenu = mb.addMenu(L("&File"))
         m_file.addAction(self.actOpenFolder)
         m_file.addAction(self.actAddFiles)
         m_file.addAction(self.actRefresh)
@@ -592,7 +730,7 @@ class DVDExtractorView(QMainWindow):
         m_file.addAction(self.actExit)
 
         # --- Azioni ---
-        m_actions: QMenu = mb.addMenu("&Azioni")
+        m_actions: QMenu = mb.addMenu(L("&Azioni"))
         m_actions.addAction(self.actExtract)
         # flag OCR SRT nel menu Azioni
         m_actions.addAction(self.actOcrSrt)
@@ -611,19 +749,19 @@ class DVDExtractorView(QMainWindow):
 
 
         # --- Visualizza ---
-        m_view: QMenu = mb.addMenu("&Visualizza")
-        m_lang = m_view.addMenu("Lingua titoli")
+        m_view: QMenu = mb.addMenu(L("&Visualizza"))
+        m_lang = m_view.addMenu(L("Lingua titoli"))
         m_lang.addAction(self.actLangIt)
         m_lang.addAction(self.actLangEn)
 
-        self.actTreeShowFiles = QAction("Mostra file nell'albero", self)
+        self.actTreeShowFiles = QAction(L("Mostra file nell'albero"), self)
         self.actTreeShowFiles.setCheckable(True)
         self.actTreeShowFiles.setChecked(True)
         self.actTreeShowFiles.toggled.connect(self._toggle_tree_show_files)
         m_view.addAction(self.actTreeShowFiles)
 
         # --- Aiuto ---
-        m_help: QMenu = mb.addMenu("&Aiuto")
+        m_help: QMenu = mb.addMenu(L("&Aiuto"))
         m_help.addAction(self.actAbout)
 
     def _build_toolbar(self) -> None:
@@ -691,7 +829,7 @@ class DVDExtractorView(QMainWindow):
         tb.addAction(self.actOpenSubtitleEdit)
 
         # ✅ Checkbox Genera SRT nel gruppo sottotitoli
-        self.chkOcrSrt = QCheckBox("Genera SRT", tb)
+        self.chkOcrSrt = QCheckBox(L("Genera SRT"), tb)
         self.chkOcrSrt.setChecked(False)
         self.chkOcrSrt.toggled.connect(self._on_chk_ocr_srt_toggled)
         tb.addWidget(self.chkOcrSrt)
@@ -707,9 +845,9 @@ class DVDExtractorView(QMainWindow):
 
         # --- Clear in fondo ---
         ico_clear = self._icon("edit-clear", None, QStyle.SP_DialogResetButton)
-        self.actClear = QAction(ico_clear, "Clear", self)
-        self.actClear.setToolTip("Pulisci la GUI e ripristina i default")
-        self.actClear.setStatusTip("Pulisce viste, coda, campi e progress")
+        self.actClear = QAction(ico_clear, L("Clear"), self)
+        self.actClear.setToolTip(L("Pulisci la GUI e ripristina i default"))
+        self.actClear.setStatusTip(L("Pulisce viste, coda, campi e progress"))
         tb.addAction(self.actClear)
 
         self.toolbar = tb
@@ -856,14 +994,14 @@ class DVDExtractorView(QMainWindow):
         vl.setContentsMargins(0, 0, 0, 0)
         vl.setSpacing(2)
 
-        self.lblStatus = QLabel("Pronto", left)
-        self.lblDvdTitle = QLabel("Titolo DVD: —", left)
+        self.lblStatus = QLabel(L("Pronto"), left)
+        self.lblDvdTitle = QLabel(L("Titolo DVD: —"), left)
 
         # ✅ Spostata qui: tra Titolo DVD e Vobcopy
-        self.lblMovieTitle = QLabel("Titolo film: —", left)
+        self.lblMovieTitle = QLabel(L("Titolo film: —"), left)
 
         # Label usata per Vobcopy / ETA / percentuale
-        self.lblStage = QLabel("", left)
+        self.lblStage = QLabel(L(""), left)
         self.lblStage.setObjectName("lblStage")
         self.lblStage.setStyleSheet("color:#666666; font-size: 11px;")
         self.lblStage.setTextFormat(Qt.RichText)
@@ -887,10 +1025,10 @@ class DVDExtractorView(QMainWindow):
         grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(4)
 
-        self.btnExtract = QPushButton("Estrai", right)
-        self.btnHevc    = QPushButton("Passa a HEVC", right)
-        self.btnCancel  = QPushButton("Annulla", right)
-        self.btnExit    = QPushButton("Esci", right)
+        self.btnExtract = QPushButton(L("Estrai"), right)
+        self.btnHevc    = QPushButton(L("Passa a HEVC"), right)
+        self.btnCancel  = QPushButton(L("Annulla"), right)
+        self.btnExit    = QPushButton(L("Esci"), right)
 
         for b in (self.btnExtract, self.btnHevc, self.btnCancel, self.btnExit):
             b.setFixedHeight(26)
@@ -923,17 +1061,74 @@ class DVDExtractorView(QMainWindow):
     # == Helpers UI interni ==
 
     def _show_about(self):
-        QMessageBox.about(
-            self,
-            "LDVD Ripper — Informazioni",
-            "<b>LDVD Ripper</b><br>"
-            "GUI split (albero / file / coda) con estrazione VOB nativa e sidecar, "
-            "più handoff a HEVC.<br><br>"
-            "© LorisPaganiniHomeStudio - 2025<br>"
-            "<small>Può integrare un remux DVD (lossless) opzionale se disponibile.</small>",
-        )
+        """Dialog 'Informazioni' (IT/EN) con testo curato + icona più grande."""
+        try:
+            from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+            from PyQt5.QtGui import QPixmap
+            from PyQt5.QtCore import Qt
+        except Exception:
+            return
 
-    # --- Lingua titoli (solo da menù, niente combo toolbar) ---
+        dlg = QDialog(self)
+        dlg.setWindowTitle(L('Informazioni'))
+        try:
+            dlg.setWindowIcon(_ldvd_icon('info'))
+        except Exception:
+            pass
+
+        root = QVBoxLayout(dlg)
+        top = QHBoxLayout()
+
+        ico = QLabel(dlg)
+        ico.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        px = 96
+        pm = QPixmap(':/icons/ldvd-logo.png')
+        if pm.isNull():
+            try:
+                pm = _ldvd_icon('ldvd-logo').pixmap(px, px)
+            except Exception:
+                pm = QPixmap()
+        if not pm.isNull():
+            pm = pm.scaled(px, px, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            ico.setPixmap(pm)
+        ico.setFixedWidth(px + 18)
+        top.addWidget(ico)
+
+        col = QVBoxLayout()
+
+        title = QLabel('LDVD Ripper', dlg)
+        f = title.font()
+        f.setBold(True)
+        f.setPointSize(max(10, f.pointSize() + 3))
+        title.setFont(f)
+        col.addWidget(title)
+
+        desc_txt = L('GUI stile file-manager (radice / file / coda) con estrazione VOB nativa e sidecar.\n''Invia i VOB a HEVC per la conversione.')
+        desc = QLabel(desc_txt, dlg)
+        desc.setWordWrap(True)
+        col.addWidget(desc)
+
+        copy = QLabel(L('© LorisPaganiniHomeStudio – 2025'), dlg)
+        copy.setWordWrap(True)
+        col.addWidget(copy)
+
+        note = QLabel(L('Può integrare un remux DVD (lossless), opzionale se disponibile.'), dlg)
+        note.setWordWrap(True)
+        col.addWidget(note)
+
+        top.addLayout(col, 1)
+        root.addLayout(top)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        ok = QPushButton(L('OK'), dlg)
+        ok.setDefault(True)
+        ok.clicked.connect(dlg.accept)
+        btn_row.addWidget(ok)
+        root.addLayout(btn_row)
+
+        dlg.setLayout(root)
+        dlg.exec_()
 
     def set_titlecase_lang(self, code: str) -> None:
         code = (code or "it").lower()
@@ -1073,8 +1268,8 @@ class DVDExtractorView(QMainWindow):
 
     def _on_files_context_menu(self, pos) -> None:
         menu = QMenu(self.viewFiles)
-        add = menu.addAction("Aggiungi a coda")
-        open_folder = menu.addAction("Apri cartella contenente")
+        add = menu.addAction(L("Aggiungi a coda"))
+        open_folder = menu.addAction(L("Apri cartella contenente"))
         act = menu.exec_(self.viewFiles.viewport().mapToGlobal(pos))
         if act == add:
             self._emit_add_selection()
@@ -1087,11 +1282,11 @@ class DVDExtractorView(QMainWindow):
 
     def _on_queue_context_menu(self, pos) -> None:
         menu = QMenu(self.listQueue)
-        a_open = menu.addAction("Apri cartella contenente")
-        a_rem = menu.addAction("Rimuovi")
-        a_up = menu.addAction("Sposta su")
-        a_down = menu.addAction("Sposta giù")
-        a_clear = menu.addAction("Svuota coda")
+        a_open = menu.addAction(L("Apri cartella contenente"))
+        a_rem = menu.addAction(L("Rimuovi"))
+        a_up = menu.addAction(L("Sposta su"))
+        a_down = menu.addAction(L("Sposta giù"))
+        a_clear = menu.addAction(L("Svuota coda"))
         act = menu.exec_(self.listQueue.viewport().mapToGlobal(pos))
         if act == a_open:
             rows = self.selected_queue_rows()
@@ -1194,18 +1389,30 @@ class DVDExtractorView(QMainWindow):
             pass
 
         self._rebind_tree_selection()
+        # i18n: applica testi statici della view secondo lingua
+        from hevc_gui.i18n import apply_i18n
+        apply_i18n(self)
+
 
     def set_dvd_title(self, title: str) -> None:
+        from hevc_gui.i18n import L
+        title = L(title) if isinstance(title, str) else str(title)
         self.lblDvdTitle.setText(f"Titolo DVD: <b>{title or '—'}</b>")
 
     def set_movie_title(self, title: str) -> None:
+        from hevc_gui.i18n import L
+        title = L(title) if isinstance(title, str) else str(title)
         # Stesso stile di set_dvd_title(): label + valore in grassetto
         self.lblMovieTitle.setText(f"Titolo film: <b>{title or '—'}</b>")
 
     def set_status(self, text: str) -> None:
+        from hevc_gui.i18n import L
+        text = L(text) if isinstance(text, str) else str(text)
         self.lblStatus.setText(text or "")
 
     def set_progress_stage(self, s: str) -> None:
+        from hevc_gui.i18n import L
+        s = L(s) if isinstance(s, str) else str(s)
         """
         Aggiorna la label 'Fase' (lblStage).
         Supporta stringhe tipo:
@@ -1217,7 +1424,7 @@ class DVDExtractorView(QMainWindow):
 
         s = (s or "").strip()
         if not s:
-            self.lblStage.setText("")
+            self.lblStage.setText(L(""))
             return
 
         def _shrink_bar(bar: str, factor: float = 0.5) -> str:
@@ -1325,11 +1532,11 @@ class DVDExtractorView(QMainWindow):
         Qui lo traduciamo in una riga stage minimale.
         """
         if bool(enabled):
-            self.set_progress_stage("Vobcopy …")
+            self.set_progress_stage(L("Vobcopy …"))
         else:
             # non svuotare se magari vuoi lasciare l'ultimo stato visibile:
             # se preferisci pulire davvero, lascia così.
-            self.set_progress_stage("")
+            self.set_progress_stage(L(""))
 
     # Compat (tenuta per non rompere vecchio codice)
     def install_stage_label(self):
@@ -1385,19 +1592,19 @@ class DVDExtractorView(QMainWindow):
                     pass
 
         try:
-            self.set_status("Pronto")
+            self.set_status(L("Pronto"))
         except Exception:
             pass
         try:
-            self.set_dvd_title("—")
+            self.set_dvd_title(L("—"))
         except Exception:
             pass
         try:
-            self.set_movie_title("—")
+            self.set_movie_title(L("—"))
         except Exception:
             pass
         try:
-            self.set_progress_stage("Pronto")
+            self.set_progress_stage(L("Pronto"))
         except Exception:
             pass
 
@@ -1510,6 +1717,107 @@ class DVDExtractorView(QMainWindow):
         for sp in self.findChildren(QSplitter):
             sp.setHandleWidth(int(px))
 
+
+    def _norm_act_text(self, t: str) -> str:
+        t = (t or "").replace("&", "").strip()
+        # normalizza ellipsis
+        t = t.replace("…", "...").strip()
+        # rimuovi puntini finali
+        t = re.sub(r"\.\.\.$", "", t).strip()
+        return t.lower()
+
+    def refresh_icons(self) -> None:
+        """Forza icone coerenti con HEVC: tema->QRC (in base alle impostazioni)."""
+        try:
+            self._apply_action_icons()
+        except Exception:
+            pass
+
+    def _apply_action_icons(self) -> None:
+        # mapping testo (IT/EN) -> chiave icona
+        m = {
+            # FILE
+            "apri cartella": "folder",
+            "open folder": "folder",
+            "aggiungi file": "add",
+            "add file": "add",
+            "add files": "add",
+            "apri/refresh dvd": "refresh",
+            "open/refresh dvd": "refresh",
+            "esci": "exit",
+            "exit": "exit",
+            # AZIONI / CODA
+            "estrai": "extract",
+            "extract": "extract",
+            "ocr": "subs",
+            "ocr srt": "subs",
+            "apri srt": "open",
+            "open srt": "open",
+            "apri subtitle edit": "edit",
+            "open subtitle edit": "edit",
+            "passa a hevc": "send",
+            "send to hevc": "send",
+            "annulla": "cancel",
+            "cancel": "cancel",
+            "aggiungi alla coda": "add",
+            "add to queue": "add",
+            "rimuovi dalla coda": "remove",
+            "remove from queue": "remove",
+            "sposta su": "up",
+            "move up": "up",
+            "sposta giù": "down",
+            "move down": "down",
+            "pulisci coda": "clear",
+            "clear queue": "clear",
+            # HELP
+            "informazioni": "info",
+            "about": "info",
+        }
+        # applica ad azioni e menu
+        for act in self.findChildren(QAction):
+            try:
+                txt = self._norm_act_text(act.text())
+                if not txt:
+                    continue
+                key = m.get(txt)
+                if not key:
+                    # euristica: se contiene certe parole
+                    if "subtitle" in txt or "sottotit" in txt:
+                        key = "subs"
+                    elif "ocr" in txt:
+                        key = "subs"
+                if not key:
+                    continue
+                ic = _ldvd_icon(key)
+                if not ic.isNull():
+                    act.setIcon(ic)
+                    try:
+                        act.setIconVisibleInMenu(True)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    def showEvent(self, ev):
+        # assicura che LDVD applichi le stesse impostazioni (anche se è processo separato)
+        try:
+            super().showEvent(ev)
+        except Exception:
+            pass
+        if getattr(self, "_hevc_icons_applied_once", False):
+            return
+        self._hevc_icons_applied_once = True
+        try:
+            from PyQt5.QtWidgets import QApplication
+            from hevc_gui.gui.appearance_settings import apply_appearance
+            apply_appearance(QApplication.instance())
+        except Exception:
+            pass
+        try:
+            self.refresh_icons()
+        except Exception:
+            pass
+
     # ➜ API usata dal Controller per abilitare/disabilitare “Passa a HEVC”
     def set_handoff_enabled(self, enabled: bool) -> None:
         if hasattr(self, "actHandoffHevc") and self.actHandoffHevc:
@@ -1535,3 +1843,134 @@ if __name__ == "__main__":
     w.set_root_path(os.path.expanduser("~"))
     w.show()
     sys.exit(app.exec_())
+
+
+# AUTO: LDVD footer i18n SAFE patch
+# Traduzione SOLO display (footer/statusbar) quando EN è attivo. Non modifica pipeline/logica.
+
+def _hevc__ldvd_is_en() -> bool:
+    # Probe “stabile” sul QTranslator: se EN è attivo, L("Pronto.") diventa "Ready.".
+    try:
+        from hevc_gui.i18n import L
+        v = L("Pronto.")
+        return bool(v and v != "Pronto.")
+    except Exception:
+        import os
+        return os.environ.get("HEVC_LANG","").lower().startswith("en")
+
+def _hevc__ldvd_translate_line(t: str) -> str:
+    if not t:
+        return t
+
+    # Footer labels (quelli che vedi nello screenshot)
+    # Manteniamo tutto dopo i ":" (path/titoli) intatto.
+    import re
+    t = re.sub(r'^Titolo DVD:\s*', 'DVD title: ', t)
+    t = re.sub(r'^Titolo film:\s*', 'Movie title: ', t)
+    t = re.sub(r'^Root DVD:\s*', 'DVD root: ', t)      # se mai appare
+    t = re.sub(r'^Disco:\s*', 'Disc: ', t)             # eventuale
+    t = re.sub(r'^Pronto\.\s*$', 'Ready.', t)
+
+    # Stage/status tipici LDVD (se finiscono in statusbar)
+    repl = [
+        ("Estrazione in corso…", "Extracting…"),
+        ("Estrazione completata.", "Extraction completed."),
+        ("Estrazione completata", "Extraction completed"),
+        ("Estrazione fallita.", "Extraction failed."),
+        ("Operazione annullata.", "Operation canceled."),
+        ("Annullato", "Canceled"),
+        ("Completato.", "Done."),
+        ("Completato", "Done"),
+        ("Analisi DVD (lsdvd)…", "Analyzing DVD (lsdvd)…"),
+        ("Scrittura finale…", "Final write…"),
+        ("Postprocess", "Postprocess"),
+    ]
+    for it, en in repl:
+        t = t.replace(it, en)
+
+    return t
+
+def _hevc__ldvd_patch_statusbar(self) -> None:
+    if not _hevc__ldvd_is_en():
+        return
+    try:
+        from PyQt5 import QtWidgets
+    except Exception:
+        try:
+            from PySide6 import QtWidgets  # type: ignore
+        except Exception:
+            return
+
+    # 1) se la view ha una QStatusBar, traduco tutte le QLabel dentro
+    try:
+        bars = self.findChildren(QtWidgets.QStatusBar)
+    except Exception:
+        bars = []
+
+    for bar in bars:
+        try:
+            labels = bar.findChildren(QtWidgets.QLabel)
+        except Exception:
+            labels = []
+        for lb in labels:
+            try:
+                lb.setText(_hevc__ldvd_translate_line(lb.text()))
+            except Exception:
+                pass
+
+def _hevc__ldvd_wrap_methods():
+    # Chiamiamo anche i sinks msgbox per sicurezza (idempotente).
+    try:
+        from hevc_gui.i18n_sinks import install_qt_i18n_sinks
+        install_qt_i18n_sinks()
+    except Exception:
+        pass
+
+    # Wrappiamo i metodi che normalmente aggiornano footer/status
+    for _name, _obj in list(globals().items()):
+        if not isinstance(_obj, type):
+            continue
+        # euristica: la view principale spesso si chiama DVDExtractorView o simili
+        if not any(hasattr(_obj, m) for m in ("set_progress_stage", "set_status", "set_status_text")):
+            continue
+
+        def _wrap(mname: str):
+            if not hasattr(_obj, mname):
+                return
+            _orig = getattr(_obj, mname)
+            if getattr(_orig, "_hevc_wrapped_footer", False):
+                return
+
+            def _wrapped(self, *a, **k):
+                r = _orig(self, *a, **k)
+                _hevc__ldvd_patch_statusbar(self)
+                return r
+
+            _wrapped._hevc_wrapped_footer = True
+            setattr(_obj, mname, _wrapped)
+
+        for mname in (
+            "set_progress_stage",
+            "set_status",
+            "set_status_text",
+            "set_dvd_root",
+            "set_dvd_title",
+            "set_movie_title",
+            "update_footer",
+            "_update_footer",
+        ):
+            _wrap(mname)
+
+        # Patch iniziale quando la finestra viene mostrata
+        if hasattr(_obj, "showEvent"):
+            _orig = getattr(_obj, "showEvent")
+            if not getattr(_orig, "_hevc_wrapped_footer_show", False):
+                def _show(self, ev):
+                    r = _orig(self, ev)
+                    _hevc__ldvd_patch_statusbar(self)
+                    return r
+                _show._hevc_wrapped_footer_show = True
+                setattr(_obj, "showEvent", _show)
+
+_hevc__ldvd_wrap_methods()
+

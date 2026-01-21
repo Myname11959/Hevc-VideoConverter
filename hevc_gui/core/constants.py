@@ -5,6 +5,7 @@ Costanti e dizionari condivisi dall’interfaccia HEVC-GUI
 
 import os
 from pathlib import Path
+from hevc_gui.i18n import T
 
 # ──────────────────────────── Radici progetto / cartelle tmp ─────────────────
 # constants.py è in hevc_gui/core/
@@ -37,74 +38,74 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 # unsharp: formati accettati
 #   unsharp=lx:ly:la[:cx:cy:ca]  (luma/chroma kernel e amount)
 SHARPNESS_LEVELS = {
-    "Nessuno": "",
-    "Minimo":                 "unsharp=3:3:0.25",
-    "Leggerissimo":           "unsharp=3:3:0.35",
-    "Leggero":                "unsharp=3:3:0.50",
-    "Leggero-Moderato":       "unsharp=3:3:0.75:3:3:0.50",
-    "Intermedio":             "unsharp=5:5:0.90:5:5:0.60",
-    "Moderato":               "unsharp=5:5:1.00:5:5:0.70",
-    "Moderato+":              "unsharp=5:5:1.20:5:5:0.80",
-    "Alto-Moderato":          "unsharp=7:7:1.50:7:7:1.00",
-    "Alto":                   "unsharp=7:7:2.00:7:7:1.30",
-    "Alto+":                  "unsharp=7:7:2.30:7:7:1.60",
-    "Massimo-":               "unsharp=9:9:2.70:9:9:2.00",
-    "Massimo":                "unsharp=9:9:3.00:9:9:2.20",
+    T("Nessuno"): '',
+    T("Minimo"):                 'unsharp=3:3:0.25',
+    T("Leggerissimo"):           'unsharp=3:3:0.35',
+    T("Leggero"):                'unsharp=3:3:0.50',
+    T("Leggero-Moderato"):       'unsharp=3:3:0.75:3:3:0.50',
+    T("Intermedio"):             'unsharp=5:5:0.90:5:5:0.60',
+    T("Moderato"):               'unsharp=5:5:1.00:5:5:0.70',
+    T("Moderato+"):              'unsharp=5:5:1.20:5:5:0.80',
+    T("Alto-Moderato"):          'unsharp=7:7:1.50:7:7:1.00',
+    T("Alto"):                   'unsharp=7:7:2.00:7:7:1.30',
+    T("Alto+"):                  'unsharp=7:7:2.30:7:7:1.60',
+    T("Massimo-"):               'unsharp=9:9:2.70:9:9:2.00',
+    T("Massimo"):                'unsharp=9:9:3.00:9:9:2.20',
 }
 
 SMOOTHNESS_LEVELS = {
-    "Nessuno": "",
-    "Minimo":                 "boxblur=1:1",
-    "Molto Leggero":          "boxblur=2:1",
-    "Leggero":                "boxblur=3:2",
-    "Leggero+":               "boxblur=4:2",
-    "Intermedio-":            "boxblur=5:3",
-    "Intermedio":             "boxblur=6:3",
-    "Intermedio+":            "boxblur=7:4",
-    "Moderato-":              "boxblur=8:4",
-    "Moderato":               "boxblur=9:5",
-    "Moderato+":              "boxblur=10:6",
-    "Alto":                   "boxblur=12:7",
-    "Alto+":                  "boxblur=14:8",
-    "Massimo":                "boxblur=16:9",
+    T("Nessuno"): '',
+    T("Minimo"):                 'boxblur=1:1',
+    T("Molto Leggero"):          'boxblur=2:1',
+    T("Leggero"):                'boxblur=3:2',
+    T("Leggero+"):               'boxblur=4:2',
+    T("Intermedio-"):            'boxblur=5:3',
+    T("Intermedio"):             'boxblur=6:3',
+    T("Intermedio+"):            'boxblur=7:4',
+    T("Moderato-"):              'boxblur=8:4',
+    T("Moderato"):               'boxblur=9:5',
+    T("Moderato+"):              'boxblur=10:6',
+    T("Alto"):                   'boxblur=12:7',
+    T("Alto+"):                  'boxblur=14:8',
+    T("Massimo"):                'boxblur=16:9',
 }
 
 # ───────────────────────────── Video: bitrate / CRF / preset ─────────────────
 BITRATE_OPTIONS = [
-    "Nessuno",
-    "500k",
-    "800k",
-    "1000k",
-    "1200k",
-    "2000k",
-    "2500k",
-    "3000k",
-    "4000k",
-    "5000k",
+    T("Nessuno"),
+    '500k',
+    '800k',
+    '1000k',
+    '1200k',
+    '2000k',
+    '2500k',
+    '3000k',
+    '4000k',
+    '5000k',
 ]
 
-CRF_OPTIONS = ["Nessuno"] + [str(n) for n in range(0, 52)]
+CRF_OPTIONS = [T("Nessuno")] + [str(n) for n in range(0, 52)]
 
 PRESET_OPTIONS = [
-    "Nessuno",
-    "ultrafast",
-    "superfast",
-    "veryfast",
-    "faster",
-    "fast",
-    "medium",
-    "slow",
-    "slower",
-    "veryslow",
-    "placebo",
+    T("Nessuno"),
+    'ultrafast',
+    'superfast',
+    'veryfast',
+    'faster',
+    'fast',
+    'medium',
+    'slow',
+    'slower',
+    'veryslow',
+    'placebo',
 ]
 
 # ──────────────────────────────── Video: risoluzioni ─────────────────────────
 RESOLUTIONS = {
-    "Nessuno": "",
-    "576p (720x576)": "scale=720:576",
-    "720p (1280x720)": "scale=1280:720",
-    "1080p (1920x1080)": "scale=1920:1080",
+    T("Nessuno"): '',
+    T("576p (720x576)"): 'scale=720:576',
+    T("720p (1280x720)"): 'scale=1280:720',
+    T("1080p (1920x1080)"): 'scale=1920:1080',
 }
 
 # Aspect ratio / SAR-DAR policy
@@ -116,83 +117,83 @@ PAL_SAR_16_9 = "64/45"  # 720x576 → 16:9 (corretto)
 
 # Risoluzioni/sar “sicure” opzionali
 SAFE_RESOLUTIONS = {
-    "576p (1024x576) [quadrati]": "scale=1024:576,setsar=1",
-    "720 wide (16:9 auto)": "scale=720:-2,setsar=1",
-    "576p PAL 16:9 (720x576 anam)": f"scale=720:576,setsar={PAL_SAR_16_9},setdar=16/9",
+    T("576p (1024x576) [quadrati]"): 'scale=1024:576,setsar=1',
+    T("720 wide (16:9 auto)"): 'scale=720:-2,setsar=1',
+    T("576p PAL 16:9 (720x576 anam)"): f"scale=720:576,setsar={PAL_SAR_16_9},setdar=16/9",
 }
 
 # ─────────────────────────────── Frame rate options ──────────────────────────
-FR_MODE = ["Variabile", "Costante"]
-FR_CONST_VALUES = ["Nessuno", "23.976", "24", "25", "29.97", "30", "50", "60"]
+FR_MODE = [T("Variabile"), T("Costante")]
+FR_CONST_VALUES = [T("Nessuno"), '23.976', '24', '25', '29.97', '30', '50', '60']
 
 # ───────────────────────────────────── Audio: opzioni ────────────────────────
-AUD_BITRATES = ["Nessuno", "64k", "128k", "192k", "224k", "256k", "320k"]
+AUD_BITRATES = [T("Nessuno"), '64k', '128k', '192k', '224k', '256k', '320k']
 AUD_GAIN_RANGE = [str(i) for i in range(-15, 16)]
-AUD_SAMPLE_RATES = ["Nessuno", "44100", "48000", "96000", "192000"]
+AUD_SAMPLE_RATES = [T("Nessuno"), '44100', '48000', '96000', '192000']
 
 # Livelli riverbero più fitti (progressione dolce)
 AUD_REVERB_LEVELS = [
-    "Nessuno",
-    "Minimo",
-    "Leggerissimo",
-    "Molto Leggero",
-    "Leggero",
-    "Leggero+",
-    "Intermedio-",
-    "Intermedio",
-    "Intermedio+",
-    "Moderato-",
-    "Moderato",
-    "Moderato+",
-    "Pronunciato",
-    "Forte",
+    T("Nessuno"),
+    T("Minimo"),
+    T("Leggerissimo"),
+    T("Molto Leggero"),
+    T("Leggero"),
+    T("Leggero+"),
+    T("Intermedio-"),
+    T("Intermedio"),
+    T("Intermedio+"),
+    T("Moderato-"),
+    T("Moderato"),
+    T("Moderato+"),
+    T("Pronunciato"),
+    T("Forte"),
 ]
 
 # === Reverb map (aecho) con passi più graduali ===
 # aecho = in_gain : out_gain : delays(ms separati da |) : decays(corrispondenti)
 AUD_REVERB_MAP = {
-    "Nessuno":         None,
+    T("Nessuno"):         None,
 
     # Sfumature leggerissime (single/dual tap)
-    "Minimo":          "aecho=0.97:0.97:70:0.15",
-    "Leggerissimo":    "aecho=0.95:0.95:80:0.20",
-    "Molto Leggero":   "aecho=0.92:0.97:80|160:0.22|0.14",
+    T("Minimo"):          'aecho=0.97:0.97:70:0.15',
+    T("Leggerissimo"):    'aecho=0.95:0.95:80:0.20',
+    T("Molto Leggero"):   'aecho=0.92:0.97:80|160:0.22|0.14',
 
     # Leggeri (iniziano i triple tap ma con decay bassi)
-    "Leggero":         "aecho=0.90:0.98:60|120:0.30|0.18",
-    "Leggero+":        "aecho=0.88:0.98:60|120|180:0.38|0.24|0.16",
+    T("Leggero"):         'aecho=0.90:0.98:60|120:0.30|0.18',
+    T("Leggero+"):        'aecho=0.88:0.98:60|120|180:0.38|0.24|0.16',
 
     # Intermedi (triplo / quadruplo con crescita morbida)
-    "Intermedio-":     "aecho=0.87:0.99:60|120|180:0.45|0.32|0.22",
-    "Intermedio":      "aecho=0.85:0.99:60|120|180:0.50|0.35|0.25",
-    "Intermedio+":     "aecho=0.83:0.99:60|120|180|240:0.55|0.40|0.28|0.20",
+    T("Intermedio-"):     'aecho=0.87:0.99:60|120|180:0.45|0.32|0.22',
+    T("Intermedio"):      'aecho=0.85:0.99:60|120|180:0.50|0.35|0.25',
+    T("Intermedio+"):     'aecho=0.83:0.99:60|120|180|240:0.55|0.40|0.28|0.20',
 
     # Moderati (tail più presente ma con headroom su in/out)
-    "Moderato-":       "aecho=0.82:0.99:60|120|180|240:0.58|0.42|0.30|0.22",
-    "Moderato":        "aecho=0.80:0.99:60|120|180:0.60|0.40|0.30",
-    "Moderato+":       "aecho=0.78:0.99:60|120|180|240:0.62|0.45|0.33|0.24",
+    T("Moderato-"):       'aecho=0.82:0.99:60|120|180|240:0.58|0.42|0.30|0.22',
+    T("Moderato"):        'aecho=0.80:0.99:60|120|180:0.60|0.40|0.30',
+    T("Moderato+"):       'aecho=0.78:0.99:60|120|180|240:0.62|0.45|0.33|0.24',
 
     # Alti (come i tuoi “Pronunciato/Forte”)
-    "Pronunciato":     "aecho=0.75:0.99:60|120|180|240:0.65|0.50|0.38|0.28",
-    "Forte":           "aecho=0.70:1.00:60|120|180|240|300:0.70|0.55|0.40|0.30|0.22",
+    T("Pronunciato"):     'aecho=0.75:0.99:60|120|180|240:0.65|0.50|0.38|0.28',
+    T("Forte"):           'aecho=0.70:1.00:60|120|180|240|300:0.70|0.55|0.40|0.30|0.22',
 }
 
 # Valori preimpostati per EQ (dB). "Nessuno" = nessun filtro.
-AUD_EQ_DB_CHOICES = ["Nessuno"] + [str(n) for n in range(-18, 19, 1)]
+AUD_EQ_DB_CHOICES = [T("Nessuno")] + [str(n) for n in range(-18, 19, 1)]
 
 # Preview durata (s): (seconds, label)
 AUD_PREVIEW_OPTIONS = [
-    (None, "∞"),
-    (5, '5"'),
-    (10, '10"'),
-    (20, '20"'),
-    (30, '30"'),
-    (60, "1 min."),
-    (300, "5 min."),
-    (600, "10 min."),
-    (900, "15 min."),
-    (1200, "20 min."),
-    (1800, "30 min."),
+    (None, T("∞")),
+    (5, T('5"')),
+    (10, T('10"')),
+    (20, T('20"')),
+    (30, T('30"')),
+    (60, T("1 min.")),
+    (300, T("5 min.")),
+    (600, T("10 min.")),
+    (900, T("15 min.")),
+    (1200, T("20 min.")),
+    (1800, T("30 min.")),
 ]
 
 # ─────────────────────── Preset audio centralizzati (PAN/EQ) ─────────────────
@@ -200,9 +201,9 @@ AUD_PREVIEW_OPTIONS = [
 # NB: nomi canali FFmpeg: FL,FR,FC,LFE,SL,SR
 AUD_PAN_PRESETS = {
     # Stereo TV generico: Center robusto, Surround medi, LFE moderato
-    "stereo_tv_generic": ("pan=stereo|FL=FL+0.80*FC+0.50*SL+0.25*LFE|FR=FR+0.80*FC+0.50*SR+0.25*LFE"),
+    T("stereo_tv_generic"): ('pan=stereo|FL=FL+0.80*FC+0.50*SL+0.25*LFE|FR=FR+0.80*FC+0.50*SR+0.25*LFE'),
     # Samsung HW-R450 (2.1): Center più forte, Surround medi, LFE più basso
-    "stereo_samsung_r450": ("pan=stereo|FL=FL+0.90*FC+0.50*SL+0.25*LFE|FR=FR+0.90*FC+0.50*SR+0.25*LFE"),
+    'stereo_samsung_r450': ('pan=stereo|FL=FL+0.90*FC+0.50*SL+0.25*LFE|FR=FR+0.90*FC+0.50*SR+0.25*LFE'),
 }
 
 # Dialog Boost: piccolo EQ mirato (non tocca i controlli EQ utente)
@@ -211,8 +212,8 @@ AUD_DIALOG_BOOST_EQ = "equalizer=f=2000:t=q:w=1.2:g=2"
 
 # Stereo enhancers centralizzati (opzionale)
 AUD_STEREO_ENHANCERS = {
-    "StereoWiden": "stereowiden=delay=1:feedback=0.5",
-    "StereoPan": "pan=stereo|c0=c0+0.3*c1|c1=c1+0.3*c0",
+    T("StereoWiden"): 'stereowiden=delay=1:feedback=0.5',
+    T("StereoPan"): 'pan=stereo|c0=c0+0.3*c1|c1=c1+0.3*c0',
 }
 
 # Identificatori profilo audio (per GUI/logic)
@@ -221,35 +222,35 @@ PROFILE_SAMSUNG_51_KEY = "samsung_5_1_ac3"
 
 # ───────────────────────────── Estensioni “audio/AV” ─────────────────────────
 # includo anche container AV (mkv/mp4/avi) perché l’estrattore li accetta
-AUDIO_EXTS = {".ac3", ".aac", ".mp3", ".wav", ".flac", ".m4a", ".mkv", ".mp4", ".avi"}
+AUDIO_EXTS = {'.ac3', '.aac', '.mp3', '.wav', '.flac', '.m4a', '.mkv', '.mp4', '.avi'}
 
 # ──────────────────────────────── Lingue: nomi estesi ────────────────────────
 LANGUAGE_NAMES = {
-    "ITA": "Italiano",
-    "ENG": "Inglese",
-    "FRA": "Francese",
-    "SPA": "Spagnolo",
-    "GER": "Tedesco",
-    "POR": "Portoghese",
-    "RUS": "Russo",
-    "JPN": "Giapponese",
-    "CHN": "Cinese",
-    "UNKNOWN": "Lingua sconosciuta",
+    'ITA': T("Italiano"),
+    'ENG': T("Inglese"),
+    'FRA': T("Francese"),
+    'SPA': T("Spagnolo"),
+    'GER': T("Tedesco"),
+    'POR': T("Portoghese"),
+    'RUS': T("Russo"),
+    'JPN': T("Giapponese"),
+    'CHN': T("Cinese"),
+    T("UNKNOWN"): T("Lingua sconosciuta"),
 }
 
 # ──────────────────────── Opzioni container (mux) per FFmpeg ─────────────────
 CONTAINER_FFMPEG_OPTS = {
-    ".mkv": ["-fflags", "+genpts", "-max_interleave_delta", "0"],
-    ".mp4": ["-fflags", "+genpts", "-max_interleave_delta", "0", "-movflags", "+faststart"],
-    ".mov": [
-        "-fflags",
-        "+genpts",
-        "-max_interleave_delta",
-        "0",
-        "-movflags",
-        "+faststart",
-        "-tag:v",
-        "hvc1",
+    '.mkv': ['-fflags', '+genpts', '-max_interleave_delta', '0'],
+    '.mp4': ['-fflags', '+genpts', '-max_interleave_delta', '0', '-movflags', '+faststart'],
+    '.mov': [
+        '-fflags',
+        '+genpts',
+        '-max_interleave_delta',
+        '0',
+        '-movflags',
+        '+faststart',
+        '-tag:v',
+        'hvc1',
     ],
 }
 
@@ -266,39 +267,39 @@ ASPECT_AUTOFIX = True  # autofix aspect quando target 720x576 (v. build_ffmpeg_v
 
 # ────────────────────────────── Scope: layout & colori ───────────────────────
 CHANNEL_LAYOUTS = {
-    "mono": ["M"],
-    "stereo": ["L", "R"],
-    "5.1": ["L", "R", "C", "LFE", "SL", "SR"],
+    T("mono"): ['M'],
+    T("stereo"): ['L', 'R'],
+    '5.1': ['L', 'R', 'C', 'LFE', 'SL', 'SR'],
 }
 CHANNEL_COLORS = {
-    "M": "yellow",
-    "L": "yellow",
-    "R": "cyan",
-    "C": "orange",
-    "LFE": "magenta",
-    "SL": "green",
-    "SR": "pink",
+    'M': 'yellow',
+    'L': 'yellow',
+    'R': 'cyan',
+    'C': 'orange',
+    'LFE': 'magenta',
+    'SL': 'green',
+    'SR': 'pink',
 }
 
 # ──────────────────────────── GUI: alias lingua & pattern ────────────────────
 # Elenco ufficiale per UI e metadata (ISO 639-2 a 3 lettere, minuscolo)
 LANG_CHOICES = [
-    ("ita", "Italiano"),
-    ("eng", "Inglese"),
-    ("fra", "Francese"),
-    ("spa", "Spagnolo"),
-    ("deu", "Tedesco"),
-    ("por", "Portoghese"),
-    ("rus", "Russo"),
-    ("jpn", "Giapponese"),
-    ("zho", "Cinese"),
+    ('ita', T("Italiano")),
+    ('eng', T("Inglese")),
+    ('fra', T("Francese")),
+    ('spa', T("Spagnolo")),
+    ('deu', T("Tedesco")),
+    ('por', T("Portoghese")),
+    ('rus', T("Russo")),
+    ('jpn', T("Giapponese")),
+    ('zho', T("Cinese")),
 ]
 
 AUDIO_LANG_ALIASES = {
-    "ita": {"ita", "italiano", "it", "italian"},
-    "eng": {"eng", "inglese", "en", "english"},
-    "fra": {"fra", "francese", "fr", "french"},
-    "spa": {"spa", "spagnolo", "es", "spanish"},
+    'ita': {'ita', T("italiano"), 'it', T("italian")},
+    'eng': {'eng', T("inglese"), 'en', T("english")},
+    'fra': {'fra', T("francese"), 'fr', T("french")},
+    'spa': {'spa', T("spagnolo"), 'es', T("spanish")},
 }
 # Alias ampliati (accetta 2 lettere e varianti storiche)
 AUDIO_LANG_ALIASES.update(

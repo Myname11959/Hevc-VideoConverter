@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # hevc_gui/gui/donate_menu.py
 from __future__ import annotations
+from hevc_gui.i18n import L
 
 from pathlib import Path
 from PyQt5.QtCore import QUrl
@@ -56,8 +57,8 @@ def install_donate_action(main: QMainWindow) -> None:
     icon = QIcon(str(pp_icon)) if pp_icon.exists() else main.style().standardIcon(QStyle.SP_DialogHelpButton)
 
     act = QAction(icon, "Dona (PayPal)", main)
-    act.setToolTip("Apri la pagina PayPal per una donazione")
-    act.setStatusTip("Apri la pagina PayPal per una donazione")
+    act.setToolTip(L("Apri la pagina PayPal per una donazione"))
+    act.setStatusTip(L("Apri la pagina PayPal per una donazione"))
     act.setIconVisibleInMenu(True)
     act.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://paypal.me/loris1159")))
 

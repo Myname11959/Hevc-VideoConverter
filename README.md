@@ -113,7 +113,7 @@ Build a .deb — Option B: manual skeleton
   # control file:
   cat > build/deb/DEBIAN/control <<'EOF'
   Package: hevc-video-converter
-  Version: 2.0.0
+  Version: 2.1.0.0
   Section: utils
   Priority: optional
   Architecture: all
@@ -201,7 +201,7 @@ Creare un pacchetto .deb — Opzione B (manuale)
   # file control:
   cat > build/deb/DEBIAN/control <<'EOF'
   Package: hevc-video-converter
-  Version: 2.0.0
+  Version: 2.1.0.0
   Section: utils
   Priority: optional
   Architecture: all

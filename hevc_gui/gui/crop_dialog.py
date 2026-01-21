@@ -19,6 +19,7 @@ Il “consume” post-encode / cambio-file è gestito dalla MainWindow.
 """
 
 from __future__ import annotations
+from hevc_gui.i18n import L
 
 import subprocess
 from pathlib import Path
@@ -309,7 +310,7 @@ class _CropRect(QGraphicsRectItem):
 class CropDialog(QDialog):
     def __init__(self, input_path: str, parent=None, grab_time: float = 10.0):
         super().__init__(parent)
-        self.setWindowTitle("Crop")
+        self.setWindowTitle(L("Crop"))
 
         self.input_path = input_path
         self.grab_time = float(grab_time or 0.0)
@@ -366,16 +367,16 @@ class CropDialog(QDialog):
         self.view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         left.addWidget(self.view, 1)
 
-        self.lbl_time = QLabel("00:00 / 00:00", self)
+        self.lbl_time = QLabel(L("00:00 / 00:00"), self)
 
         self.sld_time = QSlider(Qt.Horizontal, self)
         self.sld_time.setMinimum(0)
         self.sld_time.valueChanged.connect(self._on_seek_changed)
         self.sld_time.actionTriggered.connect(self._on_seek_action)
 
-        self.btn_preview = QPushButton("Preview filtrata", self)
-        self.btn_apply = QPushButton("Applica", self)
-        self.btn_cancel = QPushButton("Annulla (spegni)", self)
+        self.btn_preview = QPushButton(L("Preview filtrata"), self)
+        self.btn_apply = QPushButton(L("Applica"), self)
+        self.btn_cancel = QPushButton(L("Annulla (spegni)"), self)
 
         self.btn_preview.clicked.connect(self._on_preview)
         self.btn_apply.clicked.connect(self._apply)
@@ -401,9 +402,9 @@ class CropDialog(QDialog):
         right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(10)
 
-        self.chk_enable = QCheckBox("Crop attivo", self)
-        self.chk_force_169 = QCheckBox("Forza DAR 16:9", self)
-        self.chk_force_scope = QCheckBox("Forza DAR 2.35:1", self)
+        self.chk_enable = QCheckBox(L("Crop attivo"), self)
+        self.chk_force_169 = QCheckBox(L("Forza DAR 16:9"), self)
+        self.chk_force_scope = QCheckBox(L("Forza DAR 2.35:1"), self)
         right.addWidget(self.chk_enable)
         right.addWidget(self.chk_force_169)
         right.addWidget(self.chk_force_scope)
@@ -538,12 +539,12 @@ class CropDialog(QDialog):
         try:
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
-            QMessageBox.critical(self, "Errore", "Impossibile estrarre un frame con ffmpeg.")
+            QMessageBox.critical(self, L("Errore"), L("Impossibile estrarre un frame con ffmpeg."))
             return
 
         pix = QPixmap(str(FRAME_PATH))
         if pix.isNull():
-            QMessageBox.critical(self, "Errore", "Frame vuoto/illeggibile.")
+            QMessageBox.critical(self, L("Errore"), L('Frame vuoto/illeggibile.'))
             return
 
         self._set_pixmap(pix)
@@ -683,7 +684,7 @@ class CropDialog(QDialog):
     def _save_current_crop(self, *, show_warning: bool) -> bool:
         if not self.crop_item:
             if show_warning:
-                QMessageBox.warning(self, "Attenzione", "Nessun frame disponibile.")
+                QMessageBox.warning(self, "Attenzione", L("Nessun frame disponibile."))
             return False
 
         r = self.crop_item.rect()
@@ -694,7 +695,7 @@ class CropDialog(QDialog):
 
         if w < 16 or h < 16:
             if show_warning:
-                QMessageBox.warning(self, "Attenzione", "Selezione troppo piccola.")
+                QMessageBox.warning(self, "Attenzione", L('Selezione troppo piccola.'))
             return False
 
         save_crop_settings(
@@ -716,18 +717,18 @@ class CropDialog(QDialog):
 
         parent = self.parent()
         if parent is None:
-            QMessageBox.warning(self, "Preview", "Preview filtrata non disponibile (finestra principale assente).")
+            QMessageBox.warning(self, "Preview", L('Preview filtrata non disponibile (finestra principale assente).'))
             return
 
         launch = getattr(parent, "launch_preview", None)
         if not callable(launch):
-            QMessageBox.warning(self, "Preview", "La finestra principale non espone launch_preview().")
+            QMessageBox.warning(self, "Preview", L('La finestra principale non espone launch_preview().'))
             return
 
         try:
             launch(filtered=True)
         except Exception as e:
-            QMessageBox.critical(self, "Preview", f"Errore durante la Preview filtrata:\n{e}")
+            QMessageBox.critical(self, L("Preview"), L("Errore durante la Preview filtrata:\n{0}").format(e))
 
     def reject(self):
         # “Annulla (spegni)” → pulisci/azzera crop

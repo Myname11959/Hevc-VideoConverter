@@ -2,6 +2,7 @@
 """
 Costanti e dizionari condivisi dall’interfaccia HEVC-GUI
 """
+from hevc_gui.i18n import L
 
 from html import escape
 from PyQt5.QtGui import QTextDocument
@@ -20,7 +21,7 @@ from datetime import date
 class MediaInfoDialog(QDialog):
     def __init__(self, filepath, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Info File di Input")
+        self.setWindowTitle(L("Info File di Input"))
         self.resize(700, 600)
 
         vbox = QVBoxLayout(self)
@@ -30,8 +31,8 @@ class MediaInfoDialog(QDialog):
 
         hbtn = QHBoxLayout()
         hbtn.addStretch()
-        btn_print = QPushButton("Print", self)
-        btn_close = QPushButton("Close", self)
+        btn_print = QPushButton(L("Print"), self)
+        btn_close = QPushButton(L("Close"), self)
         hbtn.addWidget(btn_print)
         hbtn.addWidget(btn_close)
         vbox.addLayout(hbtn)
@@ -229,7 +230,7 @@ class MediaInfoDialog(QDialog):
         printer.setFullPage(False)
 
         preview = QPrintPreviewDialog(printer, self)
-        preview.setWindowTitle("Print Preview")
+        preview.setWindowTitle(L("Print Preview"))
         preview.paintRequested.connect(self._print_document)
         preview.exec_()
 

@@ -1,6 +1,8 @@
+from __future__ import annotations
+from hevc_gui.i18n import apply_i18n, L
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import annotations
+from hevc_gui.i18n import init_qt_i18n
 import os, sys
 
 
@@ -120,9 +122,28 @@ def main():
         return 1
 
     app = QApplication(sys.argv)
+    init_qt_i18n(app)
     try:
-        app.setApplicationName("LDVD Ripper")
-        app.setOrganizationName("LDVD")
+        # IMPORTANTISSIMO: se LDVD gira EMBEDDED dentro HEVC, NON deve cambiare
+        # l'identità dell'app (ApplicationName/OrganizationName), altrimenti QSettings
+        # cambia namespace e la lingua/GUI diventano "mescolate".
+        from PyQt5.QtCore import QCoreApplication
+        _embedded = (QCoreApplication.applicationName() or "") not in ("", "LDVD Ripper")
+        if not _embedded:
+            # FIX: se LDVD gira EMBEDDED dentro HEVC, NON cambiare Application/Organization.
+            # Altrimenti QSettings cambia namespace e la lingua/UI diventano “mescolati”.
+            from PyQt5.QtCore import QCoreApplication
+            _appname = (QCoreApplication.applicationName() or "").strip()
+            _embedded = bool(_appname) and _appname != "LDVD Ripper"
+            if not _embedded:
+                # FIX: se LDVD gira EMBEDDED dentro HEVC, NON cambiare Application/Organization.
+                # Altrimenti QSettings cambia namespace e la lingua/UI diventano “mescolati”.
+                from PyQt5.QtCore import QCoreApplication
+                _appname = (QCoreApplication.applicationName() or "").strip()
+                _embedded = bool(_appname) and _appname != "LDVD Ripper"
+                if not _embedded:
+                    app.setApplicationName("LDVD Ripper")
+                    app.setOrganizationName("LDVD")
     except Exception:
         pass
 
@@ -133,7 +154,7 @@ def main():
         import traceback
         txt = "".join(traceback.format_exception(exc_type, exc, tb))
         try:
-            QMessageBox.critical(None, "Errore non gestito", txt)
+            QMessageBox.critical(None, L("Errore non gestito"), txt)
         except Exception:
             print(txt, file=sys.stderr)
 
@@ -143,12 +164,17 @@ def main():
     Ctl, err = _resolve_dvd_extractor_controller()
     if Ctl is None:
         try:
-            QMessageBox.critical(None, "Errore", err)
+            QMessageBox.critical(None, L("Errore"), err)
         except Exception:
             print(err, file=sys.stderr)
         return 1
 
     ctl = Ctl()
+    # i18n: applica sulla view (widget), non sul controller
+    try:
+        apply_i18n(getattr(ctl, "view", None) or ctl)
+    except Exception:
+        pass
     ctl.show()
 
     # --- Azioni lossless opzionali (se presenti) ---

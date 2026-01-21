@@ -3,6 +3,7 @@
 # hevc_gui/gui/main_window.py (inizio del file)
 
 from __future__ import annotations
+from hevc_gui.i18n import L
 
 import os
 import signal
@@ -17,7 +18,6 @@ import webbrowser
 import re
 import time
 import shutil
-import hevc_gui.resources.icons_rc
 from typing import Optional, List, Union
 from pathlib import Path
 
@@ -29,7 +29,7 @@ if str(scripts_dir) not in sys.path:
 # Ora possiamo importare AudioConverter direttamente
 from string_audio_generator import AudioConverter
 
-from PyQt5.QtCore import Qt, QProcess, pyqtSlot, QUrl, QTimer, QTime, QEventLoop, QProcess, QProcessEnvironment
+from PyQt5.QtCore import Qt, pyqtSlot, QUrl, QTimer, QTime, QEventLoop, QProcess, QProcessEnvironment
 from PyQt5.QtGui import (
     QDragEnterEvent,
     QFont,
@@ -67,15 +67,15 @@ from ..core.subtitle_helper import select_subtitles, KIND_MAP
 from ..core.chapter import ChapterManager
 from ..core.chapter_worker import ChapterWorker
 from ..core.progressbar_nozero import ProgressBarNoZeroChunk
-from ..core.constants import SCRIPTS_DIR
 from ..core.helpers import select_reverb_expr, join_filters, add_filter_arg
+
 # Crop: lettura dai Settings + iniezione nella vf chain
-from hevc_gui.video.crop_tools import load_crop_settings, inject_crop, clear_crop_settings, save_crop_settings
+from hevc_gui.video.crop_tools import load_crop_settings, inject_crop, clear_crop_settings
 from hevc_gui.video.color_tools import build_color_eq_filter, clear_color_settings
 from hevc_gui.gui.trim_dialog import TrimDialog
-from hevc_gui.core.ldvd_sidecar import LdvdSidecar, load_sidecar_for
+from hevc_gui.core.ldvd_sidecar import load_sidecar_for
 from .menubar import setup_menubar, refresh_icons, add_donate_to_help
-from .appearance_settings import CONFIG_PATH, load_appearance
+from .appearance_settings import CONFIG_PATH
 from subprocess import check_output
 
 # Path del binario ffmpeg
@@ -86,6 +86,7 @@ FFMPEG_BIN = "ffmpeg"
 # —————————————————————————————————————————————————————————————
 
 logging.raiseExceptions = False
+
 
 def _setup_logging() -> logging.Logger:
     base_dir = Path(os.environ.get("HEVC_LOG_DIR", "/dev/shm/hevc_gui"))
@@ -116,6 +117,7 @@ def _setup_logging() -> logging.Logger:
     root.debug("=== Avvio applicazione — log file: %s ===", log_path)
     return logging.getLogger(__name__)
 
+
 logger = _setup_logging()
 
 
@@ -123,7 +125,9 @@ def excepthook(exc_type, exc_value, exc_tb):
     logging.getLogger(__name__).error("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
     sys.__excepthook__(exc_type, exc_value, exc_tb)
 
+
 sys.excepthook = excepthook
+
 
 def _bootstrap_project_icons_on_first_run(win):
     """
@@ -148,7 +152,7 @@ def _bootstrap_project_icons_on_first_run(win):
 class PathLineEdit(QLineEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setPlaceholderText("Trascina qui un file video oppure premi «Apri…»")
+        self.setPlaceholderText(L("Trascina qui un file video oppure premi «Apri…»"))
         self.setAcceptDrops(True)
         self.setDragEnabled(False)
 
@@ -175,20 +179,20 @@ class PathLineEdit(QLineEdit):
 class QueueDialog(QDialog):
     def __init__(self, command_queue, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Gestione Coda")
+        self.setWindowTitle(L("Gestione Coda"))
         self.setFixedSize(600, 400)
         self.command_queue = command_queue.copy()
         layout = QVBoxLayout(self)
 
         self.text_edit = QPlainTextEdit(self)
         self.text_edit.setPlainText(self._queue_to_text(self.command_queue))
-        self.text_edit.setToolTip("Modifica i comandi, uno per riga.")
+        self.text_edit.setToolTip(L("Modifica i comandi, uno per riga."))
         layout.addWidget(self.text_edit, 1)
 
         btns = QHBoxLayout()
-        self.save_btn = QPushButton("Salva", self)
+        self.save_btn = QPushButton(L("Salva"), self)
         self.save_btn.clicked.connect(self.accept)
-        self.cancel_btn = QPushButton("Annulla", self)
+        self.cancel_btn = QPushButton(L("Annulla"), self)
         self.cancel_btn.clicked.connect(self.reject)
         btns.addStretch()
         btns.addWidget(self.save_btn)
@@ -227,7 +231,10 @@ class CustomMessageBox(QMessageBox):
             self.layout().addWidget(icon_label, 0, 0, Qt.AlignCenter)
         self.setStandardButtons(QMessageBox.Ok)
         self.exec_()
+
+
 ##=============================================================================
+
 
 class MainWindow(QMainWindow):
     # === TMP su RAM (/dev/shm) con fallback automatico su DISCO ==========
@@ -250,6 +257,7 @@ class MainWindow(QMainWindow):
         def _get_ram_bytes() -> tuple[int, int]:
             try:
                 import psutil  # type: ignore
+
                 vm = psutil.virtual_memory()
                 return int(vm.total), int(vm.available)
             except Exception:
@@ -259,7 +267,10 @@ class MainWindow(QMainWindow):
                         for line in f:
                             k, v = line.split(":", 1)
                             info[k.strip()] = v.strip()
-                    def _kib(s): return int(s.split()[0]) * 1024
+
+                    def _kib(s):
+                        return int(s.split()[0]) * 1024
+
                     total = _kib(info.get("MemTotal", "0 kB"))
                     avail = _kib(info.get("MemAvailable", "0 kB"))
                     return total, avail
@@ -350,7 +361,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Temp: {self.tmp_storage_mode.upper()} @ {base_root} (need≈{_fmt(need)})", 5000)
         except Exception:
             pass
-        
+
     # aggiungi questo metodo in MainWindow (per esempio vicino ad altri helper)
     def _log(self, msg: str) -> None:
         """Logga su txt_info se presente, altrimenti stdout."""
@@ -371,12 +382,14 @@ class MainWindow(QMainWindow):
         """
         try:
             from hevc_gui.video.crop_tools import clear_crop_settings
+
             clear_crop_settings(disable_only=False)
         except Exception:
             pass
 
         try:
             from hevc_gui.video.trim_tools import clear_trim_settings
+
             clear_trim_settings(disable_only=False)
         except Exception:
             pass
@@ -397,6 +410,7 @@ class MainWindow(QMainWindow):
         # Crop
         try:
             from hevc_gui.video.crop_tools import clear_crop_settings
+
             clear_crop_settings(disable_only=False)
             try:
                 self.txt_info.append(f"[DBG] Crop consumato ({why}).")
@@ -408,6 +422,7 @@ class MainWindow(QMainWindow):
         # Trim
         try:
             from hevc_gui.video.trim_tools import clear_trim_settings
+
             clear_trim_settings(disable_only=False)
             try:
                 self.txt_info.append(f"[DBG] Trim consumato ({why}).")
@@ -420,6 +435,7 @@ class MainWindow(QMainWindow):
         if clear_color:
             try:
                 from hevc_gui.video.color_tools import clear_color_settings
+
                 clear_color_settings()
                 try:
                     self.txt_info.append(f"[DBG] Color azzerato ({why}).")
@@ -453,7 +469,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             # logga solo in caso di errore “vero”
             try:
-                self.txt_info.append(f"[HEVC] Errore nel leggere sidecar LDVD: {e}")
+                self.txt_info.append(L("[HEVC] Errore nel leggere sidecar LDVD: {0}").format(e))
             except Exception:
                 pass
             return
@@ -466,9 +482,7 @@ class MainWindow(QMainWindow):
 
         # Log sintetico
         try:
-            self.txt_info.append(
-                f"[HEVC] Sidecar LDVD rilevato: {sc.base_vob} → {sc.summary_for_log()}"
-            )
+            self.txt_info.append(f"[HEVC] Sidecar LDVD rilevato: {sc.base_vob} → {sc.summary_for_log()}")
         except Exception:
             pass
 
@@ -482,7 +496,7 @@ class MainWindow(QMainWindow):
         logging.debug("--> ENV GTK_THEME           = %s", os.environ.get("GTK_THEME"))
         logging.debug("--> QApp.style() name       = %s", QApplication.instance().style().objectName())
 
-        self.setWindowTitle("HEVC - Video Converter")
+        self.setWindowTitle(L("HEVC - Video Converter"))
 
         # Stato interno e directory temporanee
         self._start_time = time.time()
@@ -531,7 +545,7 @@ class MainWindow(QMainWindow):
         self._last_queue_run: list[list[str]] | None = None
 
         # Costruzione UI e collegamenti
-        self._build_ui()                       # ← dentro _build_ui esiste già: self.edit_path.textChanged.connect(self._path_changed)
+        self._build_ui()  # ← dentro _build_ui esiste già: self.edit_path.textChanged.connect(self._path_changed)
         self._wire_dblclick_for_all_combos()
 
         # stato iniziale bottoni
@@ -566,26 +580,26 @@ class MainWindow(QMainWindow):
             logo_label.setPixmap(pix)
         h1 = QHBoxLayout()
         h1.addWidget(logo_label)
-        self.btn_open = QPushButton("Apri video…")
-        self.btn_open.setToolTip("Seleziona un file video da convertire")
+        self.btn_open = QPushButton(L("Apri video…"))
+        self.btn_open.setToolTip(L("Seleziona un file video da convertire"))
         self.btn_open.clicked.connect(self.open_file)
         h1.addWidget(self.btn_open)
         self.edit_path = PathLineEdit()
-        self.edit_path.setToolTip("Percorso del file video da convertire")
+        self.edit_path.setToolTip(L("Percorso del file video da convertire"))
         self.edit_path.textChanged.connect(self._path_changed)
         h1.addWidget(self.edit_path, 1)
         vbox.addLayout(h1)
 
         # Bitrate / CRF / Preset
         hrate = QHBoxLayout()
-        self.rd_br = QRadioButton("Bit-rate")
-        self.rd_crf = QRadioButton("CRF")
+        self.rd_br = QRadioButton(L("Bit-rate"))
+        self.rd_crf = QRadioButton(L("CRF"))
         self.rd_crf.setChecked(True)
         self.cmb_br = QComboBox()
-        self.cmb_br.addItems(C.BITRATE_OPTIONS)
+        self.cmb_br.addItems([L(x) for x in C.BITRATE_OPTIONS])
         self.cmb_br.setEnabled(False)
         self.cmb_crf = QComboBox()
-        self.cmb_crf.addItems(C.CRF_OPTIONS)
+        self.cmb_crf.addItems([L(x) for x in C.CRF_OPTIONS])
         self.rd_br.toggled.connect(lambda val: (self.cmb_br.setEnabled(val), self.cmb_crf.setEnabled(not val)))
         hrate.addWidget(self.rd_br)
         hrate.addWidget(self.cmb_br)
@@ -593,31 +607,31 @@ class MainWindow(QMainWindow):
         hrate.addWidget(self.rd_crf)
         hrate.addWidget(self.cmb_crf)
         hrate.addSpacing(20)
-        hrate.addWidget(QLabel("Preset:"))
+        hrate.addWidget(QLabel(L("Preset:")))
         self.cmb_preset = QComboBox()
-        self.cmb_preset.addItems(C.PRESET_OPTIONS)
+        self.cmb_preset.addItems([L(x) for x in C.PRESET_OPTIONS])
         hrate.addWidget(self.cmb_preset)
         vbox.addLayout(hrate)
 
         # Filtri video
         hfilters = QHBoxLayout()
-        lbl = QLabel("Sharpness:")
+        lbl = QLabel(L("Sharpness:"))
         self.cmb_sharp = QComboBox()
-        self.cmb_sharp.addItems(C.SHARPNESS_LEVELS)
+        self.cmb_sharp.addItems([L(x) for x in C.SHARPNESS_LEVELS])
         self.cmb_sharp.currentTextChanged.connect(self.update_filters)
         hfilters.addWidget(lbl)
         hfilters.addWidget(self.cmb_sharp)
         hfilters.addSpacing(20)
-        lbl = QLabel("Smoothness:")
+        lbl = QLabel(L("Smoothness:"))
         self.cmb_smth = QComboBox()
-        self.cmb_smth.addItems(C.SMOOTHNESS_LEVELS)
+        self.cmb_smth.addItems([L(x) for x in C.SMOOTHNESS_LEVELS])
         self.cmb_smth.currentTextChanged.connect(self.update_filters)
         hfilters.addWidget(lbl)
         hfilters.addWidget(self.cmb_smth)
         hfilters.addSpacing(20)
-        lbl = QLabel("Resize:")
+        lbl = QLabel(L("Resize:"))
         self.cmb_resize = QComboBox()
-        self.cmb_resize.addItems(C.RESOLUTIONS)
+        self.cmb_resize.addItems([L(x) for x in C.RESOLUTIONS])
         self.cmb_resize.currentTextChanged.connect(self.update_filters)
         hfilters.addWidget(lbl)
         hfilters.addWidget(self.cmb_resize)
@@ -626,15 +640,17 @@ class MainWindow(QMainWindow):
 
         # Frame-rate, B&W, deinterlacciamento
         hfr = QHBoxLayout()
-        hfr.addWidget(QLabel("Frame-rate:"))
+        hfr.addWidget(QLabel(L("Frame-rate:")))
 
         self.cmb_frmode = QComboBox()
-        self.cmb_frmode.addItems(C.FR_MODE)
+        self.cmb_frmode.addItems([L(x) for x in C.FR_MODE])
         self.cmb_frval = QComboBox()
-        self.cmb_frval.addItems(C.FR_CONST_VALUES)
+        self.cmb_frval.addItems([L(x) for x in C.FR_CONST_VALUES])
         self.cmb_frval.setEnabled(False)
 
-        self.cmb_frmode.currentTextChanged.connect(lambda t: self.cmb_frval.setEnabled(t == "Costante"))
+        self.cmb_frmode.currentTextChanged.connect(
+            lambda t: self.cmb_frval.setEnabled(str(t or "").strip().lower() in ("costante", "constant"))
+        )
 
         for _label in ("Originale", "Nessuno"):
             if _label in C.FR_MODE:
@@ -642,16 +658,16 @@ class MainWindow(QMainWindow):
                 break
         else:
             self.cmb_frmode.setCurrentIndex(0)
-        self.cmb_frval.setEnabled(self.cmb_frmode.currentText() == "Costante")
+        self.cmb_frval.setEnabled(str(self.cmb_frmode.currentText() or "").strip().lower() in ("costante", "constant"))
 
         hfr.addWidget(self.cmb_frmode)
         hfr.addSpacing(15)
-        hfr.addWidget(QLabel("Valore:"))
+        hfr.addWidget(QLabel(L("Valore:")))
         hfr.addWidget(self.cmb_frval)
         hfr.addSpacing(40)
 
-        self.rd_color = QRadioButton("Color")
-        self.rd_bw = QRadioButton("B&W")
+        self.rd_color = QRadioButton(L("Color"))
+        self.rd_bw = QRadioButton(L("B&W"))
         self.rd_color.setChecked(True)
         grp_col = QButtonGroup(self)
         grp_col.addButton(self.rd_color)
@@ -660,31 +676,31 @@ class MainWindow(QMainWindow):
         hfr.addWidget(self.rd_bw)
 
         hfr.addSpacing(40)
-        self.chk_deint = QCheckBox("Deinterlacciamento")
+        self.chk_deint = QCheckBox(L("Deinterlacciamento"))
         self.chk_deint.toggled.connect(self.update_filters)
         hfr.addWidget(self.chk_deint)
         hfr.addStretch()
         vbox.addLayout(hfr)
-        
+
         # Pulsanti Estrai audio, Sottotitoli, Capitoli, Preview
         haudio_prev = QHBoxLayout()
-        self.btn_audio = QPushButton("Estrai audio")
+        self.btn_audio = QPushButton(L("Estrai audio"))
         self.btn_audio.clicked.connect(self.extract_audio)
 
-        self.btn_subtitle = QPushButton("Sottotitoli")
+        self.btn_subtitle = QPushButton(L("Sottotitoli"))
         self.btn_subtitle.clicked.connect(self.on_subtitle_clicked)
         self.btn_subtitle.setEnabled(False)
 
-        self.btn_chapter = QPushButton("Capitoli")
+        self.btn_chapter = QPushButton(L("Capitoli"))
         self.btn_chapter.clicked.connect(self.on_chapter_clicked)
         self.btn_chapter.setEnabled(False)
 
         # Preview RAW = originale (nessun filtro)
-        self.btn_preview = QPushButton("Preview")
+        self.btn_preview = QPushButton(L("Preview"))
         self.btn_preview.clicked.connect(self.preview_raw)
 
         # Preview FILTRATA = filtri/crop/colore/trim
-        self.btn_preview_filtered = QPushButton("Preview filtrata")
+        self.btn_preview_filtered = QPushButton(L("Preview filtrata"))
         self.btn_preview_filtered.clicked.connect(self.preview_filtered)
 
         for w in (
@@ -699,20 +715,19 @@ class MainWindow(QMainWindow):
         haudio_prev.insertStretch(3)
         vbox.addLayout(haudio_prev)
 
-
         # Pulsanti MediaInfo, Salva/Elabora Coda, Converti, Help
         hmid = QHBoxLayout()
-        self.btn_minfo = QPushButton("MediaInfo")
+        self.btn_minfo = QPushButton(L("MediaInfo"))
         self.btn_minfo.clicked.connect(self.show_mediainfo)
-        self.btn_salva = QPushButton("Salva Coda")
+        self.btn_salva = QPushButton(L("Salva Coda"))
         self.btn_salva.clicked.connect(self.save_gui_queue_to_file)
-        self.btn_gestisci = QPushButton("Gestisci Coda")
+        self.btn_gestisci = QPushButton(L("Gestisci Coda"))
         self.btn_gestisci.clicked.connect(self.open_queue_manager)
-        self.btn_elabora = QPushButton("Elabora Coda")
+        self.btn_elabora = QPushButton(L("Elabora Coda"))
         self.btn_elabora.clicked.connect(self.start_queue_processing)
-        self.btn_convert = QPushButton("Converti")
+        self.btn_convert = QPushButton(L("Converti"))
         self.btn_convert.clicked.connect(self.on_convert_clicked)
-        btn_help = QPushButton("Help")
+        btn_help = QPushButton(L("Help"))
         btn_help.clicked.connect(self.open_help)
 
         for w in (
@@ -738,21 +753,21 @@ class MainWindow(QMainWindow):
 
         # Pulsanti inferiori
         hbot = QHBoxLayout()
-        self.btn_dir_output = QPushButton("Directory Output")
+        self.btn_dir_output = QPushButton(L("Directory Output"))
         self.btn_dir_output.clicked.connect(self.open_output_directory)
-        self.btn_copy_log = QPushButton("Copia Log FFmpeg")
+        self.btn_copy_log = QPushButton(L("Copia Log FFmpeg"))
         self.btn_copy_log.clicked.connect(self.copy_ffmpeg_log_to_clipboard)
         self.btn_copy_log.setEnabled(False)
-        self.btn_pause = QPushButton("Pausa")
+        self.btn_pause = QPushButton(L("Pausa"))
         self.btn_pause.clicked.connect(self.toggle_pause)
         self.btn_pause.setEnabled(False)
-        self.btn_cancel = QPushButton("Interrompi")
+        self.btn_cancel = QPushButton(L("Interrompi"))
         self.btn_cancel.clicked.connect(self.cancel_job)
-        self.btn_reset_gui = QPushButton("Reset GUI")
+        self.btn_reset_gui = QPushButton(L("Reset GUI"))
         self.btn_reset_gui.clicked.connect(self.reset_gui_only)
-        self.btn_exit = QPushButton("Esci")
+        self.btn_exit = QPushButton(L("Esci"))
         self.btn_exit.clicked.connect(self.exit_app)
-        self.btn_info = QPushButton("Info")
+        self.btn_info = QPushButton(L("Info"))
         self.btn_info.clicked.connect(self.show_info)
         for w in (
             self.btn_dir_output,
@@ -768,9 +783,9 @@ class MainWindow(QMainWindow):
 
         # Stato e barra di avanzamento
         hstatus = QHBoxLayout()
-        self.lbl_status = QLabel("Wait for conversion…")
-        self.lbl_elapsed = QLabel("Elapsed: 00:00")
-        self.lbl_remaining = QLabel("Remaining: --:--")
+        self.lbl_status = QLabel(L("Wait for conversion…"))
+        self.lbl_elapsed = QLabel(L("Elapsed: 00:00"))
+        self.lbl_remaining = QLabel(L("Remaining: --:--"))
         for lbl in (self.lbl_elapsed, self.lbl_remaining):
             lbl.setStyleSheet("color: gray; font-size: 9pt;")
         hstatus.addWidget(self.lbl_status)
@@ -792,6 +807,7 @@ class MainWindow(QMainWindow):
 
     def _wire_dblclick_for_all_combos(self):
         from hevc_gui.core.dblclick import enable_doubleclick_on_children
+
         overrides = {}
         enable_doubleclick_on_children(self, overrides)
 
@@ -874,16 +890,19 @@ class MainWindow(QMainWindow):
         """
         try:
             from hevc_gui.video.crop_tools import clear_crop_settings
+
             clear_crop_settings(disable_only=False)
         except Exception:
             pass
         try:
             from hevc_gui.video.trim_tools import clear_trim_settings
+
             clear_trim_settings(disable_only=False)
         except Exception:
             pass
         try:
             from hevc_gui.video.color_tools import clear_color_settings
+
             clear_color_settings()
         except Exception:
             pass
@@ -896,6 +915,20 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def open_dvd_ripper(self):
+        # --- export icon theme for child tools (LDVD/SAG) ---
+        try:
+            import os
+            from PyQt5.QtGui import QIcon
+
+            os.environ["HEVC_QT_ICON_THEME_NAME"] = QIcon.themeName() or ""
+            os.environ["HEVC_QT_ICON_THEME_SEARCH_PATHS"] = os.pathsep.join(QIcon.themeSearchPaths() or [])
+            try:
+                os.environ["HEVC_QT_ICON_FALLBACK_THEME_NAME"] = QIcon.fallbackThemeName() or ""
+            except Exception:
+                pass
+        except Exception:
+            pass
+
         """
         Lancia LDVD-Ripper (hevc_gui.dvd_ripper.app) come processo separato
         e ascolta eventuali handoff HEVC_HANDOFF:/percorso.vob.
@@ -903,20 +936,18 @@ class MainWindow(QMainWindow):
         """
         if self.dvd_proc and self.dvd_proc.state() == QProcess.Running:
             if hasattr(self, "txt_info"):
-                self.txt_info.append("DVD Ripper è già in esecuzione.")
+                self.txt_info.append(L("DVD Ripper è già in esecuzione."))
             return
 
         if hasattr(self, "txt_info"):
-            self.txt_info.append("> Avvio DVD Ripper…")
+            self.txt_info.append(L("> Avvio DVD Ripper..."))
 
         proc = QProcess(self)
         self.dvd_proc = proc
 
         python = sys.executable or "python3"
 
-        root_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
-        )
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
         proc.setWorkingDirectory(root_dir)
 
         proc.setProgram(python)
@@ -985,13 +1016,13 @@ class MainWindow(QMainWindow):
         proc.start()
         if not proc.waitForStarted(3000):
             if hasattr(self, "txt_info"):
-                self.txt_info.append("Impossibile avviare DVD Ripper.")
-            QMessageBox.critical(self, "DVD Ripper", "Impossibile avviare DVD Ripper.")
+                self.txt_info.append(L("Impossibile avviare DVD Ripper."))
+            QMessageBox.critical(self, "DVD Ripper", L("Impossibile avviare DVD Ripper."))
             self.dvd_proc = None
             return
 
         if hasattr(self, "txt_info"):
-            self.txt_info.append("> DVD Ripper avviato.")
+            self.txt_info.append(L("> DVD Ripper avviato."))
 
     @pyqtSlot()
     def _on_dvd_ripper_stdout(self):
@@ -1017,15 +1048,16 @@ class MainWindow(QMainWindow):
 
             # Protocollo: HEVC_HANDOFF:/percorso/al/file.vob
             if line.startswith("HEVC_HANDOFF:"):
-                path_str = line[len("HEVC_HANDOFF:"):].strip()
+                path_str = line[len("HEVC_HANDOFF:") :].strip()
                 from pathlib import Path as _P
+
                 p = _P(path_str)
 
                 if not p.exists():
                     QMessageBox.warning(
                         self,
                         "DVD Ripper",
-                        f"Percorso ricevuto da DVD Ripper non valido:\n{path_str}",
+                        L("Percorso ricevuto da DVD Ripper non valido:\n{path}").format(path=path_str),
                     )
                     continue
 
@@ -1044,12 +1076,12 @@ class MainWindow(QMainWindow):
                     line_edit.setText(s)
 
                 if hasattr(self, "txt_info"):
-                    self.txt_info.append(f"> Handoff DVD → HEVC: {s}")
+                    self.txt_info.append(L("> Handoff DVD → HEVC: {path}").format(path=s))
 
     @pyqtSlot(int, QProcess.ExitStatus)
     def _on_dvd_ripper_finished(self, exit_code: int, exit_status: QProcess.ExitStatus):
         if hasattr(self, "txt_info"):
-            self.txt_info.append(f"[DVD-Ripper] terminato (exit {exit_code}).")
+            self.txt_info.append(L("[DVD-Ripper] terminato (exit {code}).").format(code=exit_code))
         self.dvd_proc = None
 
     def _queue_has_jobs(self) -> bool:
@@ -1095,6 +1127,7 @@ class MainWindow(QMainWindow):
         Opt-in via HEVC_USE_CPULIMIT=1: wrappa con cpulimit/ionice/nice.
         """
         import shutil
+
         use_cap = os.getenv("HEVC_USE_CPULIMIT", "0") == "1"
         if not use_cap:
             return cmd
@@ -1148,6 +1181,7 @@ class MainWindow(QMainWindow):
                     pass
                 try:
                     from hevc_gui.video.trim_tools import clear_trim_settings
+
                     clear_trim_settings(disable_only=False)
                 except Exception:
                     pass
@@ -1185,7 +1219,7 @@ class MainWindow(QMainWindow):
                             self.logger.exception(f"_apply_detected_fps() error: {e}")
                 else:
                     try:
-                        self.txt_info.append("! Impossibile rilevare il frame-rate sorgente (ffprobe).")
+                        self.txt_info.append(L("! Impossibile rilevare il frame-rate sorgente (ffprobe)."))
                     except Exception:
                         pass
 
@@ -1224,10 +1258,14 @@ class MainWindow(QMainWindow):
             out = subprocess.check_output(
                 [
                     C.FFPROBE_BIN,
-                    "-v","error",
-                    "-select_streams","v:0",
-                    "-show_entries","stream=avg_frame_rate",
-                    "-of","default=nokey=1:noprint_wrappers=1",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=avg_frame_rate",
+                    "-of",
+                    "default=nokey=1:noprint_wrappers=1",
                     str(f),
                 ],
                 text=True,
@@ -1253,26 +1291,24 @@ class MainWindow(QMainWindow):
         candidates = [x for x in C.FR_CONST_VALUES if x != "Nessuno"]
         cand_vals = [(_to_float(x), x) for x in candidates]
         cand_vals = [(v, s) for (v, s) in cand_vals if v is not None]
-        best = min(cand_vals, key=lambda p: abs((p[0] or 0.0) - fps))[1] if cand_vals else "Nessuno"
+        best = min(cand_vals, key=lambda p: abs((p[0] or 0.0) - fps))[1] if cand_vals else L("Nessuno")
 
         self.cmb_frval.setCurrentText(best)
         try:
-            self.txt_info.append(f"> Frame-rate sorgente: {fps:.3f} fps → suggerito '{best}' (se in modalità Costante).")
+            self.txt_info.append(L("> Frame-rate sorgente: {0} fps → suggerito '{1}' (se in modalità Costante).").format(fps, best))
         except Exception:
             pass
 
     @pyqtSlot()
     def open_output_directory(self):
         if not self._last_output:
-            QMessageBox.warning(self, "Nessuna directory", "Nessun file convertito finora.")
+            QMessageBox.warning(self, L("Nessuna directory"), L("Nessun file convertito finora."))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self._last_output.parent)))
 
     @pyqtSlot()
     def open_file(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Apri video", "", "Video (*.mp4 *.mkv *.avi *.mov *.ts *.m2ts *.vob);;Tutti (*)"
-        )
+        path, _ = QFileDialog.getOpenFileName(self, "Apri video", "", "Video (*.mp4 *.mkv *.avi *.mov *.ts *.m2ts *.vob);;Tutti (*)")
         if not path:
             return
 
@@ -1283,6 +1319,7 @@ class MainWindow(QMainWindow):
             pass
         try:
             from hevc_gui.video.trim_tools import clear_trim_settings
+
             clear_trim_settings(disable_only=False)
         except Exception:
             pass
@@ -1312,7 +1349,7 @@ class MainWindow(QMainWindow):
 
     # alias di compatibilità (se in giro chiami ancora ask_output_file)
     ask_output_file = ask_output_path
-    
+
     @pyqtSlot()
     def reset_gui_only(self):
         # ✅ reset GUI → azzera strumenti (crop+trim+color)
@@ -1347,9 +1384,9 @@ class MainWindow(QMainWindow):
         self.txt_info.clear()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.lbl_status.setText("Wait for conversion…")
-        self.lbl_elapsed.setText("Elapsed: 00:00")
-        self.lbl_remaining.setText("Remaining: --:--")
+        self.lbl_status.setText(L("Wait for conversion…"))
+        self.lbl_elapsed.setText(L("Elapsed: 00:00"))
+        self.lbl_remaining.setText(L("Remaining: --:--"))
         self._audio_progress = {}
 
         self._last_queue_cmds = []
@@ -1363,7 +1400,7 @@ class MainWindow(QMainWindow):
         else:
             self.cmb_frmode.setCurrentIndex(0)
 
-        self.cmb_frval.setEnabled(self.cmb_frmode.currentText() == "Costante")
+        self.cmb_frval.setEnabled(str(self.cmb_frmode.currentText() or "").strip().lower() in ("costante", "constant"))
 
         self._update_buttons_enabled()
 
@@ -1413,7 +1450,7 @@ class MainWindow(QMainWindow):
 
         if not raw:
             self._audio_opts = []
-            self.txt_info.append("! Nessuna traccia audio aggiunta.")
+            self.txt_info.append(L("! Nessuna traccia audio aggiunta."))
             return
 
         try:
@@ -1423,11 +1460,11 @@ class MainWindow(QMainWindow):
             self.txt_info.append(f"> Opzioni audio ricevute: {len(raw_opts)} tracce")
         except Exception as e:
             self._audio_opts = []
-            self.txt_info.append(f"! Errore estrazione audio: {e}")
+            self.txt_info.append(L("! Errore estrazione audio: {0}").format(e))
 
     def show_mediainfo(self):
         if not self._current_file:
-            QMessageBox.information(self, "MediaInfo", "Nessun file selezionato.")
+            QMessageBox.information(self, "MediaInfo", L("Nessun file selezionato."))
             return
         MediaInfoDialog(self._current_file, self).exec_()
 
@@ -1438,7 +1475,7 @@ class MainWindow(QMainWindow):
         try:
             from hevc_gui.gui.crop_dialog import CropDialog
         except Exception as e:
-            QMessageBox.critical(self, "Errore", f"Modulo crop non disponibile:\n{e}")
+            QMessageBox.critical(self, L("Errore"), f"Modulo crop non disponibile:\n{e}")
             return
 
         dlg = CropDialog(str(self._current_file), parent=self)
@@ -1465,9 +1502,7 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            start_sec = float(
-                getattr(self, "_preview_offset_sec", 10.0) or 10.0
-            )
+            start_sec = float(getattr(self, "_preview_offset_sec", 10.0) or 10.0)
         except Exception:
             start_sec = 10.0
 
@@ -1491,7 +1526,7 @@ class MainWindow(QMainWindow):
         try:
             from hevc_gui.gui.color_dialog import ColorDialog
         except Exception as e:
-            QMessageBox.critical(self, "Errore", f"Modulo colore non disponibile:\n{e}")
+            QMessageBox.critical(self, L("Errore"), f"Modulo colore non disponibile:\n{e}")
             return
 
         dlg = ColorDialog(str(self._current_file), parent=self)
@@ -1523,7 +1558,24 @@ class MainWindow(QMainWindow):
             (self.cmb_smth, C.SMOOTHNESS_LEVELS),
             (self.cmb_resize, C.RESOLUTIONS),
         ):
-            val = src[cmb.currentText()]
+            # i18n-safe: usa key stabile (UserRole+999 / userData) e non crashare
+            idx = cmb.currentIndex()
+            try:
+                ROLE = int(Qt.UserRole) + 999
+                key = cmb.itemData(idx, ROLE) or cmb.itemData(idx) or cmb.currentText()
+            except Exception:
+                key = cmb.currentText()
+            val = src.get(key)
+            if val is None:
+                # fallback: se la UI mostra 'None' ma le chiavi sono italiane tipo 'Nessuno'
+                txt = str(cmb.currentText() or "").strip().lower()
+                if txt in ("none", "no one", "nobody"):
+                    for k in src.keys():
+                        if str(k).strip().lower().startswith("nessun"):
+                            val = src.get(k)
+                            break
+            if val is None:
+                val = ""
             if val and val not in self._filters:
                 self._filters.append(val)
 
@@ -1638,8 +1690,10 @@ class MainWindow(QMainWindow):
             "-autoexit",
             "-window_title",
             "HEVC-Video Converter - Preview",
-            "-x", "800",
-            "-y", "600",
+            "-x",
+            "800",
+            "-y",
+            "600",
         ]
 
         # offset di partenza condiviso (RAW o filtered: ok)
@@ -1724,6 +1778,7 @@ class MainWindow(QMainWindow):
         # TRIM: SOLO in preview filtrata
         try:
             from hevc_gui.video.trim_tools import load_trim_settings, build_video_trim_chain, build_audio_trim_chain
+
             trim_spec = load_trim_settings()
         except Exception:
             trim_spec = None
@@ -1755,7 +1810,7 @@ class MainWindow(QMainWindow):
         p.finished.connect(self._on_preview_finished)
         p.errorOccurred.connect(self._on_preview_error)
         p.start(args[0], args[1:])
- 
+
     @pyqtSlot()
     def _on_preview_finished(self):
         self.preview_proc = None
@@ -1791,19 +1846,23 @@ class MainWindow(QMainWindow):
         try:
             out = subprocess.check_output(
                 [
-                    C.FFPROBE_BIN, "-v","error",
-                    "-show_entries","format=duration",
-                    "-of","default=noprint_wrappers=1:nokey=1",
+                    C.FFPROBE_BIN,
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
                     str(f),
                 ],
                 text=True,
             )
             return float(out.strip()) or 1.0
         except Exception as e:
-            self.txt_info.append(f"Errore lettura durata: {e}")
+            self.txt_info.append(L("Errore lettura durata: {0}").format(e))
             QMessageBox.warning(
                 self,
-                "Errore FFprobe",
+                L("Errore FFprobe"),
                 f"Non posso misurare la durata del file video:\n{e}\n\nControlla che ffprobe sia installato e accessibile.",
             )
             return 1.0
@@ -1867,10 +1926,14 @@ class MainWindow(QMainWindow):
                 out = subprocess.check_output(
                     [
                         C.FFPROBE_BIN,
-                        "-v", "error",
-                        "-select_streams", "v:0",
-                        "-show_entries", "stream=width,height",
-                        "-of", "json",
+                        "-v",
+                        "error",
+                        "-select_streams",
+                        "v:0",
+                        "-show_entries",
+                        "stream=width,height",
+                        "-of",
+                        "json",
                         str(self._current_file),
                     ],
                     text=True,
@@ -1887,8 +1950,8 @@ class MainWindow(QMainWindow):
             vf_parts.append("yadif=1:-1:0")
 
         for cmb, levels in (
-            (getattr(self, "cmb_sharp",  None), C.SHARPNESS_LEVELS),
-            (getattr(self, "cmb_smth",   None), C.SMOOTHNESS_LEVELS),
+            (getattr(self, "cmb_sharp", None), C.SHARPNESS_LEVELS),
+            (getattr(self, "cmb_smth", None), C.SMOOTHNESS_LEVELS),
             (getattr(self, "cmb_resize", None), C.RESOLUTIONS),
         ):
             if cmb is None:
@@ -1903,9 +1966,7 @@ class MainWindow(QMainWindow):
             return ""
 
         bw = _bw_filter_local()
-        if bw and not any(
-            ("hue=" in f and "s=0" in f) or ("format=gray" in f) for f in vf_parts
-        ):
+        if bw and not any(("hue=" in f and "s=0" in f) or ("format=gray" in f) for f in vf_parts):
             vf_parts.append(bw)
 
         # ─────────────────────────────────────────────────────────────
@@ -1969,11 +2030,7 @@ class MainWindow(QMainWindow):
             if si >= 0:
                 f0 = vf_parts[si]
                 # riscrive solo "scale=W:H" -> "scale=canvas_w:canvas_h"
-                f1 = re.sub(
-                    r"(scale\s*=\s*)\d+\s*:\s*-?\d+",
-                    rf"\g<1>{canvas_w}:{canvas_h}",
-                    f0
-                )
+                f1 = re.sub(r"(scale\s*=\s*)\d+\s*:\s*-?\d+", rf"\g<1>{canvas_w}:{canvas_h}", f0)
                 if "force_original_aspect_ratio=" not in f1.replace(" ", ""):
                     f1 = f1 + ":force_original_aspect_ratio=decrease"
                 vf_parts[si] = f1
@@ -1990,8 +2047,7 @@ class MainWindow(QMainWindow):
 
             try:
                 self.txt_info.append(
-                    f"[DBG] FORCE canvas: dar={'16:9' if force_169 else '2.35'} "
-                    f"canvas={canvas_w}x{canvas_h} (scale+pad, no deformazioni)"
+                    f"[DBG] FORCE canvas: dar={'16:9' if force_169 else '2.35'} canvas={canvas_w}x{canvas_h} (scale+pad, no deformazioni)"
                 )
             except Exception:
                 pass
@@ -2008,21 +2064,13 @@ class MainWindow(QMainWindow):
                 and (target_h_tmp in (576, 480) or (target_h_tmp is not None and target_h_tmp > 0))
             )
 
-            if (
-                is_sd_target
-                and crop_dar is not None
-                and not _is_close(crop_dar, 4 / 3)
-            ):
+            if is_sd_target and crop_dar is not None and not _is_close(crop_dar, 4 / 3):
                 # tolgo aspect/pad ereditati (tipico: setsar/setdar 4:3 dal preset)
                 vf_parts = _strip_filters(vf_parts, prefixes=("setsar=", "setdar=", "pad="))
 
                 # trasformo scale in 720:-2 (altezza coerente col crop)
                 f0 = vf_parts[scale_idx_tmp]
-                vf_parts[scale_idx_tmp] = re.sub(
-                    r"(scale\s*=\s*\d+\s*:\s*)-?\d+",
-                    r"\g<1>-2",
-                    f0
-                )
+                vf_parts[scale_idx_tmp] = re.sub(r"(scale\s*=\s*\d+\s*:\s*)-?\d+", r"\g<1>-2", f0)
 
                 # pixel quadrati (cerchi restano cerchi)
                 vf_parts.append("setsar=1")
@@ -2031,9 +2079,7 @@ class MainWindow(QMainWindow):
                 skip_foar_and_pad = True
 
                 try:
-                    self.txt_info.append(
-                        f"[DBG] SD+crop non 4:3: scale=720:-2 + setsar=1 (crop DAR≈{crop_dar:.3f})"
-                    )
+                    self.txt_info.append(f"[DBG] SD+crop non 4:3: scale=720:-2 + setsar=1 (crop DAR≈{crop_dar:.3f})")
                 except Exception:
                     pass
 
@@ -2058,10 +2104,14 @@ class MainWindow(QMainWindow):
                         meta = subprocess.check_output(
                             [
                                 C.FFPROBE_BIN,
-                                "-v", "error",
-                                "-select_streams", "v:0",
-                                "-show_entries", "stream=width,height,color_space",
-                                "-of", "json",
+                                "-v",
+                                "error",
+                                "-select_streams",
+                                "v:0",
+                                "-show_entries",
+                                "stream=width,height,color_space",
+                                "-of",
+                                "json",
                                 str(self._current_file),
                             ],
                             text=True,
@@ -2092,12 +2142,7 @@ class MainWindow(QMainWindow):
                         extras.append("flags=lanczos")
 
                     # FOAR ha senso solo con height numerica e solo se non abbiamo già deciso noi
-                    if (
-                        not has_foar
-                        and not skip_foar_and_pad
-                        and target_h is not None
-                        and target_h > 0
-                    ):
+                    if not has_foar and not skip_foar_and_pad and target_h is not None and target_h > 0:
                         extras.append("force_original_aspect_ratio=decrease")
 
                     vf_parts[scale_idx] = prefix + (":" + ":".join(extras) if extras else "")
@@ -2105,9 +2150,7 @@ class MainWindow(QMainWindow):
                     cmd += ["-colorspace", forcing_matrix]
 
                     try:
-                        self.txt_info.append(
-                            f"[DBG] Auto colorimetria: {in_matrix} → {forcing_matrix} (scale {target_w}x{target_h})"
-                        )
+                        self.txt_info.append(f"[DBG] Auto colorimetria: {in_matrix} → {forcing_matrix} (scale {target_w}x{target_h})")
                     except Exception:
                         pass
 
@@ -2222,7 +2265,11 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        if fr_mode == "Costante" and fr_val and fr_val != "Nessuno":
+        if (
+            (fr_mode or "").strip().lower() in ("costante", "constant")
+            and fr_val
+            and str(fr_val).strip().lower() not in ("nessuno", "none")
+        ):
             try:
                 fr = str(float(fr_val)).rstrip("0").rstrip(".")
             except Exception:
@@ -2305,11 +2352,7 @@ class MainWindow(QMainWindow):
             container = ["-f", "matroska"]
             tail = []
 
-        fname = (
-            f"track_{'QUEUE_' if for_queue else ''}{video_id}_{idx}{ext}"
-            if video_id is not None
-            else f"track_ext{idx}{ext}"
-        )
+        fname = f"track_{'QUEUE_' if for_queue else ''}{video_id}_{idx}{ext}" if video_id is not None else f"track_ext{idx}{ext}"
         out = audio_dir / fname
 
         # ───────────────────────────────────────────────────────────────
@@ -2320,6 +2363,7 @@ class MainWindow(QMainWindow):
         trim_out = 0.0
         try:
             from hevc_gui.video.trim_tools import load_trim_settings
+
             ts = load_trim_settings()
             if ts and getattr(ts, "enabled", False):
                 trim_in = float(getattr(ts, "start_sec", 0.0) or 0.0)
@@ -2405,9 +2449,7 @@ class MainWindow(QMainWindow):
             cmd += container + tail
 
             try:
-                self.txt_info.append(
-                    f"[DBG] External audio TRIM ON: elimino segmento {trim_in:.3f}s–{trim_out:.3f}s"
-                )
+                self.txt_info.append(f"[DBG] External audio TRIM ON: elimino segmento {trim_in:.3f}s–{trim_out:.3f}s")
                 self.txt_info.append(f"[DBG] external audio filter_complex = {fc}")
             except Exception:
                 pass
@@ -2466,6 +2508,7 @@ class MainWindow(QMainWindow):
         trim_out = 0.0
         try:
             from hevc_gui.video.trim_tools import load_trim_settings
+
             ts = load_trim_settings()
             if ts and getattr(ts, "enabled", False):
                 trim_in = float(getattr(ts, "start_sec", 0.0) or 0.0)
@@ -2481,11 +2524,7 @@ class MainWindow(QMainWindow):
                 continue
 
             # ── Caso audio ESTERNO: delega all'altro builder ────────────────
-            if (
-                len(spec) >= 2
-                and spec[0] == "-i"
-                and Path(spec[1]).suffix.lower() in AUDIO_EXTS
-            ):
+            if len(spec) >= 2 and spec[0] == "-i" and Path(spec[1]).suffix.lower() in AUDIO_EXTS:
                 out, cmd = self.build_ffmpeg_external_audio_cmd(
                     audio_file=spec[1],
                     idx=i,
@@ -2526,11 +2565,7 @@ class MainWindow(QMainWindow):
                 container = ["-f", "matroska"]
                 tail = []
 
-            base = (
-                f"track_{'QUEUE_' if for_queue else ''}{video_id}_{i}"
-                if video_id is not None
-                else f"track{i}"
-            )
+            base = f"track_{'QUEUE_' if for_queue else ''}{video_id}_{i}" if video_id is not None else f"track{i}"
             out = audio_dir / (base + ext)
 
             # ───────────────────────────────────────────────────────────────
@@ -2628,9 +2663,7 @@ class MainWindow(QMainWindow):
                 cmd += ["-map", "[aout]"]
 
                 try:
-                    self.txt_info.append(
-                        f"[DBG] Audio TRIM ON: elimino segmento {trim_in:.3f}s–{trim_out:.3f}s"
-                    )
+                    self.txt_info.append(f"[DBG] Audio TRIM ON: elimino segmento {trim_in:.3f}s–{trim_out:.3f}s")
                     self.txt_info.append(f"[DBG] audio filter_complex = {fc}")
                 except Exception:
                     pass
@@ -2703,13 +2736,13 @@ class MainWindow(QMainWindow):
         self.progress.setValue(100)
 
         if exit_code != 0:
-            QMessageBox.critical(self, "Errore video", f"Ricodifica video fallita (code {exit_code})")
+            QMessageBox.critical(self, L("Errore video"), f"Ricodifica video fallita (code {exit_code})")
             self._full_reset()
             return
 
         if not Path(self.video_tmp).is_file():
             self.txt_info.append(f"[ERROR] Output video non trovato: {self.video_tmp}")
-            QMessageBox.critical(self, "Errore", f"Output video non trovato:\n{self.video_tmp}")
+            QMessageBox.critical(self, L("Errore"), f"Output video non trovato:\n{self.video_tmp}")
             self._full_reset()
             return
 
@@ -2726,18 +2759,18 @@ class MainWindow(QMainWindow):
 
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.lbl_status.setText("🎵 Ricodifica tracce audio…")
+        self.lbl_status.setText(L("🎵 Ricodifica tracce audio…"))
 
         video_id = getattr(self, "_current_video_id", None)
         if video_id is None:
-            QMessageBox.critical(self, "Errore", "ID video non trovato per audio.")
+            QMessageBox.critical(self, L("Errore"), "ID video non trovato per audio.")
             return
 
         audio_steps = self.build_ffmpeg_audio_cmds(audio_dir=self.audio_dir, video_id=video_id, for_queue=False)
 
         if not audio_steps:
             if not self._allow_silent and not getattr(self, "audio_externo", False):
-                QMessageBox.information(self, "Audio", "Nessuna traccia audio da codificare.")
+                QMessageBox.information(self, "Audio", L("Nessuna traccia audio da codificare."))
             self._allow_silent = False
             self._run_mux()
             return
@@ -2755,7 +2788,7 @@ class MainWindow(QMainWindow):
             self.audio_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             self.txt_info.append(f"[ERROR] impossibile creare audio_dir: {e}")
-            QMessageBox.critical(self, "Errore", f"Non posso creare {self.audio_dir}")
+            QMessageBox.critical(self, L("Errore"), f"Non posso creare {self.audio_dir}")
             return
 
         self._start_next_audio_serial()
@@ -2774,7 +2807,7 @@ class MainWindow(QMainWindow):
                 cmd_str = " ".join(shlex.quote(a) for a in cmd)
             except Exception:
                 cmd_str = " ".join(cmd)
-            self.txt_info.append(f"[DEBUG] Avvio audio seriale #{idx}: {cmd_str}")
+            self.txt_info.append(L("[DEBUG] Avvio audio seriale #{0}: {1}").format(idx, cmd_str))
 
             p = QProcess(self)
             p.audio_index = idx
@@ -2807,11 +2840,11 @@ class MainWindow(QMainWindow):
             self._progress_frac = max(0.0, min(0.99, overall / 100.0))
 
         if exit_code != 0:
-            QMessageBox.critical(self, "Errore audio", f"Traccia {idx} fallita (code {exit_code})")
+            QMessageBox.critical(self, L("Errore audio"), f"Traccia {idx} fallita (code {exit_code})")
         else:
             if out and not Path(out).is_file():
                 self.txt_info.append(f"[ERROR] Output audio mancante (traccia {idx}): {out}")
-                QMessageBox.critical(self, "Errore audio", f"Output mancante:\n{out}")
+                QMessageBox.critical(self, L("Errore audio"), f"Output mancante:\n{out}")
                 self._stop_timer()
                 self.btn_pause.setEnabled(False)
                 self.btn_cancel.setEnabled(False)
@@ -2824,7 +2857,7 @@ class MainWindow(QMainWindow):
 
         if self._audio_queue_active == 0:
             self.txt_info.append("[DEBUG] Tutte tracce audio pronte, lancio mux…")
-            self.lbl_status.setText("🔗 Muxing…")
+            self.lbl_status.setText(L("🔗 Muxing…"))
             self._start_timer(self._total_duration)
             self._run_mux()
 
@@ -2839,17 +2872,18 @@ class MainWindow(QMainWindow):
             self.progress.setValue(int(overall))
 
         if exit_code != 0:
-            QMessageBox.critical(self, "Errore audio", f"Traccia {idx} fallita (code {exit_code})")
+            QMessageBox.critical(self, L("Errore audio"), f"Traccia {idx} fallita (code {exit_code})")
             return
 
         if all(p.state() != QProcess.Running for p in self._audio_procs):
             self.txt_info.append("[DEBUG] Tutte tracce audio pronte, lancio mux…")
-            self.lbl_status.setText("🔗 Muxing…")
+            self.lbl_status.setText(L("🔗 Muxing…"))
             self._start_timer(self._total_duration)
             self._run_mux()
 
     def _clean_opts(self, opts: list[str]) -> list[str]:
         import re
+
         cleaned: list[str] = []
         i = 0
         while i < len(opts):
@@ -2911,11 +2945,16 @@ class MainWindow(QMainWindow):
         clean_name = Path(output_mkv).stem
         cmd = [
             C.FFMPEG_BIN,
-            "-fflags", "+genpts+discardcorrupt",
-            "-avoid_negative_ts", "make_zero",
-            "-y", "-nostdin",
-            "-i", str(input_mkv),
-            "-i", str(video_temp),
+            "-fflags",
+            "+genpts+discardcorrupt",
+            "-avoid_negative_ts",
+            "make_zero",
+            "-y",
+            "-nostdin",
+            "-i",
+            str(input_mkv),
+            "-i",
+            str(video_temp),
         ]
 
         # ingressi audio
@@ -2935,9 +2974,12 @@ class MainWindow(QMainWindow):
 
         # video: prendi solo il video ricodificato
         cmd += [
-            "-map", "1:v",
-            "-c:v", "copy",
-            "-metadata:s:v:0", f"title={clean_name}",
+            "-map",
+            "1:v",
+            "-c:v",
+            "copy",
+            "-metadata:s:v:0",
+            f"title={clean_name}",
         ]
 
         # audio: copia tutte le tracce esterne generate, con il loro title
@@ -2945,9 +2987,12 @@ class MainWindow(QMainWindow):
         for i, title in enumerate(audio_titles):
             inp = 2 + i  # input index per l'audio i-esimo
             cmd += [
-                "-map", f"{inp}:a",
-                "-c:a", "copy",
-                f"-metadata:s:a:{i}", f"title={title}",
+                "-map",
+                f"{inp}:a",
+                "-c:a",
+                "copy",
+                f"-metadata:s:a:{i}",
+                f"title={title}",
             ]
 
         # Sottotitoli incorporati (stream 0:s:x)
@@ -2958,10 +3003,14 @@ class MainWindow(QMainWindow):
             kind = self._subtitle_types[idx]
 
             cmd += [
-                "-map", f"0:s:{idx}",
-                "-c:s", "copy",
-                f"-metadata:s:s:{track_idx}", f"language={lang}",
-                f"-metadata:s:s:{track_idx}", f"title=Subs {track_idx + 1} – {lang} [{kind}]",
+                "-map",
+                f"0:s:{idx}",
+                "-c:s",
+                "copy",
+                f"-metadata:s:s:{track_idx}",
+                f"language={lang}",
+                f"-metadata:s:s:{track_idx}",
+                f"title=Subs {track_idx + 1} – {lang} [{kind}]",
             ]
 
             # ⚠ QUI il fix: usiamo KIND_MAP → "sdh" diventa "hearing_impaired", ecc.
@@ -2976,16 +3025,20 @@ class MainWindow(QMainWindow):
         for j, (p, lang, kind) in enumerate(
             zip(
                 self._subtitle_inputs,
-                self._subtitle_langs[-len(self._subtitle_inputs):],
-                self._subtitle_types[-len(self._subtitle_inputs):],
+                self._subtitle_langs[-len(self._subtitle_inputs) :],
+                self._subtitle_types[-len(self._subtitle_inputs) :],
             )
         ):
             inp = base + j
             cmd += [
-                "-map", f"{inp}:s:0",
-                "-c:s", "copy",
-                f"-metadata:s:s:{track_idx}", f"language={lang}",
-                f"-metadata:s:s:{track_idx}", f"title=Subs {track_idx + 1} – {lang} [{kind}]",
+                "-map",
+                f"{inp}:s:0",
+                "-c:s",
+                "copy",
+                f"-metadata:s:s:{track_idx}",
+                f"language={lang}",
+                f"-metadata:s:s:{track_idx}",
+                f"title=Subs {track_idx + 1} – {lang} [{kind}]",
             ]
 
             # stesso fix anche per i file esterni
@@ -2997,10 +3050,14 @@ class MainWindow(QMainWindow):
 
         # metadata globali + opzioni container
         cmd += [
-            "-metadata", f"title={clean_name}",
-            "-cluster_time_limit", "20",
-            "-cluster_size_limit", "32768",
-            "-f", "matroska",
+            "-metadata",
+            f"title={clean_name}",
+            "-cluster_time_limit",
+            "20",
+            "-cluster_size_limit",
+            "32768",
+            "-f",
+            "matroska",
             str(output_mkv),
         ]
         return cmd
@@ -3069,6 +3126,7 @@ class MainWindow(QMainWindow):
         try:
             self.txt_info.append(f"[DBG] Reverb/EQ chain: {', '.join(filters) or '(vuoto)'}")
             from ..core.helpers import join_filters as _jf
+
             self.txt_info.append(f"[DBG] -af = {_jf(filters) or '(vuoto)'}")
         except Exception:
             pass
@@ -3179,7 +3237,7 @@ class MainWindow(QMainWindow):
 
         # stato finale
         try:
-            self.lbl_status.setText("Wait for conversion...")
+            self.lbl_status.setText(L("Wait for conversion..."))
             self.lbl_status.setStyleSheet("")
         except Exception:
             pass
@@ -3196,8 +3254,8 @@ class MainWindow(QMainWindow):
         if not self._audio_opts and not getattr(self, "audio_externo", False):
             reply = QMessageBox.question(
                 self,
-                "Attenzione: video senza audio",
-                "Non hai estratto alcuna traccia audio.\nIl video risultante sarà muto.\nVuoi comunque procedere?",
+                L("Attenzione: video senza audio"),
+                L("Non hai estratto alcuna traccia audio.\nIl video risultante sarà muto.\nVuoi comunque procedere?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -3244,10 +3302,9 @@ class MainWindow(QMainWindow):
                 self,
                 "Converti / Coda",
                 (
-                    f"Ci sono {len(existing)} comandi in coda.\n"
-                    "Sì → salva ed esegui tutta la coda\n"
-                    "No  → esegui solo questo job\n"
-                    "Annulla → niente"
+                    L(
+                        "Ci sono {0} comandi in coda.\nSì → salva ed esegui tutta la coda\nNo  → esegui solo questo job\nAnnulla → niente"
+                    ).format(len(existing))
                 ),
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
                 QMessageBox.Yes,
@@ -3272,7 +3329,7 @@ class MainWindow(QMainWindow):
         self._draft_mux_cmd = mux_cmd
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.lbl_status.setText("🔨 Ricodifica video…")
+        self.lbl_status.setText(L("🔨 Ricodifica video…"))
         self._start_timer(self._total_duration)
         self.btn_pause.setEnabled(True)
         self.btn_cancel.setEnabled(True)
@@ -3321,7 +3378,7 @@ class MainWindow(QMainWindow):
             self._start_timer(dur)
 
             self.txt_info.append(f"> Batch {idx}: ricodifica video…")
-            self.lbl_status.setText("🔨 Ricodifica video…")
+            self.lbl_status.setText(L("🔨 Ricodifica video…"))
             self.progress.setRange(0, 100)
 
             proc_v = QProcess(self)
@@ -3343,7 +3400,7 @@ class MainWindow(QMainWindow):
 
             self._audio_progress = {i: 0 for i in range(len(audio_cmds))}
             self.txt_info.append(f"> Batch {idx}: ricodifica audio…")
-            self.lbl_status.setText("🎵 Ricodifica audio…")
+            self.lbl_status.setText(L("🎵 Ricodifica audio…"))
             self.progress.setRange(0, 100)
             self._start_timer(dur)
 
@@ -3371,7 +3428,7 @@ class MainWindow(QMainWindow):
                     fail_marks.append(f"{idx}.A{i}")
 
             self.txt_info.append(f"> Batch {idx}: muxing…")
-            self.lbl_status.setText("🔗 Muxing…")
+            self.lbl_status.setText(L("🔗 Muxing…"))
             self.progress.setRange(0, 0)
             self._stop_timer()
 
@@ -3404,7 +3461,7 @@ class MainWindow(QMainWindow):
             b.setEnabled(True)
         self.btn_pause.setEnabled(False)
         self.btn_cancel.setEnabled(False)
-        self.lbl_status.setText("Wait for conversion…")
+        self.lbl_status.setText(L("Wait for conversion…"))
 
         if not fail_marks:
             QMessageBox.information(self, "Coda", "✅ Tutti i lavori in coda sono completati!")
@@ -3531,10 +3588,10 @@ class MainWindow(QMainWindow):
             self._consume_after_encode_success()
             QMessageBox.information(self, "Conversione completata", "✅ Conversione completata!")
         else:
-            QMessageBox.critical(self, "Errore FFmpeg", f"❌ Conversione fallita (code {code})")
+            QMessageBox.critical(self, L("Errore FFmpeg"), f"❌ Conversione fallita (code {code})")
 
         try:
-            self.lbl_status.setText("Wait for conversion...")
+            self.lbl_status.setText(L("Wait for conversion..."))
             self.lbl_status.setStyleSheet("")
         except Exception:
             pass
@@ -3559,18 +3616,14 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def save_gui_queue_to_file(self):
         if not self._current_file:
-            QMessageBox.warning(self, "Errore", "Seleziona prima un file video.")
+            QMessageBox.warning(self, L("Errore"), "Seleziona prima un file video.")
             return
 
         if not self._audio_opts and not getattr(self, "audio_externo", False):
             reply = QMessageBox.question(
                 self,
                 "Attenzione: video senza audio",
-                (
-                    "Non hai estratto alcuna traccia audio.\n"
-                    "Il file in coda sarà privo di audio.\n"
-                    "Vuoi comunque salvare la coda?"
-                ),
+                (L("Non hai estratto alcuna traccia audio.\nIl file in coda sarà privo di audio.\nVuoi comunque salvare la coda?")),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -3602,11 +3655,7 @@ class MainWindow(QMainWindow):
             audio_steps.append((new_out, cmd))
         audio_cmds = [cmd for (_o, cmd) in audio_steps]
 
-        chap_file = (
-            Path(self._chapter_opts[1])
-            if len(self._chapter_opts) >= 2
-            else Path()
-        )
+        chap_file = Path(self._chapter_opts[1]) if len(self._chapter_opts) >= 2 else Path()
         mux_cmd = self.build_ffmpeg_mux_cmd(
             input_mkv=self._current_file,
             video_temp=video_tmp,
@@ -3626,9 +3675,8 @@ class MainWindow(QMainWindow):
         if not valid_cmds:
             QMessageBox.critical(
                 self,
-                "Errore",
-                "Nessun comando valido da salvare in coda.\n"
-                "Controlla i parametri di video/audio.",
+                L("Errore"),
+                L("Nessun comando valido da salvare in coda.\nControlla i parametri di video/audio."),
             )
             return
 
@@ -3651,10 +3699,7 @@ class MainWindow(QMainWindow):
         log.append("═" * 53 + "\n")
 
         self._last_ffmpeg_log = "\n".join(log)
-        self._last_queue_cmds = [
-            c.copy() if isinstance(c, list) else list(c)
-            for c in valid_cmds
-        ]
+        self._last_queue_cmds = [c.copy() if isinstance(c, list) else list(c) for c in valid_cmds]
 
         self.txt_info.setTextColor(Qt.blue)
         self.txt_info.append(self._last_ffmpeg_log)
@@ -3680,9 +3725,7 @@ class MainWindow(QMainWindow):
                 f.write(line + "\n")
 
             prefix = "✅" if added else "❌"
-            self.txt_info.append(
-                f"{prefix} {'Aggiunto' if added else 'Presente'}:\n  {line}"
-            )
+            self.txt_info.append(f"{prefix} {'Aggiunto' if added else 'Presente'}:\n  {line}")
 
         self.command_queue = qman.load()
         self.is_queue_saved = True
@@ -3699,12 +3742,13 @@ class MainWindow(QMainWindow):
                 self.command_queue = newq
                 self.txt_info.append("Coda aggiornata e salvata.")
             else:
-                self.txt_info.append("Nessuna modifica alla coda.")
+                self.txt_info.append(L("Nessuna modifica alla coda."))
         else:
             self.txt_info.append("Gestione coda annullata.")
 
     def _inject_cpu_limits_for_queue(self, cmd: list[str]) -> list[str]:
         import os
+
         c = list(cmd)
         if not c:
             return c
@@ -3773,8 +3817,8 @@ class MainWindow(QMainWindow):
         if self._last_queue_run is not None and queue == self._last_queue_run:
             reply = QMessageBox.question(
                 self,
-                "Coda già avviata",
-                "Hai già avviato questa stessa coda di comandi.\nSei sicuro di volerla lanciare di nuovo?",
+                L("Coda già avviata"),
+                L("Hai già avviato questa stessa coda di comandi.\nSei sicuro di volerla lanciare di nuovo?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -3782,7 +3826,7 @@ class MainWindow(QMainWindow):
                 return
 
         if not queue:
-            QMessageBox.warning(self, "Attenzione", "La coda è vuota.")
+            QMessageBox.warning(self, "Attenzione", L("La coda è vuota."))
             return
 
         queue_file = Path(qman.QUEUE_FILE)
@@ -3806,10 +3850,11 @@ class MainWindow(QMainWindow):
             self._last_queue_run = [cmd.copy() for cmd in queue]
 
         except Exception as e:
-            QMessageBox.warning(self, "Errore", f"Impossibile eseguire la coda: {e}")
+            QMessageBox.warning(self, L("Errore"), L("Impossibile eseguire la coda: {0}").format(e))
 
     def delete_queue_file(self):
         from pathlib import Path
+
         qfile = Path(qman.QUEUE_FILE)
         if qfile.exists():
             qfile.unlink()
@@ -3818,8 +3863,8 @@ class MainWindow(QMainWindow):
         if self.ffmpeg_proc and self.ffmpeg_proc.state() == QProcess.Running:
             ans = QMessageBox.question(
                 self,
-                "Conversione in corso",
-                "È in corso una conversione.\nInterromperla subito?",
+                L("Conversione in corso"),
+                L("È in corso una conversione.\nInterromperla subito?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -3920,6 +3965,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         from hevc_gui.gui.settings import save_window_size
         from hevc_gui.video.crop_tools import clear_crop_settings
+
         try:
             from hevc_gui.video.trim_tools import clear_trim_settings
         except Exception:
@@ -3935,8 +3981,8 @@ class MainWindow(QMainWindow):
         if running:
             ans = QMessageBox.question(
                 self,
-                "Conversione in corso",
-                "È in corso una conversione.\nInterromperla ed uscire?",
+                L("Conversione in corso"),
+                L("È in corso una conversione.\nInterromperla ed uscire?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -3947,8 +3993,8 @@ class MainWindow(QMainWindow):
         else:
             ans = QMessageBox.question(
                 self,
-                "Conferma uscita",
-                "Sei sicuro di voler uscire?",
+                L("Conferma uscita"),
+                L("Sei sicuro di voler uscire?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -3982,7 +4028,7 @@ class MainWindow(QMainWindow):
 
         event.accept()
         QApplication.quit()
- 
+
     @pyqtSlot()
     def open_help(self):
         help_file = Path(__file__).parent.parent / "resources" / "doc" / "video_converter_user_manual.html"
@@ -3996,12 +4042,14 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def show_info(self):
+        from hevc_gui.core.constants import APP_VERSION
+
         pp_w, pp_h = 120, 120
         logo_w, logo_h = 160, 160
         from PyQt5.QtCore import QSize
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("Info")
+        dlg.setWindowTitle(L("Info"))
         layout = QVBoxLayout(dlg)
         layout.setContentsMargins(16, 16, 16, 14)
         layout.setSpacing(10)
@@ -4017,8 +4065,8 @@ class MainWindow(QMainWindow):
         lbl_text = QLabel(
             "<div style='text-align:center;'>"
             "<b style='font-size:14pt;'>HEVC - Video Converter</b><br>"
-            "Ver. 2.0.0<br><br>"
-            "<b>LorisPaganiniHomeStudio – 2025</b><br><br>"
+            + L("Ver. {0}<br><br>").format(APP_VERSION)
+            + "<b>LorisPaganiniHomeStudio – 2025</b><br><br>"
             "info: <a href='mailto:loris.paganini@gmail.com'>loris.paganini@gmail.com</a><br><br>"
             "</div>"
         )
@@ -4035,23 +4083,22 @@ class MainWindow(QMainWindow):
                 break
 
         if pp_icon_path:
-            donate_btn = QPushButton("")
+            donate_btn = QPushButton(L(""))
             pm = QPixmap(str(pp_icon_path)).scaled(pp_w, pp_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             donate_btn.setIcon(QIcon(pm))
             donate_btn.setIconSize(QSize(pp_w, pp_h))
             donate_btn.setFixedSize(pp_w, pp_h)
-            donate_btn.setToolTip("Dona su PayPal")
+            donate_btn.setToolTip(L("Dona su PayPal"))
             donate_btn.setAccessibleName("Dona su PayPal")
             donate_btn.setCursor(Qt.PointingHandCursor)
             donate_btn.setFlat(True)
             donate_btn.setStyleSheet(
-                "QPushButton { border: none; padding: 0; background: transparent; }"
-                "QPushButton:pressed { transform: translateY(1px); }"
+                "QPushButton { border: none; padding: 0; background: transparent; }QPushButton:pressed { transform: translateY(1px); }"
             )
             donate_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://paypal.me/loris1159")))
             layout.addWidget(donate_btn, alignment=Qt.AlignHCenter)
         else:
-            donate_btn = QPushButton("Dona (PayPal)")
+            donate_btn = QPushButton(L("Dona (PayPal)"))
             donate_btn.setCursor(Qt.PointingHandCursor)
             donate_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://paypal.me/loris1159")))
             layout.addWidget(donate_btn, alignment=Qt.AlignHCenter)
@@ -4066,10 +4113,14 @@ class MainWindow(QMainWindow):
             out = check_output(
                 [
                     C.FFPROBE_BIN,
-                    "-v","error",
-                    "-select_streams","s",
-                    "-show_entries","stream=index",
-                    "-of","csv=p=0",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "s",
+                    "-show_entries",
+                    "stream=index",
+                    "-of",
+                    "csv=p=0",
                     str(self._current_file),
                 ],
                 text=True,
@@ -4097,9 +4148,9 @@ class MainWindow(QMainWindow):
                     self,
                     "Chapters da DVD",
                     (
-                        "È stato trovato un file capitoli generato da DVD Ripper:\n"
-                        f"{sc.chapters_file}\n\n"
-                        "Vuoi usare questi capitoli per l'encode?"
+                        L(
+                            "È stato trovato un file capitoli generato da DVD Ripper:\n{0}\n\nVuoi usare questi capitoli per l'encode?"
+                        ).format(sc.chapters_file)
                     ),
                     QMessageBox.Yes | QMessageBox.No,
                     QMessageBox.Yes,
@@ -4132,7 +4183,7 @@ class MainWindow(QMainWindow):
             )
 
             if use:
-                self.lbl_status.setText("Verifica capitoli incorporati…")
+                self.lbl_status.setText(L("Verifica capitoli incorporati…"))
                 self._start_marquee()
                 QApplication.processEvents()
                 try:
@@ -4142,7 +4193,7 @@ class MainWindow(QMainWindow):
                     QMessageBox.critical(self, "Capitoli", str(exc))
                 else:
                     self._stop_marquee()
-                    self.lbl_status.setText("Wait for conversion…")
+                    self.lbl_status.setText(L("Wait for conversion…"))
                     self._chapter_opts = ["-i", meta]
                     self.txt_info.append("> Capitoli incorporati compatibili e selezionati.")
                 return
@@ -4160,7 +4211,7 @@ class MainWindow(QMainWindow):
             self.txt_info.append("! Capitoli: soglia non confermata.")
             return
 
-        self.lbl_status.setText("Generating chapters, wait…")
+        self.lbl_status.setText(L("Generating chapters, wait…"))
         self.lbl_status.setStyleSheet("color:red;font-weight:bold;")
         self.progress.setFormat("")
         self.progress.setRange(0, 100)
@@ -4180,7 +4231,7 @@ class MainWindow(QMainWindow):
         self.progress.setFormat("%p%")
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.lbl_status.setText("Wait for conversion…")
+        self.lbl_status.setText(L("Wait for conversion…"))
         self.lbl_status.setStyleSheet("")
 
         self._chapters_handled = True
@@ -4206,11 +4257,11 @@ class MainWindow(QMainWindow):
         self.progress.setFormat("%p%")
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.lbl_status.setText("Wait for conversion...")
+        self.lbl_status.setText(L("Wait for conversion..."))
         self.lbl_status.setStyleSheet("")
 
-        self.txt_info.append(f"! Errore generazione capitoli: {msg}")
-        QMessageBox.critical(self, "Chapters", f"Errore generazione capitoli:\n{msg}")
+        self.txt_info.append(L("! Errore generazione capitoli: {0}").format(msg))
+        QMessageBox.critical(self, L("Chapters"), L("Errore generazione capitoli:\n{0}").format(msg))
 
     def _start_marquee(self):
         self.progress.setFormat("")
@@ -4239,7 +4290,7 @@ class MainWindow(QMainWindow):
             return
 
         if sys.platform == "win32":
-            QMessageBox.information(self, "Pausa non disponibile", "La sospensione del processo non è supportata su Windows.")
+            QMessageBox.information(self, "Pausa non disponibile", L("La sospensione del processo non è supportata su Windows."))
             return
 
         def _children_of(pid: int) -> list[int]:
@@ -4270,6 +4321,7 @@ class MainWindow(QMainWindow):
 
         def _find_ffmpeg_descendant(pid: int, max_depth: int = 6) -> int:
             from collections import deque
+
             q = deque([(pid, 0)])
             seen = {pid}
             while q:
@@ -4308,13 +4360,13 @@ class MainWindow(QMainWindow):
                 if getattr(self, "_tick_timer", None):
                     self._tick_timer.stop()
                 self._is_paused = True
-                self.btn_pause.setText("Continue")
+                self.btn_pause.setText(L("Continue"))
             else:
                 os.kill(target_pid, signal.SIGCONT)
                 if getattr(self, "_tick_timer", None):
                     self._tick_timer.start(1000)
                 self._is_paused = False
-                self.btn_pause.setText("Pause")
+                self.btn_pause.setText(L("Pause"))
         except ProcessLookupError:
             try:
                 self.txt_info.append("[WARN] Processo non trovato per pausa/riprendi.")
@@ -4348,8 +4400,8 @@ class MainWindow(QMainWindow):
         self._progress_frac = 0.0
         self._start_time = time.time()
 
-        self.lbl_elapsed.setText("Elapsed:   00:00:00")
-        self.lbl_remaining.setText("Remaining: --:--")
+        self.lbl_elapsed.setText(L("Elapsed:   00:00:00"))
+        self.lbl_remaining.setText(L("Remaining: --:--"))
 
     def _stop_timer(self):
         if getattr(self, "_tick_timer", None):
@@ -4364,7 +4416,7 @@ class MainWindow(QMainWindow):
         elif getattr(self, "_last_ffmpeg_log", "").strip():
             text = self._last_ffmpeg_log
         else:
-            QMessageBox.warning(self, "Nessun comando", "Non è stato generato alcun comando FFmpeg.")
+            QMessageBox.warning(self, L("Nessun comando"), L("Non è stato generato alcun comando FFmpeg."))
             return
 
         QApplication.clipboard().setText(text)
@@ -4418,16 +4470,25 @@ class MainWindow(QMainWindow):
         Ritorna sempre un dict con chiavi: matrix, primaries, transfer, width, height.
         Se non disponibili, inferisce 709 per HD e bt470bg per SD.
         """
-        import json, subprocess
+        import json
+        import subprocess
+
         info = {"matrix": "", "primaries": "", "transfer": "", "width": 0, "height": 0}
         try:
             out = subprocess.check_output(
                 [
-                    C.FFPROBE_BIN, "-v", "error", "-select_streams", "v:0",
-                    "-show_entries", "stream=color_space,color_primaries,color_transfer,width,height",
-                    "-of", "json", str(f),
+                    C.FFPROBE_BIN,
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=color_space,color_primaries,color_transfer,width,height",
+                    "-of",
+                    "json",
+                    str(f),
                 ],
-                text=True
+                text=True,
             )
             st = json.loads(out)["streams"][0]
             w = int(st.get("width") or 0)
@@ -4438,16 +4499,19 @@ class MainWindow(QMainWindow):
             # fallback sensati
             is_hd = h >= 720 or w >= 1280
             default = "bt709" if is_hd else "bt470bg"
-            info.update({
-                "matrix": cs or default,
-                "primaries": cp or default,
-                "transfer": ct or default,
-                "width": w, "height": h,
-            })
+            info.update(
+                {
+                    "matrix": cs or default,
+                    "primaries": cp or default,
+                    "transfer": ct or default,
+                    "width": w,
+                    "height": h,
+                }
+            )
         except Exception:
             # fallback grezzo: usa risoluzione per decidere
             try:
-                import os
+                pass
                 # se non sappiamo nulla, prova a prendere h da mediainfo/ffprobe altrove… ma ok così.
             except Exception:
                 pass

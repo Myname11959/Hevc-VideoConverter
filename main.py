@@ -1,22 +1,36 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# === HEVC_I18N_LOCK_ENV_BEGIN ===
+import os as _os
+_os.environ.setdefault('HEVC_I18N_LOCKED', '1')
+_os.environ.setdefault('HEVC_I18N_OWNER', 'main')
+# === HEVC_I18N_LOCK_ENV_END ===
+
 import os
+
+os.environ.setdefault("NO_AT_BRIDGE", "1")
+os.environ.setdefault("QT_ACCESSIBILITY", "0")
+
 import sys
 import argparse
 import logging
 from pathlib import Path
 
 # Qt: attributi PRIMA di creare QApplication
-from PyQt5.QtCore import QCoreApplication, Qt, QEvent, QObject, qInstallMessageHandler, QtMsgType
+from PyQt5.QtCore import QCoreApplication, Qt, QEvent, QObject, qInstallMessageHandler, QtMsgType, Qt
+
+from hevc_gui.i18n import init_qt_i18n, lock_i18n
+
 from PyQt5.QtWidgets import QApplication, QWidget
 from PyQt5.QtGui import QIcon, QGuiApplication
 
 # Import progetto
-from hevc_gui.gui.main_window import MainWindow
 from hevc_gui.gui.settings import load_window_size
 from hevc_gui.gui.appearance_settings import apply_appearance
 from hevc_gui.gui.menubar import apply_large_menu_icons
+from hevc_gui.i18n import get_lang, init_qt_i18n, lock_i18n
+
 import hevc_gui.resources.icons_rc  # QRC icone
 
 APP_SLUG = "hevc-video-converter"          # slug tecnico ovunque
@@ -89,10 +103,38 @@ def main():
 
     # Allineamento WM_CLASS ↔ .desktop ↔ pannello Cinnamon
     QCoreApplication.setApplicationName(APP_SLUG)
+    QCoreApplication.setOrganizationName("HEVC")
+    os.environ["HEVC_QSETTINGS_ORG"] = "HEVC"
+    os.environ["HEVC_QSETTINGS_APP"] = APP_SLUG
+
     QGuiApplication.setDesktopFileName(f"{APP_SLUG}.desktop")
+
+    # HEVC: force icons in menus
+
+    try:
+
+        from PyQt5.QtCore import Qt
+
+        QCoreApplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
+
+    except Exception:
+
+        pass
+
+
+    # === HEVC_MENU_ICONS_BEGIN ===
+    attr = getattr(Qt, 'AA_DontShowIconsInMenus', None)
+    if attr is not None:
+        QApplication.setAttribute(attr, False)
+    # === HEVC_MENU_ICONS_END ===
 
     app = QApplication(sys.argv)
 
+    # i18n: INSTALLA IL TRANSLATOR *PRIMA* DI IMPORTARE/CREARE LA GUI
+    init_qt_i18n(app)
+    from hevc_gui.gui.main_window import MainWindow
+
+    # Import locale: evita che MainWindow venga importata prima del translator
     # Icona finestra SEMPRE da QRC (stabile, niente CRC)
     app.setWindowIcon(QIcon(":/icons/logo.png"))
     app.setQuitOnLastWindowClosed(True)
@@ -111,8 +153,9 @@ def main():
         win.resize(w, h)
     except Exception:
         pass
-    win.setWindowTitle(APP_DISPLAY_NAME)  # barra del titolo coerente
-    win.setWindowIcon(QIcon(":/icons/logo.png"))  # tasklist/pannello sicuro
+
+    win.setWindowTitle(APP_DISPLAY_NAME)              # barra del titolo coerente
+    win.setWindowIcon(QIcon(":/icons/logo.png"))      # tasklist/pannello sicuro
     win.show()
 
     # Post-show
@@ -124,6 +167,7 @@ def main():
         pass
 
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()

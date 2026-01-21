@@ -1,3 +1,4 @@
+from hevc_gui.i18n import L
 import sys
 from PyQt5.QtWidgets import (
     QApplication,
@@ -43,7 +44,7 @@ class AppearanceDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Impostazioni Aspetto")
+        self.setWindowTitle(L("Impostazioni Aspetto"))
 
         cur_style = self.DEFAULT_STYLE
         cur_family = self.DEFAULT_FONT_FAMILY
@@ -65,7 +66,7 @@ class AppearanceDialog(QDialog):
         layout = QVBoxLayout(self)
 
         hstyle = QHBoxLayout()
-        hstyle.addWidget(QLabel("Stile Qt:"))
+        hstyle.addWidget(QLabel(L("Stile Qt:")))
         self.style_cb = QComboBox()
         self.style_cb.addItems(sorted(QStyleFactory.keys()))
         self.style_cb.setCurrentText(cur_style)
@@ -73,14 +74,14 @@ class AppearanceDialog(QDialog):
         layout.addLayout(hstyle)
 
         hfont = QHBoxLayout()
-        hfont.addWidget(QLabel("Font:"))
+        hfont.addWidget(QLabel(L("Font:")))
         families = QFontDatabase().families()
         self.font_cb = QComboBox()
         self.font_cb.addItems(families)
         self.font_cb.setCurrentText(cur_family)
         hfont.addWidget(self.font_cb)
 
-        hfont.addWidget(QLabel("Dimensione:"))
+        hfont.addWidget(QLabel(L("Dimensione:")))
         self.size_sb = QSpinBox()
         self.size_sb.setRange(6, 48)
         self.size_sb.setValue(cur_size)
@@ -88,7 +89,7 @@ class AppearanceDialog(QDialog):
         layout.addLayout(hfont)
 
         hicon = QHBoxLayout()
-        hicon.addWidget(QLabel("Tema Icone:"))
+        hicon.addWidget(QLabel(L("Tema Icone:")))
         icon_themes = ["Numix", "Breeze", "Adwaita", "Papirus", "Faenza"]
         self.icon_theme_cb = QComboBox()
         self.icon_theme_cb.addItems(icon_themes)
@@ -98,14 +99,14 @@ class AppearanceDialog(QDialog):
 
         self.buttons = QDialogButtonBox()
         self.ok_button = self.buttons.addButton(QDialogButtonBox.Ok)
-        self.ok_button.setText("OK")
+        self.ok_button.setText(L("OK"))
 
         self.cancel_button = self.buttons.addButton(QDialogButtonBox.Cancel)
-        self.cancel_button.setText("Cancel")
+        self.cancel_button.setText(L("Cancel"))
 
-        self.apply_button = QPushButton("Applica")
-        self.reset_button = QPushButton("Reset")
-        self.annulla_mod_button = QPushButton("Annulla Mod.")
+        self.apply_button = QPushButton(L("Applica"))
+        self.reset_button = QPushButton(L("Reset"))
+        self.annulla_mod_button = QPushButton(L("Annulla Mod."))
 
         self.buttons.addButton(self.apply_button, QDialogButtonBox.ActionRole)
         self.buttons.addButton(self.reset_button, QDialogButtonBox.ActionRole)

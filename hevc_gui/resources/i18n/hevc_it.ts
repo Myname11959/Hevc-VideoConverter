@@ -4158,7 +4158,7 @@ Costanti e dizionari condivisi dall’interfaccia HEVC-GUI
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="453" />
-        <source>Ver. 2.0.0&lt;br&gt;&lt;br&gt;</source>
+        <source>Ver. {0}&lt;br&gt;&lt;br&gt;</source>
         <translation type="unfinished" />
     </message>
     <message>

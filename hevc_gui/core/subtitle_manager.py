@@ -9,6 +9,7 @@
 # e mostra anche il codec (VobSub/PGS/SubRip/…) nella lista iniziale.
 # ──────────────────────────────────────────────────────────────
 
+from hevc_gui.i18n import L
 import subprocess
 import json
 import tempfile
@@ -308,7 +309,7 @@ class SubtitleManager:
           #3 [eng] English — VobSub (forced)
         """
         dlg = QDialog(parent)
-        dlg.setWindowTitle("Scegli sottotitoli incorporati")
+        dlg.setWindowTitle(L("Scegli sottotitoli incorporati"))
         layout = QVBoxLayout(dlg)
 
         listw = QListWidget()
@@ -351,8 +352,8 @@ class SubtitleManager:
         listw.itemDoubleClicked.connect(_on_dblclick)
 
         btns = QHBoxLayout()
-        ok = QPushButton("OK")
-        cancel = QPushButton("Annulla")
+        ok = QPushButton(L("OK"))
+        cancel = QPushButton(L("Annulla"))
         ok.clicked.connect(dlg.accept)
         cancel.clicked.connect(dlg.reject)
         btns.addStretch()

@@ -19,6 +19,7 @@
 #       _subtitle_out_opts (-disposition …)
 # ─────────────────────────────────────────────────────────────────────
 
+from hevc_gui.i18n import L
 import tempfile
 from pathlib import Path
 from typing import Tuple, List, Dict, Any
@@ -361,11 +362,11 @@ class SubTagDialog(QDialog):
 
     def __init__(self, parent=None, pre_lang: str = "und", pre_kind: str = "normal"):
         super().__init__(parent)
-        self.setWindowTitle("Sottotitolo")
+        self.setWindowTitle(L("Sottotitolo"))
         lay = QFormLayout(self)
 
         self.cmb_lang = QComboBox()
-        self.cmb_lang.addItem("Unknown", "und")
+        self.cmb_lang.addItem(L("Unknown"), "und")
         for code, full in sorted(C.LANGUAGE_NAMES.items()):
             self.cmb_lang.addItem(f"{full} ({code})", code.lower())
         idx = self.cmb_lang.findData(pre_lang.lower())
@@ -483,8 +484,7 @@ def select_subtitles(main_win) -> None:
         if auto_ext:
             try:
                 mw.txt_info.append(
-                    f"> Sidecar LDVD: trovati {len(auto_ext)} sottotitoli esterni "
-                    "(deduplicati per lingua/tipo)."
+                    L('> Sidecar LDVD: trovati {0} sottotitoli esterni (deduplicati per lingua/tipo).').format(len(auto_ext))
                 )
             except Exception:
                 pass
@@ -519,9 +519,9 @@ def select_subtitles(main_win) -> None:
     while True:
         path, _ = QFileDialog.getOpenFileName(
             mw,
-            "Seleziona file di sottotitoli esterni",
+            L('Seleziona file di sottotitoli esterni'),
             str(mw._current_file.parent),
-            "SubRip (*.srt);;ASS (*.ass);;Tutti i file (*)",
+            L('SubRip (*.srt);;ASS (*.ass);;Tutti i file (*)'),
         )
         if not path:
             break  # interrotto
@@ -541,7 +541,7 @@ def select_subtitles(main_win) -> None:
 
     # ────────────── Nessun sottotitolo → esci ──────────────
     if not mw._subtitle_types:
-        mw.txt_info.append("! Nessun sottotitolo aggiunto.")
+        mw.txt_info.append(L("! Nessun sottotitolo aggiunto."))
         return
 
     # ────────────── Costruzione flag -disposition ──────────────
@@ -551,6 +551,6 @@ def select_subtitles(main_win) -> None:
             mw._subtitle_out_opts += [f"-disposition:s:{idx}", flag]
 
     # ────────────── UI update ──────────────
-    mw.txt_info.append(f"> Sottotitoli: {len(mw._subtitle_types)} tracce selezionate")
+    mw.txt_info.append(L('> Sottotitoli: {0} tracce selezionate').format(len(mw._subtitle_types)))
     mw.btn_chapter.setEnabled(True)
     mw.btn_copy_log.setEnabled(False)

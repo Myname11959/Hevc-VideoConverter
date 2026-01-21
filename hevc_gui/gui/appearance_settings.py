@@ -78,10 +78,15 @@ def apply_appearance(app: QApplication, *custom_values) -> QFont:
         app.setStyle(QStyleFactory.create(style))
     else:
         app.setStyle("Fusion")
-
     # 2) Icon theme
-    QIcon.setThemeName(icon_theme.strip() or "fallback-only")
-
+    icon_theme = (icon_theme or "").strip()
+    # Modalità: pack interno HEVC (QRC), non è un themeName Qt
+    if icon_theme.lower().startswith("hevc - video converter"):
+        os.environ["HEVC_ICON_PACK"] = "qrc"
+        QIcon.setThemeName("fallback-only")
+    else:
+        os.environ["HEVC_ICON_PACK"] = "theme"
+        QIcon.setThemeName(icon_theme or "fallback-only")
     # 3) Font globale
     font = QFont(font_family, font_size)
     app.setFont(font)

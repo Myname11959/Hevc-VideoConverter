@@ -1,32 +1,76 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+hevc_gui/gui/menubar.py
+
+- Menubar + toolbar (icone QRC/tema)
+- Tutte le stringhe passano da L() -> traducibili.
+- Menu Lingua unico, azioni esclusive, avviso + restart.
+- FIX: forza icone visibili nei menu (GNOME spesso le nasconde).
+"""
+
+from __future__ import annotations
+
 import os
 import sys
-import logging
 from typing import TYPE_CHECKING
 
-from PyQt5.QtWidgets import QAction, QMenuBar, QProxyStyle, QStyle, QApplication, QToolBar, QMessageBox, QToolButton
 from PyQt5.QtCore import QSize, Qt, QUrl, QProcess, QFile
 from PyQt5.QtGui import QIcon, QDesktopServices
+from PyQt5.QtWidgets import (
+    QAction, QActionGroup, QApplication, QMenuBar, QMessageBox, QProxyStyle,
+    QStyle, QToolBar, QToolButton
+)
 
-from .appearance_dialog import AppearanceDialog
+from hevc_gui.i18n import L, get_lang, set_lang, restart_app
+
+
+# QRC icons: assicurati che le risorse Qt siano registrate anche in dev-run
+try:
+    import hevc_gui.resources.icons_rc  # noqa: F401
+except Exception:
+    pass
 
 if TYPE_CHECKING:
     from .main_window import MainWindow
 
 
-# — Stile per forzare icone grandi nella menubar —
+# ───────────────────────────────────────────────────────────────
+# Stile: forza icone nei menu (e dimensione icone)
+# ───────────────────────────────────────────────────────────────
 class LargeMenuStyle(QProxyStyle):
+    def __init__(self, base=None):
+        super().__init__(base)
+
+    def styleHint(self, hint, option=None, widget=None, returnData=None):
+        # GNOME/Adwaita spesso ritorna True qui → niente icone nei menu
+        if hint == getattr(QStyle, 'SH_DontShowIconsInMenus', -1):
+            return 0
+        return super().styleHint(hint, option, widget, returnData)
+
     def pixelMetric(self, metric, option=None, widget=None):
         if metric == QStyle.PM_SmallIconSize:
             return 32
         return super().pixelMetric(metric, option, widget)
 
 
-def apply_large_menu_icons(app: QApplication):
-    app.setStyle(LargeMenuStyle())
+def apply_large_menu_icons(app: QApplication | None):
+    app = app or QApplication.instance()
+    if not app:
+        return
+    try:
+        app.setAttribute(Qt.AA_DontShowIconsInMenus, False)
+    except Exception:
+        pass
+    try:
+        app.setStyle(LargeMenuStyle(app.style()))
+    except Exception:
+        app.setStyle(LargeMenuStyle())
 
 
-# — Mappa di alias per supportare temi con nomi diversi —
+# ───────────────────────────────────────────────────────────────
+# Icone
+# ───────────────────────────────────────────────────────────────
 ICON_ALIASES = {
     "open": ["document-open", "open"],
     "save": ["document-save", "save"],
@@ -41,188 +85,129 @@ ICON_ALIASES = {
     "preview_filtered": ["video-x-generic", "preview"],
     "exit": ["application-exit", "exit"],
     "asp": ["preferences-system", "preferences-desktop", "asp"],
-    "manual": ["help-contents", "help-browser", "help", "manual"],
+    "user_manual": ["help-contents", "help-browser", "help", "manual"],
     "info": ["help-about", "dialog-information", "info"],
     "trim": ["edit-cut", "media-seek-forward", "trim"],
     "crop": ["transform-crop", "crop"],
     "color": ["preferences-desktop-color", "color"],
     "dvdrip": ["media-optical", "drive-optical", "media-optical-dvd", "dvdrip"],
     "restart": ["view-refresh", "system-reboot", "restart"],
-
-    # Donate
     "paypal": ["paypal", "help-donate", "emblem-favorite"],
+    "send": ["document-send", "mail-send", "send"],
 }
 
-# — Directory fallback per icone locali —
 LOCAL_ICON_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources", "icons"))
 
 
 def _qrc_icon_try(name: str) -> QIcon:
-    """
-    Carica icone SOLO dal QRC ufficiale: :/icons/ph_<name>.png
-    """
+    """Carica icone SOLO dal QRC ufficiale: :/icons/ph_<name>.png oppure :/icons/<name>.png"""
     if not name:
         return QIcon()
-
-    # priorità: ph_<name>.png poi <name>.png (se per caso alcune non hanno prefix ph_)
     for base in (f"ph_{name}", name):
         p = f":/icons/{base}.png"
         if QFile.exists(p):
             return QIcon(p)
-
     return QIcon()
+
 
 def _local_icon_try(name: str) -> QIcon:
-    """
-    Icona locale 'ph_<name>.png' nella cartella resources/icons.
-    """
     if not name:
         return QIcon()
-    p = os.path.join(LOCAL_ICON_DIR, f"ph_{name}.png")
-    if os.path.exists(p):
-        return QIcon(p)
+    for base in (f"ph_{name}.png", f"{name}.png"):
+        p = os.path.join(LOCAL_ICON_DIR, base)
+        if os.path.exists(p):
+            return QIcon(p)
     return QIcon()
 
 
-def _themed_icon_with_aliases(name: str) -> QIcon:
-    """
-    Priorità (per avere pulsanti = PNG coerenti):
-      1) QRC (se presente)
-      2) file locale resources/icons/ph_<name>.png
-      3) tema di sistema (fromTheme) con alias
-    """
-    # 1) QRC
-    ic = _qrc_icon_try(name)
+def _themed_icon_with_aliases(key: str) -> QIcon:
+    if not key:
+        return QIcon()
+    # 1) Tema (solo se NON stai usando il pack interno HEVC)
+    use_theme = (os.environ.get("HEVC_ICON_PACK", "theme") != "qrc")
+    if use_theme:
+        for nm in ICON_ALIASES.get(key, [key]):
+            ic = QIcon.fromTheme(nm)
+            if not ic.isNull():
+                return ic
+    # 2) QRC
+    ic = _qrc_icon_try(key)
     if not ic.isNull():
         return ic
+    for nm in ICON_ALIASES.get(key, []):
+        ic = _qrc_icon_try(nm)
+        if not ic.isNull():
+            return ic
 
-    # 2) Locale
-    ic = _local_icon_try(name)
+    # 3) PNG locali (fallback)
+    ic = _local_icon_try(key)
     if not ic.isNull():
         return ic
+    for nm in ICON_ALIASES.get(key, []):
+        ic = _local_icon_try(nm)
+        if not ic.isNull():
+            return ic
 
-    # 3) Tema (fallback)
-    aliases = ICON_ALIASES.get(name, [name])
-    theme = QIcon.themeName()
-
-    for alias in aliases:
-        icon = QIcon.fromTheme(alias)
-        if not icon.isNull():
-            logging.debug(f"Icona per '{name}' trovata nel tema '{theme}' come: '{alias}'")
-            return icon
-
-    logging.debug(f"Icona per '{name}' non trovata (QRC/locale/tema).")
     return QIcon()
-
-
-def _apply_hevc_toolbar_style(tb: QToolBar, icon_px: int = 32) -> None:
-    """
-    Stile LDVD-like:
-      - icon-only
-      - zero padding/margini
-      - pulsante = icona (fixed size)
-      - hover/pressed leggeri
-    """
-    tb.setIconSize(QSize(icon_px, icon_px))
-    tb.setToolButtonStyle(Qt.ToolButtonIconOnly)
-    tb.setMovable(False)
-    tb.setFloatable(False)
-    tb.setContextMenuPolicy(Qt.PreventContextMenu)
-    tb.setContentsMargins(0, 0, 0, 0)
-
-    tb.setStyleSheet(f"""
-        QToolBar {{
-            spacing: 0px;
-            padding: 0px;
-            margin: 0px;
-            border: 0px;
-            background: transparent;
-        }}
-        QToolButton {{
-            padding: 0px;
-            margin: 0px;
-            border: 0px;
-            background: transparent;
-        }}
-        QToolButton:hover {{
-            background: rgba(255, 255, 255, 0.12);
-        }}
-        QToolButton:pressed {{
-            background: rgba(0, 0, 0, 0.20);
-        }}
-        QToolButton:disabled {{
-            background: transparent;
-            opacity: 0.35;
-        }}
-    """)
 
 
 def _finalize_toolbar_buttons(tb: QToolBar, icon_px: int = 32) -> None:
-    """
-    Step finale: i pulsanti diventano grandi esattamente come l’icona.
-    Va chiamato DOPO tb.addActions(...).
-    """
     for b in tb.findChildren(QToolButton):
         b.setAutoRaise(True)
         b.setToolButtonStyle(Qt.ToolButtonIconOnly)
         b.setIconSize(QSize(icon_px, icon_px))
-        b.setFixedSize(icon_px, icon_px)     # ← pulsante = PNG
+        b.setFixedSize(icon_px, icon_px)
         b.setFocusPolicy(Qt.NoFocus)
         b.setCursor(Qt.PointingHandCursor)
 
-def _restart_app(win) -> None:
-    """
-    Riavvia HEVC "da zero" rilanciando lo stesso comando (python + argv),
-    poi chiude il processo corrente.
-    """
+
+def _restart_app_prompt(win: "MainWindow") -> None:
     res = QMessageBox.question(
         win,
-        "Riavvia…",
-        "Vuoi riavviare HEVC?\n\nLo stato corrente (file/queue) verrà perso.",
+        L("Riavvia…"),
+        L("Vuoi riavviare HEVC?\n\nLo stato corrente (file/queue) verrà perso."),
         QMessageBox.Yes | QMessageBox.No,
         QMessageBox.No,
     )
-    if res != QMessageBox.Yes:
-        return
+    if res == QMessageBox.Yes:
+        restart_app()
 
-    # Best-effort: se esiste qualche metodo di reset/stop, lo chiamiamo senza rompere nulla.
-    for meth in (
-        "stop_queue_processing",
-        "abort_processing",
-        "cancel_all_jobs",
-        "reset_all",
-        "clear_all",
-        "new_session",
-        "reset_gui",
-    ):
-        fn = getattr(win, meth, None)
-        if callable(fn):
-            try:
-                fn()
-            except Exception:
-                pass
 
-    program = sys.executable
-    args = sys.argv[:]  # stesso comando con cui l'hai lanciato (es. main.py)
-    QProcess.startDetached(program, args, os.getcwd())
-    QApplication.quit()
+def _open_appearance_dialog(win: "MainWindow") -> None:
+    try:
+        from .appearance_dialog import AppearanceDialog  # lazy import (anti-cicli)
+        dlg = AppearanceDialog(parent=win)
+        dlg.exec_()
+    except Exception as e:
+        QMessageBox.warning(win, L("Errore"), L("Impossibile aprire Aspetto…:\n{0}").format(e))
+
+
+def _safe_call(win, name: str, *a, **k):
+    fn = getattr(win, name, None)
+    if callable(fn):
+        return fn(*a, **k)
+    QMessageBox.warning(win, L("Errore"), L("Azione non disponibile: {0}").format(name))
+    return None
+
 
 def setup_menubar(win: "MainWindow") -> QMenuBar:
+    apply_large_menu_icons(QApplication.instance())
+
     menubar = QMenuBar(win)
 
     # — FILE —
-    m_file = menubar.addMenu("&File")
-    act_open = QAction(_themed_icon_with_aliases("open"), "Apri video…", win,
-                       shortcut="Ctrl+O", triggered=win.open_file)
+    m_file = menubar.addMenu(L("&File"))
+
+    act_open = QAction(_themed_icon_with_aliases("open"), L("Apri video…"), win,
+                       shortcut="Ctrl+O", triggered=lambda: _safe_call(win, "open_file"))
     act_open.setProperty("icon_name", "open")
 
-    act_restart = QAction(_themed_icon_with_aliases("restart"), "Riavvia…", win,
-                          shortcut="Ctrl+Shift+R",
-                          triggered=lambda: _restart_app(win))
+    act_restart = QAction(_themed_icon_with_aliases("restart"), L("Riavvia…"), win,
+                          shortcut="Ctrl+Shift+R", triggered=lambda: _restart_app_prompt(win))
     act_restart.setProperty("icon_name", "restart")
 
-    act_exit = QAction(_themed_icon_with_aliases("exit"), "Esci", win,
-                       shortcut="Ctrl+Q", triggered=win.exit_app)
+    act_exit = QAction(_themed_icon_with_aliases("exit"), L("Esci"), win,
+                       shortcut="Ctrl+Q", triggered=lambda: _safe_call(win, "exit_app"))
     act_exit.setProperty("icon_name", "exit")
 
     m_file.addAction(act_open)
@@ -231,112 +216,117 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
     m_file.addAction(act_exit)
 
     # — AZIONI —
-    m_actions = menubar.addMenu("&Azioni")
+    m_actions = menubar.addMenu(L("&Azioni"))
 
-    act_convert = QAction(_themed_icon_with_aliases("convert"), "Converti", win,
-                          shortcut="Ctrl+Return", triggered=win.on_convert_clicked)
+    act_convert = QAction(_themed_icon_with_aliases("convert"), L("Converti"), win,
+                          shortcut="Ctrl+Return", triggered=lambda: _safe_call(win, "on_convert_clicked"))
     act_convert.setProperty("icon_name", "convert")
 
-    act_extract = QAction(_themed_icon_with_aliases("extract"), "Estrai audio", win,
-                          triggered=win.extract_audio)
+    act_extract = QAction(_themed_icon_with_aliases("extract"), L("Estrai audio"), win,
+                          triggered=lambda: _safe_call(win, "extract_audio"))
     act_extract.setProperty("icon_name", "extract")
 
-    act_subs = QAction(_themed_icon_with_aliases("subs"), "Sottotitoli…", win,
-                       triggered=win.on_subtitle_clicked)
+    act_subs = QAction(_themed_icon_with_aliases("subs"), L("Sottotitoli…"), win,
+                       triggered=lambda: _safe_call(win, "on_subtitle_clicked"))
     act_subs.setProperty("icon_name", "subs")
 
-    act_chapters = QAction(_themed_icon_with_aliases("chapters"), "Capitoli…", win,
-                           triggered=win.on_chapter_clicked)
+    act_chapters = QAction(_themed_icon_with_aliases("chapters"), L("Capitoli…"), win,
+                           triggered=lambda: _safe_call(win, "on_chapter_clicked"))
     act_chapters.setProperty("icon_name", "chapters")
 
-    act_queue_run = QAction(_themed_icon_with_aliases("queue_run"), "Elabora coda", win,
-                            shortcut="F9", triggered=win.start_queue_processing)
+    act_queue_run = QAction(_themed_icon_with_aliases("queue_run"), L("Elabora coda"), win,
+                            shortcut="F9", triggered=lambda: _safe_call(win, "start_queue_processing"))
     act_queue_run.setProperty("icon_name", "queue_run")
 
-    act_save = QAction(_themed_icon_with_aliases("save"), "Salva coda", win,
-                       shortcut="Ctrl+S", triggered=win.save_gui_queue_to_file)
+    act_save = QAction(_themed_icon_with_aliases("save"), L("Salva coda"), win,
+                       shortcut="Ctrl+S", triggered=lambda: _safe_call(win, "save_gui_queue_to_file"))
     act_save.setProperty("icon_name", "save")
 
-    act_edit_queue = QAction(_themed_icon_with_aliases("edit_queue"), "Gestisci coda", win,
-                             triggered=win.open_queue_manager)
+    act_edit_queue = QAction(_themed_icon_with_aliases("edit_queue"), L("Gestisci coda"), win,
+                             triggered=lambda: _safe_call(win, "open_queue_manager"))
     act_edit_queue.setProperty("icon_name", "edit_queue")
 
-    m_actions.addActions(
-        [act_convert, act_extract, act_subs, act_chapters, act_queue_run, act_save, act_edit_queue]
-    )
+    m_actions.addActions([act_convert, act_extract, act_subs, act_chapters, act_queue_run, act_save, act_edit_queue])
 
     # — STRUMENTI —
-    m_tools = menubar.addMenu("&Strumenti")
+    m_tools = menubar.addMenu(L("&Strumenti"))
 
-    act_minfo = QAction(_themed_icon_with_aliases("minfo"), "MediaInfo", win,
-                        triggered=win.show_mediainfo)
+    act_minfo = QAction(_themed_icon_with_aliases("minfo"), L("MediaInfo"), win,
+                        triggered=lambda: _safe_call(win, "show_mediainfo"))
     act_minfo.setProperty("icon_name", "minfo")
 
-    act_preview = QAction(_themed_icon_with_aliases("preview"), "Preview", win,
-                          triggered=lambda: win.launch_preview(False))
+    act_preview = QAction(_themed_icon_with_aliases("preview"), L("Preview"), win,
+                          triggered=lambda: _safe_call(win, "launch_preview", False))
     act_preview.setProperty("icon_name", "preview")
 
-    act_preview_filtered = QAction(_themed_icon_with_aliases("preview_filtered"), "Preview filtrata", win,
-                                   triggered=lambda: win.launch_preview(True))
+    act_preview_filtered = QAction(_themed_icon_with_aliases("preview_filtered"), L("Preview filtrata"), win,
+                                   triggered=lambda: _safe_call(win, "launch_preview", True))
     act_preview_filtered.setProperty("icon_name", "preview_filtered")
 
-    act_crop = QAction(_themed_icon_with_aliases("crop"), "Imposta crop…", win,
-                       triggered=win.open_crop_tool)
-    act_crop.setStatusTip("Apri lo strumento di ritaglio video")
+    act_crop = QAction(_themed_icon_with_aliases("crop"), L("Imposta crop…"), win,
+                       triggered=lambda: _safe_call(win, "open_crop_tool"))
     act_crop.setProperty("icon_name", "crop")
-    act_crop.setObjectName("act_crop")
     act_crop.setEnabled(False)
 
-    act_color = QAction(_themed_icon_with_aliases("color"), "Regola colore…", win,
-                        triggered=win.open_color_tool)
-    act_color.setStatusTip("Apri lo strumento di correzione colore")
+    act_color = QAction(_themed_icon_with_aliases("color"), L("Color…"), win,
+                        triggered=lambda: _safe_call(win, "open_color_tool"))
     act_color.setProperty("icon_name", "color")
-    act_color.setObjectName("act_color")
     act_color.setEnabled(False)
 
-    act_trim = QAction(_themed_icon_with_aliases("trim"), "Trim…", win,
-                       triggered=win.open_trim_tool)
-    act_trim.setStatusTip("Taglia un segmento interno (es. pubblicità) da video e audio")
+    act_trim = QAction(_themed_icon_with_aliases("trim"), L("Trim…"), win,
+                       triggered=lambda: _safe_call(win, "open_trim_tool"))
     act_trim.setProperty("icon_name", "trim")
-    act_trim.setObjectName("act_trim")
     act_trim.setEnabled(False)
 
-    m_tools.addActions(
-        [act_minfo, act_preview, act_preview_filtered, act_crop, act_color, act_trim]
-    )
-
-    act_dvd = QAction(_themed_icon_with_aliases("dvdrip"), "DVD Ripper…", win)
-    act_dvd.setToolTip("Apri l'estrattore DVD (LDVD-Ripper)")
+    act_dvd = QAction(_themed_icon_with_aliases("dvdrip"), L("DVD Ripper…"), win,
+                      triggered=lambda: _safe_call(win, "open_dvd_ripper"))
     act_dvd.setProperty("icon_name", "dvdrip")
-    act_dvd.triggered.connect(win.open_dvd_ripper)
+
+    m_tools.addActions([act_minfo, act_preview, act_preview_filtered])
+    m_tools.addSeparator()
+    m_tools.addActions([act_crop, act_color, act_trim])
+    m_tools.addSeparator()
     m_tools.addAction(act_dvd)
 
-    # — IMPOSTAZIONI —
-    m_settings = menubar.addMenu("&Impostazioni")
-    act_asp = QAction(_themed_icon_with_aliases("asp"), "Aspetto…", win)
-    act_asp.setToolTip("Scegli stile Qt e font dell’interfaccia")
+    # — SETTINGS —
+    m_settings = menubar.addMenu(L("&Settings"))
+    act_asp = QAction(_themed_icon_with_aliases("asp"), L("Aspetto…"), win,
+                      triggered=lambda: _open_appearance_dialog(win))
     act_asp.setProperty("icon_name", "asp")
-    act_asp.triggered.connect(lambda: AppearanceDialog(win).exec_())
     m_settings.addAction(act_asp)
 
     # — HELP —
-    m_help = menubar.addMenu("&Help")
+    m_help = menubar.addMenu(L("&Help"))
 
-    act_manual = QAction(_themed_icon_with_aliases("manual"), "Manuale utente", win)
-    act_manual.setToolTip("Apri manuale istruzioni nel browser")
-    act_manual.setProperty("icon_name", "manual")
-    act_manual.triggered.connect(win.open_help)
+    act_manual = QAction(_themed_icon_with_aliases("user_manual"), L("Manuale utente"), win)
 
-    act_info = QAction(_themed_icon_with_aliases("info"), "Informazioni", win)
-    act_info.setToolTip("About Hevc - Video Converter")
+    # QRC hard (garantito) — ma SOLO se esiste davvero (e NON è null)
+    # Nota: QIcon(":/...") non lancia eccezioni se manca: restituisce solo un'icona vuota.
+    p_qrc = ":/icons/ph_user_manual.png"
+    if QFile.exists(p_qrc):
+        ico = QIcon(p_qrc)
+        if not ico.isNull():
+            act_manual.setIcon(ico)
+
+    # forza comunque "icone nei menu" per questa action (se supportato)
+    try:
+        act_manual.setIconVisibleInMenu(True)
+    except Exception:
+        pass
+
+    act_manual.setProperty("icon_name", "user_manual")
+    act_manual.triggered.connect(lambda: _safe_call(win, "open_help"))
+
+    act_info = QAction(_themed_icon_with_aliases("info"), L("Informazioni"), win)
     act_info.setProperty("icon_name", "info")
-    act_info.triggered.connect(win.show_info)
+    act_info.triggered.connect(lambda: _safe_call(win, "show_info"))
 
-    # Donate (PayPal) — qui nasce l'azione, così esiste anche per la toolbar
-    act_donate = QAction(_themed_icon_with_aliases("paypal"), "Dona (PayPal)", win)
-    act_donate.setToolTip("Apri la pagina PayPal per una donazione")
+    act_donate = QAction(_themed_icon_with_aliases("paypal"), L("Dona (PayPal)"), win)
     act_donate.setProperty("icon_name", "paypal")
-    act_donate.setIconVisibleInMenu(True)
+    try:
+        act_donate.setIconVisibleInMenu(True)
+    except Exception:
+        pass
     act_donate.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://paypal.me/loris1159")))
 
     m_help.addAction(act_manual)
@@ -344,7 +334,7 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
     m_help.addSeparator()
     m_help.addAction(act_donate)
 
-    # Espone i riferimenti direttamente sul MainWindow
+    # esponi riferimenti utili
     setattr(win, "act_minfo", act_minfo)
     setattr(win, "act_preview", act_preview)
     setattr(win, "act_preview_filtered", act_preview_filtered)
@@ -353,7 +343,6 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
     setattr(win, "act_trim", act_trim)
     setattr(win, "act_dvd_ripper", act_dvd)
 
-    # — Mappa per refresh icone (UNA sola) —
     win._menu_actions = {
         "open": act_open,
         "restart": act_restart,
@@ -372,12 +361,13 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
         "trim": act_trim,
         "dvdrip": act_dvd,
         "asp": act_asp,
-        "manual": act_manual,
+        "user_manual": act_manual,
         "info": act_info,
         "donate": act_donate,
+        "exit": act_exit,
     }
 
-    # --- SCOPA: elimina qualsiasi toolbar già presente ---
+    # — Toolbar —
     try:
         for tb in win.findChildren(QToolBar):
             win.removeToolBar(tb)
@@ -385,45 +375,71 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
     except Exception:
         pass
 
-    # — Toolbar (LDVD-like) —
-    icon_px = 48  # ← se vuoi più “bottonazzi”, metti 48
-    toolbar = win.addToolBar("Azioni rapide")
-    _apply_hevc_toolbar_style(toolbar, icon_px=icon_px)
+    icon_px = 48
+    toolbar = win.addToolBar(L("Azioni rapide"))
+    toolbar.setIconSize(QSize(icon_px, icon_px))
 
-    toolbar.addActions(
-        [
-            act_open,
-            act_preview,
-            act_preview_filtered,
-            act_color,
-            act_crop,
-            act_trim,
-            act_extract,
-            act_subs,
-            act_chapters,
-            act_save,
-            act_edit_queue,
-            act_queue_run,
-            act_convert,
-            act_dvd,
-        ]
-    )
+    toolbar.addActions([
+        act_open,
+        act_preview,
+        act_preview_filtered,
+        act_color,
+        act_crop,
+        act_trim,
+        act_extract,
+        act_subs,
+        act_chapters,
+        act_save,
+        act_edit_queue,
+        act_queue_run,
+        act_convert,
+        act_dvd,
+    ])
     toolbar.addSeparator()
     toolbar.addAction(act_donate)
 
-    # importantissimo: dopo addActions
     _finalize_toolbar_buttons(toolbar, icon_px=icon_px)
-
     win._menu_toolbar = toolbar
+
+    # — LINGUA (menu unico + restart obbligatorio) —
+    m_lang = menubar.addMenu(L("Lingua"))
+    m_lang.setObjectName("menuLanguage")
+
+    grp = QActionGroup(m_lang)
+    grp.setExclusive(True)
+
+    act_it = QAction(L("Italiano"), m_lang)
+    act_en = QAction(L("English"), m_lang)
+    for a, code in ((act_it, "it"), (act_en, "en")):
+        a.setCheckable(True)
+        a.setData(code)
+        grp.addAction(a)
+        m_lang.addAction(a)
+
+    cur = (get_lang() or "it").lower()
+    act_it.setChecked(cur.startswith("it"))
+    act_en.setChecked(cur.startswith("en"))
+
+    def _apply_lang(code: str) -> None:
+        code = (code or "it").lower()
+        cur2 = (get_lang() or "it").lower()
+        if cur2.startswith(code):
+            return
+        set_lang(code)
+        QMessageBox.information(
+            win,
+            L("Riavvio necessario"),
+            L("La lingua verrà applicata dopo il riavvio dell'app.")
+        )
+        restart_app()
+
+    act_it.triggered.connect(lambda: _apply_lang("it"))
+    act_en.triggered.connect(lambda: _apply_lang("en"))
+
     return menubar
 
 
 def add_donate_to_help(main_window):
-    """
-    Compatibilità: main_window importa questa funzione.
-    Ora l'azione Donate viene creata in setup_menubar(), quindi qui
-    ci limitiamo a restituirla se già esiste.
-    """
     try:
         if hasattr(main_window, "_menu_actions") and isinstance(main_window._menu_actions, dict):
             return main_window._menu_actions.get("donate")
@@ -433,10 +449,22 @@ def add_donate_to_help(main_window):
 
 
 def refresh_icons(win):
-    # qui lasciamo la tua logica, ma con una protezione: non mettere icone "vuote"
-    for key, action in win._menu_actions.items():
-        name = action.property("icon_name")
-        if name:
-            icon = _themed_icon_with_aliases(name)
-            if not icon.isNull():
-                action.setIcon(icon)
+    """Aggiorna icone (solo se non nulle) + prova a renderle visibili nei menu."""
+    try:
+        apply_large_menu_icons(QApplication.instance())
+    except Exception:
+        pass
+    try:
+        items = getattr(win, "_menu_actions", {})
+        for _key, action in items.items():
+            name = action.property("icon_name")
+            if name:
+                icon = _themed_icon_with_aliases(str(name))
+                if not icon.isNull():
+                    action.setIcon(icon)
+                    try:
+                        action.setIconVisibleInMenu(True)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
