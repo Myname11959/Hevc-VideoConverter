@@ -1,0 +1,104 @@
+Files scanned: 68
+Total candidate UI strings (nude): 68
+
+=== Candidates by file (most first) ===
+
+[  20] scripts/string_audio_generator (copia).py
+  L 216:30   setText                   'File:'
+  L 226:29   setText                   'Elaborazione…'
+  L 229:62   setText                   'Errore processo:'
+  L 262:16   setText                   'Elaborazione…'
+  L 262:16   setText                   '% ('
+  L 262:16   setText                   ')  •  ETA ~'
+  L 265:29   setText                   'Elaborazione…'
+  L 271:33   setText                   'Completato.'
+  L 274:29   setText                   'ffmpeg terminato con codice'
+  L 306:28   setWindowTitle            'String Audio Generator'
+  L 567:38   setPlaceholderText        '0–30 dB'
+  L1022:34   setText                   'Trattato come muto:'
+  L1107:30   setText                   'Audio esterno:'
+  L1165:34   setText                   'Trattato come muto: in attesa di audio esterno…'
+  L1425:24   setText                   'Pan preset:'
+  L1425:24   setText                   '(downmix 5.1→2.0,'
+  L1431:24   setText                   'Pan preset: Samsung (crossfeed,'
+  L1431:24   setText                   ', profilo attivo)'
+  L1436:24   setText                   'Pan preset: — (Uscita 5.1; profilo Samsung 5.1 attivo)'
+  L1447:20   setText                   'Pan preset: — ('
+
+[  15] scripts/string_audio_generator.py
+  L 237:30   setText                   'File:'
+  L 249:62   setText                   'Errore processo:'
+  L 282:29   setText                   'Elaborazione…'
+  L 282:29   setText                   '% ('
+  L 282:29   setText                   ')  •  ETA ~'
+  L 284:29   setText                   'Elaborazione…'
+  L 293:29   setText                   'ffmpeg terminato con codice'
+  L2131:30   setText                   'Audio esterno:'
+  L2529:48   setText                   'Pan preset:'
+  L2529:48   setText                   '(downmix 5.1→2.0)'
+  L2647:24   setText                   'Pan preset:'
+  L2647:24   setText                   '(downmix 5.1→2.0,'
+  L2653:24   setText                   'Pan preset: Samsung (crossfeed,'
+  L2653:24   setText                   ', profilo attivo)'
+  L2672:20   setText                   'Pan preset: — ('
+
+[   9] hevc_gui/dvd_ripper/gui.py
+  L 392:43   setShortcut               'Ctrl+O'
+  L 403:41   setShortcut               'Ctrl+I'
+  L 415:40   setShortcut               'F5'
+  L 474:40   setShortcut               'Ctrl+E'
+  L 486:44   setShortcut               'Ctrl+H'
+  L 503:39   setShortcut               'Esc'
+  L1205:33   setText                   'Titolo DVD: <b>'
+  L1209:35   setText                   'Titolo film: <b>'
+  L1316:34   setText                   "<span style='color:#666666;'>"
+
+[   3] hevc_gui/dvd_ripper/controller.py
+  L1401:35   setToolTip                'Chiusura via software non supportata da questo drive'
+  L2354:27   setWindowTitle            'Estrazione completata'
+  L2356:20   setText                   'Creati i sidecar accanto a:'
+
+[   3] hevc_gui/gui/test_standalone.py
+  L  46:28   setWindowTitle            'Impostazioni Aspetto'
+  L 101:31   setText                   'OK'
+  L 104:35   setText                   'Cancel'
+
+[   3] hevc_gui/gui/main_window.py
+  L3578:33   setText                   'Elapsed:'
+  L3579:35   setText                   'Remaining:'
+  L4124:41   setAccessibleName         'Dona su PayPal'
+
+[   3] hevc_gui/gui/trim_dialog.py
+  L 168:28   setWindowTitle            'Trim (elimina segmento)'
+  L 332:30   setText                   'SEEK'
+  L 352:34   setText                   '⚠️ Segmento non valido: OUT deve essere maggiore di IN.'
+
+[   2] hevc_gui/gui/about_donate.py
+  L  47:23   setWindowTitle            'Informazioni su'
+  L  68:26   setToolTip                'Apri la pagina PayPal per una donazione'
+
+[   2] hevc_gui/gui/donate_menu.py
+  L  59:19   setToolTip                'Apri la pagina PayPal per una donazione'
+  L  60:21   setStatusTip              'Apri la pagina PayPal per una donazione'
+
+[   2] hevc_gui/core/media_info_dialog.py
+  L  23:28   setWindowTitle            'Info File di Input'
+  L 232:31   setWindowTitle            'Print Preview'
+
+[   1] hevc_gui/gui/crop_dialog.py
+  L 309:28   setWindowTitle            'Crop'
+
+[   1] hevc_gui/gui/color_dialog.py
+  L 209:34   setToolTip                'Riporta i parametri ai default (non lancia preview).'
+
+[   1] hevc_gui/gui/appearance_dialog.py
+  L  46:28   setWindowTitle            'Impostazioni Aspetto'
+
+[   1] hevc_gui/core/subtitle_helper.py
+  L 365:28   setWindowTitle            'Sottotitolo'
+
+[   1] hevc_gui/core/subtitle_manager.py
+  L 311:27   setWindowTitle            'Scegli sottotitoli incorporati'
+
+[   1] scripts/oscilloscope_preview.py
+  L 330:28   setWindowTitle            'Preview Audio con Oscilloscopio'
