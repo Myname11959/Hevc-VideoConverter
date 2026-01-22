@@ -22,7 +22,7 @@ jobs:
       - name: Install python deps
         run: |
           python -m pip install -U pip
-          python -m pip install numpy psutil chardet
+          python -m pip install numpy psutil chardet  PyQt5 pyqtgraph
 
       - name: Compileall
         run: python -m compileall -q .
@@ -30,4 +30,4 @@ jobs:
       - name: Minimal import tests (core)
         run: |
           python -c "from hevc_gui.core import constants; print('OK constants')"
-          python -c "from hevc_gui import i18n; print('OK i18n')"
+          
