@@ -27,8 +27,8 @@ jobs:
       - name: Compileall
         run: python -m compileall -q .
 
-      - name: Minimal import tests
+      - name: Minimal import tests (core)
         run: |
           python -c "from hevc_gui.core import constants; print('OK constants')"
-          python -c "import scripts.oscilloscope_preview; print('OK oscilloscope_preview')"
+          python -c "import scripts.string_audio_generator as sag; print('OK SAG import')"
 
