@@ -30,5 +30,4 @@ jobs:
       - name: Minimal import tests (core)
         run: |
           python -c "from hevc_gui.core import constants; print('OK constants')"
-          python -c "import scripts.string_audio_generator as sag; print('OK SAG import')"
-
+          python -c "from hevc_gui import i18n; print('OK i18n')"
