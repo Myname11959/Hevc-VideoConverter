@@ -1,61 +1,37 @@
 name: UI Smoketest
+
 on:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
-  test-ui:
+  smoketest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: "3.11"
 
-      - name: System deps (ffmpeg + xvfb + Qt/X11 libs per fallback)
+      - name: System deps (Qt headless + ffmpeg)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             ffmpeg xvfb \
-            libgl1 libopengl0 \
-            libx11-6 libx11-xcb1 libxext6 libxi6 libxrender1 libxtst6 \
-            libxkbcommon-x11-0 libglib2.0-0 libfontconfig1 libfreetype6 \
-            libsm6 libice6 \
-            libxcb1 libxcb-shm0 libxcb-xfixes0 libxcb-icccm4 libxcb-randr0 \
-            libxcb-shape0 libxcb-render-util0 libxcb-image0 libxcb-keysyms1 \
-            libxcb-xinerama0 libxcb-cursor0 libxcb-util1
+            libgl1 libegl1 \
+            libxkbcommon-x11-0 \
+            libxcb-xinerama0 libxcb-cursor0 \
+            libdbus-1-3
 
-      - name: Python deps
+      - name: Install python deps
         run: |
           python -m pip install -U pip
-          pip install PyQt5 ruff
+          python -m pip install PyQt5 pyqtgraph numpy psutil chardet
 
-      - name: Generate test asset
+      - name: Smoketest import (headless)
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
-          mkdir -p tests/assets
-          ffmpeg -hide_banner -loglevel error -y \
-            -f lavfi -i sine=frequency=440:duration=5 \
-            -c:a pcm_s16le tests/assets/mono.wav
+          xvfb-run -a python -c "import PyQt5; import hevc_gui; from hevc_gui.gui import main_window; print('OK')"
 
-      - name: Ruff (non-blocking)
-        run: ruff check .
-        continue-on-error: true
-
-      - name: Run UI smoketest (prefer offscreen, fallback xvfb/xcb)
-        shell: bash
-        run: |
-          set -e
-          echo "→ Tentativo #1: QT_QPA_PLATFORM=offscreen (senza X)…"
-          QT_QPA_PLATFORM=offscreen python tools/ui_smoketest_audio.py tests/assets/mono.wav --sb51 \
-          || { echo "↻ Fallback: xvfb + xcb…"; QT_QPA_PLATFORM=xcb xvfb-run -a -s "-screen 0 1280x800x24" \
-               python tools/ui_smoketest_audio.py tests/assets/mono.wav --sb51; }

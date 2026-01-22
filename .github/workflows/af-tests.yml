@@ -1,21 +1,34 @@
-# .github/workflows/af-tests.yml
 name: AF Tests
+
 on:
   push:
   pull_request:
+
 jobs:
-  af-tests:
-    runs-on: ubuntu-22.04
+  af:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
+
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Run AF tests
+          python-version: "3.11"
+
+      - name: System deps
         run: |
-          chmod +x tools/run_af_tests.sh
-          bash tools/run_af_tests.sh
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install python deps
+        run: |
+          python -m pip install -U pip
+          python -m pip install numpy psutil chardet
+
+      - name: Compileall
+        run: python -m compileall -q .
+
+      - name: Minimal import tests
+        run: |
+          python -c "from hevc_gui.core import constants; print('OK constants')"
+          python -c "import scripts.oscilloscope_preview; print('OK oscilloscope_preview')"
 

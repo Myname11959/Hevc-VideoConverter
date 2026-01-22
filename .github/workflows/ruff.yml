@@ -1,1 +1,27 @@
-# (incolla qui il contenuto YAML sopra)
+name: Ruff
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: python -m pip install -U "ruff==0.9.6"
+
+      - name: Ruff check (report-only)
+        continue-on-error: true
+        run: ruff check . --output-format=github
+
+      - name: Ruff format (report-only)
+        continue-on-error: true
+        run: ruff format --check .
+
