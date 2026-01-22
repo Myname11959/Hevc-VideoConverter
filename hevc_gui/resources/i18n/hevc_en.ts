@@ -2178,7 +2178,7 @@ Do you really want to close and lose the batch?</translation>
     <message>
         <location filename="_marks_ui.py" line="68"/>
         <source>720p (1280x720)</source>
-        <translation>720p (1280x72)</translation>
+        <translation>720p (1280x720)</translation>
     </message>
     <message>
         <location filename="_marks_ui.py" line="18"/>
@@ -6579,7 +6579,7 @@ Sends VOBs to HEVC for conversion.</translation>
     <message>
         <location filename="marks_ui_auto.py" line="250"/>
         <source>720p (1280x720)</source>
-        <translation>720p (1280x72)</translation>
+        <translation>720p (1280x720)</translation>
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="251"/>
