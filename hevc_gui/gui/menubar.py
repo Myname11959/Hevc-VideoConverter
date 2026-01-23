@@ -375,7 +375,7 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
     except Exception:
         pass
 
-    icon_px = 48
+    icon_px = 40
     toolbar = win.addToolBar(L("Azioni rapide"))
     toolbar.setIconSize(QSize(icon_px, icon_px))
 
