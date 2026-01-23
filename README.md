@@ -1,5 +1,8 @@
 # HEVC – Video Converter
 
+**Download (Linux .deb) + Source (.tar.gz):** Latest release → https://github.com/Myname11959/Hevc-VideoConverter/releases/latest  
+**Download (.deb Linux) + sorgenti (.tar.gz):** Ultima release → https://github.com/Myname11959/Hevc-VideoConverter/releases/latest  
+
 ![UI Smoketest](https://github.com/Myname11959/Hevc-VideoConverter/actions/workflows/ui-smoketest.yml/badge.svg)
 ![Ruff](https://github.com/Myname11959/Hevc-VideoConverter/actions/workflows/ruff.yml/badge.svg)
 
