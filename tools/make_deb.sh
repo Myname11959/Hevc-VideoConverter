@@ -44,6 +44,7 @@ else
     DEB_VER="${BASE_VER}-1"
   fi
 fi
+DEB_VER="$ORIG_CTRL_VER"
 sed -i -E "s/^Version: .*/Version: ${DEB_VER}/" "$CONTROL"
 
 PKG_NAME="$(sed -n 's/^Package: //p' "$CONTROL" | head -n1)"
