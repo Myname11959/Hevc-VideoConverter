@@ -148,3 +148,7 @@ tools/tools/_ARCHIVE_*/
 hevc_gui/resources/i18n/_backup_ts_*/
 hevc_gui/resources/i18n/_old_extra_ts/
 FFREPORT*.log
+*.pyc
+tmp/
+tmp/**
+_repo_cleanup/

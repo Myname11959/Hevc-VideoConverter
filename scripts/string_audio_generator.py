@@ -114,7 +114,6 @@ def _tr_sag(text: str) -> str:
 
 
 from hevc_gui.core import constants as C
-from hevc_gui.core.audio_helpers import audio_tracks_with_title
 
 try:
     from conversion_thread_external import ConversionThreadExternal
@@ -193,43 +192,85 @@ class Batch:
 
     def flush(self):
         """
-        - Togli 'ffmpeg'/C.FFMPEG_BIN e '-y'
-        - Se self.file è definito, rimuove solo '-i <video_originale>'
-        - Se audio esterno (file=None) riscrive '-map N:a:X' → '-map 1:X'
-        - Stampa il JSON risultante
+        Normalizza i segmenti ffmpeg prodotti dal SAG e stampa un JSON con soli 'opts'
+        (niente binario, niente input video interno, niente output file).
+
+        - Rimuove: ffmpeg/C.FFMPEG_BIN, -y, -nostdin, -hide_banner
+        - Se self.file è definito, rimuove TUTTE le coppie '-i <video_originale>'
+        - Rimuove anche: -vn, -f <fmt>, -movflags <...>, -filter_threads <n>, -threads <n>
+        - Se l'ultimo token sembra un file di output, lo elimina.
         """
+        from pathlib import Path
+
+        def _looks_like_output(tok: str) -> bool:
+            try:
+                if not tok or tok.startswith("-"):
+                    return False
+                if "/" in tok or "\\" in tok:
+                    return True
+                suf = Path(tok).suffix.lower()
+                return suf in {
+                    ".m4a",
+                    ".aac",
+                    ".mp3",
+                    ".opus",
+                    ".ogg",
+                    ".ac3",
+                    ".eac3",
+                    ".wav",
+                    ".flac",
+                    ".mka",
+                    ".mkv",
+                    ".mp4",
+                    ".mov",
+                    ".avi",
+                }
+            except Exception:
+                return False
+
         cleaned = []
         video_in = self.file
         for seg in self.items:
-            opts = seg.copy()
-            # 1) togli il binario
+            opts = list(seg)
+
+            # 1) togli binario e -y
             while opts and opts[0] in (C.FFMPEG_BIN, "ffmpeg"):
                 opts.pop(0)
-            # 2) togli -y
             if opts and opts[0] == "-y":
                 opts.pop(0)
-            # 3) togli solo -i <video_originale>
-            if video_in:
-                i = 0
-                while i < len(opts) - 1:
-                    if opts[i] == "-i" and opts[i + 1] == video_in:
-                        opts.pop(i)
-                        opts.pop(i)
-                    else:
-                        i += 1
-            cleaned.append(opts)
 
-        # 4) in modalità audio esterno, rimappa 0:a:X → 1:X
-        if video_in is None:
-            for opts in cleaned:
-                for i in range(len(opts) - 1):
-                    if opts[i] == "-map":
-                        m = re.match(r"\d+:a:(\d+)", opts[i + 1])
-                        if m:
-                            opts[i + 1] = f"1:{m.group(1)}"
+            # 2) strip global inutili per HEVC
+            #    (HEVC aggiunge già -nostdin e gestisce threads/format/output)
+            out = []
+            i = 0
+            while i < len(opts):
+                tok = opts[i]
+
+                # flags senza argomento
+                if tok in ("-nostdin", "-hide_banner", "-vn"):
+                    i += 1
+                    continue
+
+                # opzioni con argomento da scartare
+                if tok in ("-f", "-movflags", "-filter_threads", "-threads"):
+                    i += 2
+                    continue
+
+                # rimuovi input video interno (qualunque posizione)
+                if tok == "-i" and video_in and (i + 1) < len(opts) and opts[i + 1] == video_in:
+                    i += 2
+                    continue
+
+                out.append(tok)
+                i += 1
+
+            # 3) elimina output finale se presente
+            if out and _looks_like_output(out[-1]):
+                out = out[:-1]
+
+            cleaned.append(out)
 
         print(json.dumps(cleaned, ensure_ascii=False))
-        # self.items.clear()  # opzionale
 
 
 def get_media_duration_seconds(file_path: str) -> float:
@@ -404,8 +445,6 @@ class AudioConverter(QDialog):
 
         # connessioni base
         self.btn_ok.clicked.connect(self.finish)
-        self.btn_load_external_audio.clicked.connect(self.load_external_audio)
-        self.cmb_track.currentIndexChanged.connect(self._on_track_changed)
         self.cmb_br.currentTextChanged.connect(self._update_track_title)
         self.cmb_lang.currentIndexChanged.connect(self._on_lang_changed)
 
@@ -784,13 +823,20 @@ class AudioConverter(QDialog):
         btn_ext = getattr(self, "btn_load_external_audio", None)
         if not isinstance(btn_ext, QPushButton):
             self.btn_load_external_audio = QPushButton(L("Carica traccia audio esterna"), self)
+            # wiring bottone: carica traccia audio esterna (robusto contro clicked(bool) e doppi connect)
+            try:
+                self.btn_load_external_audio.clicked.disconnect()
+            except Exception:
+                pass
+            self.btn_load_external_audio.clicked.connect(lambda _checked=False: self.load_external_audio(None))
         else:
             self.btn_load_external_audio.setParent(self.canvas)
         self.btn_load_external_audio.setFixedSize(ext_btn_w, M["H_BTN"])
         place(self.btn_load_external_audio, x_btn, ext_btn_w, M["H_BTN"])
         self.btn_load_external_audio.hide()
         try:
-            self.btn_load_external_audio.clicked.connect(self.load_external_audio)
+            # connect duplicato disabilitato (evita loop dialog)
+            pass
         except Exception:
             pass
         new_line()
@@ -2143,113 +2189,69 @@ class AudioConverter(QDialog):
 
     # ──────────────────────────── Caricamento audio esterno ───────────────────
 
-    @pyqtSlot()
     def load_external_audio(self, file_path: str | None = None):
-        """
-        Carica una traccia **esterna** e popola cmb_track con:
-          (idx, lang, br) — NESSUN dialog lingua.
-        Imposta Batch in modalità 'esterno' (Batch.file=None) per la flush corretta.
+        # Qt: clicked(bool) può arrivare qui come True/False
+        if isinstance(file_path, bool):
+            file_path = None
 
-        NB: idx in itemData è l'indice audio 0..N-1 (come per le tracce interne).
-        """
-        # init cache
-        if not hasattr(self, "_orig_channels"):
-            self._orig_channels = {}
-        if not hasattr(self, "_orig_bitrates"):
-            self._orig_bitrates = {}
+        # evita re-entrancy (doppie chiamate / dialog che sembra loop)
+        if getattr(self, "_ext_dialog_open", False):
+            return
+        self._ext_dialog_open = True
+        try:
+            from pathlib import Path as _Path
 
-        # Se non arriva un path → apri file dialog
-        if not file_path:
-            start_dir = str(self.file.parent) if getattr(self, "file", None) else os.path.expanduser("~")
-            filters = (
-                "Audio (*.wav *.flac *.aac *.m4a *.mp3 *.ogg *.ac3 *.eac3);;Video con audio (*.mkv *.mp4 *.mov *.avi);;Tutti i file (*)"
-            )
-            file_path, _ = QFileDialog.getOpenFileName(self, L("Seleziona traccia audio esterna"), start_dir, filters)
             if not file_path:
-                return  # annullato
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    L("Seleziona file audio esterno"),
+                    str(_Path.home()),
+                    L("Audio")
+                    + " (*.m4a *.aac *.ac3 *.eac3 *.dts *.flac *.mp3 *.ogg *.opus *.wav *.mka *.mkv);;"
+                    + L("Tutti i file")
+                    + " (*)",
+                )
 
-        # Stato esterno ON
-        self.external_audio_file = file_path
-        self.audio_externo = True
+            if not file_path:
+                return
 
-        # Batch: segnala che NON c'è un video di riferimento (attiva path "esterno")
-        try:
-            self.batch.set_video_file(None)
-        except Exception:
-            pass
+            self.external_audio_file = _Path(file_path)
 
-        ui_default_lang = self._lang_code_from_combo()
+            # probe streams audio nel file esterno
+            try:
+                self._external_tracks = self._probe_external_audio(str(self.external_audio_file)) or []
+            except Exception:
+                self._external_tracks = []
 
-        # UI path
-        try:
-            self.path.setText(L("Audio esterno: {0}").format(file_path))
-        except Exception:
-            pass
+            # popola combo
+            self.cmb_track.blockSignals(True)
+            try:
+                self.cmb_track.clear()
+                self.cmb_track.addItem(L("Seleziona traccia…"), (-1, None, None))
 
-        # Lettura tracce e probing
-        try:
-            tracks = list(audio_tracks_with_title(file_path))
-        except Exception:
-            tracks = []
+                if self._external_tracks:
+                    for i, t in enumerate(self._external_tracks):
+                        label = t.get("label") or f"[S] Traccia {i}"
+                        map_idx = int(t.get("map_idx", i))
+                        lang = t.get("lang") or "und"
+                        br = t.get("br") or None
+                        self.cmb_track.addItem(label, (map_idx, lang, br))
 
-        self._orig_bitrates.clear()
-        self._orig_channels.clear()
+                self.cmb_track.setEnabled(bool(self._external_tracks))
+                self.cmb_track.setCurrentIndex(1 if self._external_tracks else 0)
+            finally:
+                self.cmb_track.blockSignals(False)
 
-        self.cmb_track.blockSignals(True)
-        self.cmb_track.clear()
-        self.cmb_track.addItem(L("Seleziona traccia…"), (-1, None, None))
-
-        combo_default_lang = ui_default_lang or self._lang_code_from_combo()
-
-        if tracks:
-            for pos, (idx_raw, title) in enumerate(tracks):
-                audio_idx = pos  # indice audio 0..N-1
-
-                br_lbl = self._probe_audio_bitrate_label(file_path, audio_idx)
-                if br_lbl:
-                    self._orig_bitrates[audio_idx] = br_lbl
-
-                ch = self._probe_audio_channels(file_path, audio_idx)
-                if ch:
-                    self._orig_channels[audio_idx] = ch
-
-                trk_lang = self._probe_stream_language(file_path, audio_idx)
-                if trk_lang == "und":
-                    trk_lang = combo_default_lang
-
-                label = self._fmt_track_label(audio_idx, trk_lang, br_lbl or "Nessuno")
-                if title:
-                    label += f" – {title}"
-                # itemData = (indice audio, lingua per-traccia, bitrate reale|Nessuno)
-                self.cmb_track.addItem(label, (audio_idx, trk_lang, br_lbl or "Nessuno"))
-
-            # seleziona la prima traccia reale se presente
-            self.cmb_track.setCurrentIndex(1 if self.cmb_track.count() > 1 else 0)
-        else:
-            # fallback: file con una singola pista “mutizzata”
-            trk_lang = combo_default_lang or "und"
-            self.cmb_track.addItem(self._fmt_track_label(0, trk_lang, "Nessuno"), (0, trk_lang, "Nessuno"))
-            self.cmb_track.setCurrentIndex(1 if self.cmb_track.count() > 1 else 0)
-
-        self.cmb_track.setEnabled(True)
-        self.cmb_track.blockSignals(False)
-
-        # Debug elenco
-        try:
-            print("[DEBUG] Combo tracce (esterne):")
-            for i in range(self.cmb_track.count()):
-                print(f"  {i:02d}: text='{self.cmb_track.itemText(i)}' data={self.cmb_track.itemData(i)}")
-        except Exception:
-            pass
-
-        # Refresh abilitazioni/label
-        try:
-            self._refresh_filter_availability()
-            self._update_pan_preset_label()
-        except Exception:
-            pass
-
-    # ──────────────────────────── Indici / bitrate ────────────────────────────
+            # forza update UI: abilita 'Aggiungi traccia'
+            try:
+                self._on_track_changed(self.cmb_track.currentIndex())
+            except Exception:
+                try:
+                    self.btn_add.setEnabled(self.cmb_track.currentIndex() > 0)
+                except Exception:
+                    pass
+        finally:
+            self._ext_dialog_open = False
 
     def _norm_audio_index(self, idx, pos_fallback: int) -> int:
         """
@@ -2310,7 +2312,12 @@ class AudioConverter(QDialog):
         except Exception:
             return None
 
-    # ──────────────────────────── Toggle “Tratta come muto” ───────────────────
+        # ──────────────────────────── Toggle “Tratta come muto” ───────────────────
+
+        try:
+            self.btn_add.setEnabled(self.cmb_track.currentIndex() > 0)
+        except Exception:
+            pass
 
     @pyqtSlot(bool)
     def _on_force_mute_toggled(self, checked: bool):
@@ -2322,10 +2329,6 @@ class AudioConverter(QDialog):
             # → Modalità audio esterno
             self.audio_externo = True
             self.external_audio_file = None
-            try:
-                self.batch.set_video_file(None)
-            except Exception:
-                pass
             try:
                 self.path.setText(L("Trattato come muto: in attesa di audio esterno…"))
             except Exception:
@@ -3056,6 +3059,8 @@ class AudioConverter(QDialog):
           - current_opts() → preview.
         """
         is_ext = bool(self.audio_externo)
+        if is_ext and not self.external_audio_file:
+            raise ValueError("Audio esterno attivo ma nessun file esterno selezionato")
 
         # recupera info traccia corrente
         data = self.cmb_track.currentData()
@@ -3253,10 +3258,22 @@ class AudioConverter(QDialog):
             base_noext = os.path.splitext(base)[0]
             target = os.path.join(os.path.dirname(src_path), base_noext + "_conv.m4a")
 
+        if is_ext:
+            seg.append("__HEVC_SAG_EXTERNAL__")
         seg += [target]
 
-        self.batch.add(seg)
+        # HEVC: marker univoco per tracce esterne (no euristiche su nome/estensione)
 
+        try:
+            if (getattr(self, "external_audio_file", None) is not None) or (
+                getattr(self, "chk_force_mute", None) is not None and self.chk_force_mute.isChecked()
+            ):
+                seg.append("__HEVC_SAG_EXT__")
+
+        except Exception:
+            pass
+
+        self.batch.add(seg)
         self.list.addItem(" ".join(shlex.quote(x) for x in seg))
         self.list.scrollToBottom()
 
@@ -3367,6 +3384,12 @@ class AudioConverter(QDialog):
 
         self._closing_via_finish = True
         try:
+            # HEVC: in modalità “Tratta come muto” non togliere '-i <video_originale>'
+            try:
+                if getattr(self, "chk_force_mute", None) is not None and self.chk_force_mute.isChecked():
+                    self.batch.file = None
+            except Exception:
+                pass
             self.batch.flush()
         except Exception as e:
             print(f"[string_audio_generator] Errore in flush(): {e}", file=sys.stderr, flush=True)

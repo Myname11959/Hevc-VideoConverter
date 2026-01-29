@@ -2328,6 +2328,54 @@ class MainWindow(QMainWindow):
 
         spec = list(self._audio_opts[idx]) if 0 <= idx < len(self._audio_opts) else []
         spec = self._clean_opts(spec)
+        # --- HEVC_STRIP_SAG_MARKER_V1 ---
+        # rimuove marker SAG e token 'path' spuri finiti nella spec
+        if isinstance(spec, (list, tuple)):
+            spec = [x for x in spec if x != "__HEVC_SAG_EXTERNAL__"]
+            # rimuovi eventuali token che sembrano path e non sono argomenti di opzioni
+            # (es: '/home/..._conv.m4a' infilato a metà comando)
+            cleaned = []
+            i = 0
+            while i < len(spec):
+                x = spec[i]
+                # se è un path e NON è dopo -i, e non è dopo un'opzione che prende argomento,
+                # allora è spazzatura e lo scartiamo.
+                if isinstance(x, str) and (x.startswith('/') or x.startswith('~')):
+                    prev = cleaned[-1] if cleaned else None
+                    if prev not in ('-i','-map','-metadata','-metadata:s:a:0','-metadata:s:a:1','-metadata:s:a:2'):
+                        # scarta token spurio
+                        i += 1
+                        continue
+                cleaned.append(x)
+                i += 1
+            spec = cleaned
+        # --- END HEVC_STRIP_SAG_MARKER_V1 ---
+
+        # strip eventuale marker SAG (__HEVC_SAG_EXT__ <path>)
+        if len(spec) >= 2 and spec[0] == "__HEVC_SAG_EXT__":
+            spec = list(spec[2:])
+
+        # ripulisci spec: togli binario/flags e soprattutto '-i <...>' (lo reinseriamo noi)
+        stripd = []
+        j = 0
+        while j < len(spec):
+            tok = spec[j]
+            if tok in (C.FFMPEG_BIN, 'ffmpeg', '-y', '-nostdin', '-hide_banner'):
+                j += 1
+                continue
+            if tok == '-loglevel' and j + 1 < len(spec):
+                j += 2
+                continue
+            if tok == '-i' and j + 1 < len(spec):
+                j += 2
+                continue
+            stripd.append(tok)
+            j += 1
+        # elimina eventuale output finale presente nella spec (SAG standalone)
+        if stripd and isinstance(stripd[-1], str) and not stripd[-1].startswith('-'):
+            stripd = stripd[:-1]
+        spec = stripd
+
 
         def _get_flag(seq, keys, default=None):
             for k in keys:
@@ -2389,6 +2437,21 @@ class MainWindow(QMainWindow):
         # assicura -vn (solo audio)
         if "-vn" not in spec:
             spec += ["-vn"]
+        # rileva la traccia richiesta (es: -map 0:a:2) → vale anche per audio esterno
+        audio_map = "0:a:0"
+        audio_idx_for_fc = 0
+        try:
+            if "-map" in spec:
+                p = spec.index("-map")
+                if p + 1 < len(spec):
+                    idx_map = spec[p + 1]
+                    mm = re.match(r"^0:a:(\d+)$", str(idx_map))
+                    if mm:
+                        audio_map = str(idx_map)
+                        audio_idx_for_fc = int(mm.group(1))
+        except Exception:
+            pass
+
 
         # ───────────────────────────────────────────────────────────────
         # Ricostruisci spec “pulita”:
@@ -2426,17 +2489,18 @@ class MainWindow(QMainWindow):
         except Exception:
             gui_filters = []
 
+        aresample_prefix = "aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,"
         if gui_filters:
-            post_chain = "aresample=resampler=soxr," + join_filters(gui_filters)
-        else:
-            post_chain = "aresample=resampler=soxr,dynaudnorm=f=250:g=31:p=0.95:m=50"
+            post_chain = ("aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,") + join_filters(gui_filters)
 
+        else:
+            post_chain = ("aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,") + "dynaudnorm=f=250:g=31:p=0.95:m=50"
         # ───────────────────────────────────────────────────────────────
         # Applica TRIM come nel comando “perfetto”
         # ───────────────────────────────────────────────────────────────
         if trim_enabled:
             fc = (
-                f"[0:a:0]asplit[a1][a2];"
+                f"[0:a:{audio_idx_for_fc}]asplit[a1][a2];"
                 f"[a1]atrim=start=0:end={trim_in:.3f},asetpts=PTS-STARTPTS[a1t];"
                 f"[a2]atrim=start={trim_out:.3f},asetpts=PTS-STARTPTS[a2t];"
                 f"[a1t][a2t]concat=n=2:v=0:a=1,"
@@ -2457,7 +2521,7 @@ class MainWindow(QMainWindow):
         else:
             # senza trim: usa -af e mappa la prima traccia audio
             cmd += cleaned
-            cmd += ["-map", "0:a:0"]
+            cmd += ["-map", audio_map]
             cmd += ["-af", post_chain]
             cmd += container + tail
 
@@ -2486,6 +2550,7 @@ class MainWindow(QMainWindow):
     ) -> list[tuple[Path, list[str]]]:
         import re
         import shlex
+        import os
         from hevc_gui.core.constants import AUDIO_EXTS
 
         steps: list[tuple[Path, list[str]]] = []
@@ -2501,6 +2566,131 @@ class MainWindow(QMainWindow):
                     break
 
         in_video = str(self._current_file) if self._current_file else None
+
+        # --- HEVC_SAG_EXT_AUDIO_FROM_QUEUE_V2 ---
+        # Usa metadata per-traccia salvati da SAG (external + audio_file), senza confronti path/nome.
+        sag_tracks = None
+        _sag_is_ext = None
+        _sag_audio_file = None
+        try:
+            import json
+            import glob
+            from pathlib import Path as _P
+
+            def _sag_truthy(v):
+                if isinstance(v, bool):
+                    return v
+                if isinstance(v, (int, float)):
+                    return bool(v)
+                if isinstance(v, str):
+                    return v.strip().lower() in ("1", "true", "yes", "y", "on")
+                return False
+
+            def _sag_pick_tracks(entry):
+                if not isinstance(entry, dict):
+                    return None
+                for k in ("sag_audio_tracks", "audio_tracks", "audio_jobs", "tracks_audio", "sag_tracks", "tracks"):
+                    v = entry.get(k)
+                    if isinstance(v, list) and v:
+                        return v
+                return None
+
+            def _sag_is_ext_fn(t):
+                if not isinstance(t, dict):
+                    return False
+                for k in ("_sag_external", "is_external", "external", "from_external", "sag_external"):
+                    if k in t:
+                        return _sag_truthy(t.get(k))
+                return False
+
+            def _sag_audio_file_fn(t):
+                if not isinstance(t, dict):
+                    return None
+                for k in (
+                    "audio_file", "audio_path",
+                    "external_file", "external_path",
+                    "ext_file", "ext_path",
+                    "src_audio", "src_audio_file", "src_audio_path",
+                    "source_audio", "source_audio_file", "source_audio_path",
+                    "file", "path",
+                ):
+                    v = t.get(k)
+                    if isinstance(v, str) and v.strip():
+                        return v
+                return None
+
+            def _sag_find_queue_file():
+                cand = []
+                # RAM / tmp tipici
+                cand += [
+                    _P("/dev/shm/hevc_gui/sag_queue.json"),
+                    _P("/dev/shm/hevc_gui/sessions/sag_queue.json"),
+                    _P("/dev/shm/hevc_gui/tmp/sessions/sag_queue.json"),
+                ]
+                for pat in (
+                    "/dev/shm/hevc_gui/sessions/*/sag_queue.json",
+                    "/dev/shm/hevc_gui/sessions/*/*/sag_queue.json",
+                    "/dev/shm/hevc_gui/tmp/sessions/*/sag_queue.json",
+                    "/dev/shm/hevc_gui/tmp/sessions/*/*/sag_queue.json",
+                ):
+                    for x in glob.glob(pat):
+                        cand.append(_P(x))
+
+                # root_progetto/tmp/sessions (tuo requisito macOS)
+                try:
+                    root = _P(__file__).resolve().parents[2]
+                    cand.append(root / "tmp" / "sessions" / "sag_queue.json")
+                    for x in (root / "tmp" / "sessions").glob("*/sag_queue.json"):
+                        cand.append(x)
+                except Exception:
+                    pass
+
+                # home
+                home = _P.home()
+                cand += [
+                    home / ".config" / "hevc_gui" / "sag_queue.json",
+                    home / ".cache" / "hevc_gui" / "sag_queue.json",
+                ]
+
+                for qf in cand:
+                    try:
+                        if qf.is_file():
+                            return qf
+                    except Exception:
+                        pass
+                return None
+
+            qf = _sag_find_queue_file()
+            entry = None
+            if qf:
+                data = json.loads(qf.read_text(encoding="utf-8"))
+
+                want_job_id = None
+                for attr in ("_sag_job_id", "sag_job_id"):
+                    v = getattr(self, attr, None)
+                    if v:
+                        want_job_id = str(v)
+                        break
+
+                if isinstance(data, list) and data:
+                    if want_job_id:
+                        for e in reversed(data):
+                            if isinstance(e, dict) and str(e.get("sag_job_id", "")) == want_job_id:
+                                entry = e
+                                break
+                    if entry is None:
+                        entry = next((e for e in reversed(data) if isinstance(e, dict)), None)
+                elif isinstance(data, dict):
+                    entry = data
+
+            sag_tracks = _sag_pick_tracks(entry) if entry else None
+            _sag_is_ext = _sag_is_ext_fn
+            _sag_audio_file = _sag_audio_file_fn
+        except Exception:
+            sag_tracks = None
+            _sag_is_ext = None
+            _sag_audio_file = None
+
 
         # ── TRIM settings (una volta sola) ─────────────────────────────────────
         trim_enabled = False
@@ -2523,8 +2713,66 @@ class MainWindow(QMainWindow):
             if not isinstance(spec, (list, tuple)) or not spec:
                 continue
 
+            # --- HEVC_SAG_EXT_AUDIO_FROM_QUEUE_V2 (per-traccia) ---
+            if sag_tracks and _sag_is_ext and _sag_audio_file and i < len(sag_tracks):
+                t = sag_tracks[i]
+                try:
+                    if _sag_is_ext(t):
+                        af = _sag_audio_file(t)
+                        if af:
+                            out, cmd = self.build_ffmpeg_external_audio_cmd(
+                                audio_file=af,
+                                idx=i,
+                                audio_dir=audio_dir,
+                                video_id=video_id,
+                                for_queue=for_queue,
+                            )
+                            steps.append((out, cmd))
+                            continue
+                except Exception:
+                    pass
+
             # ── Caso audio ESTERNO: delega all'altro builder ────────────────
-            if len(spec) >= 2 and spec[0] == "-i" and Path(spec[1]).suffix.lower() in AUDIO_EXTS:
+            # HEVC_SAG_EXT marker: niente confronti path/estensione/nome.
+            # SAG marker external audio: univoco (niente confronti su path/nome/estensione)
+            if "__HEVC_SAG_EXTERNAL__" in spec:
+                _spec = [t for t in spec if t != "__HEVC_SAG_EXTERNAL__"]
+                audio_file = None
+                try:
+                    k = _spec.index("-i")
+                    if k + 1 < len(_spec):
+                        audio_file = _spec[k + 1]
+                except ValueError:
+                    audio_file = None
+                # pulisci comunque la spec (tolgo il marker) per evitare sorprese dopo
+                spec = _spec
+                if audio_file:
+                    out, cmd = self.build_ffmpeg_external_audio_cmd(
+                        audio_file=audio_file,
+                        idx=i,
+                        audio_dir=audio_dir,
+                        video_id=video_id,
+                        for_queue=for_queue,
+                    )
+                    steps.append((out, cmd))
+                    continue
+
+            if len(spec) >= 2 and spec[0] == "__HEVC_SAG_EXT__":
+                audio_file = str(spec[1])
+                out, cmd = self.build_ffmpeg_external_audio_cmd(
+                    audio_file=audio_file,
+                    idx=i,
+                    audio_dir=audio_dir,
+                    video_id=video_id,
+                    for_queue=for_queue,
+                )
+                steps.append((out, cmd))
+                continue
+
+            forced_ext = "__HEVC_SAG_EXT__" in spec
+            if len(spec) >= 2 and spec[0] == "-i" and (
+                forced_ext or (not in_video) or os.path.abspath(spec[1]) != os.path.abspath(in_video)
+            ):
                 out, cmd = self.build_ffmpeg_external_audio_cmd(
                     audio_file=spec[1],
                     idx=i,
@@ -2640,7 +2888,6 @@ class MainWindow(QMainWindow):
             else:
                 # fallback “default”
                 post_chain = "aresample=resampler=soxr,dynaudnorm=f=250:g=31:p=0.95:m=50"
-
             # ───────────────────────────────────────────────────────────────
             # 4) Se TRIM attivo → usa filter_complex + map [aout]
             # ───────────────────────────────────────────────────────────────
@@ -2695,13 +2942,15 @@ class MainWindow(QMainWindow):
             # ───────────────────────────────────────────────────────────────
             # 6) Contenitore + output
             # ───────────────────────────────────────────────────────────────
-            cmd += container + tail + [str(out)]
+            cmd += container + tail
 
             # ── Limita thread (come prima) ─────────────────────────────────
             if "-filter_threads" not in cmd:
                 cmd += ["-filter_threads", "1"]
             if "-threads" not in cmd:
                 cmd += ["-threads", "1"]
+
+            cmd += [str(out)]
 
             try:
                 self.txt_info.append("[DEBUG] audio cmd: " + shlex.join(cmd))
@@ -3732,7 +3981,7 @@ class MainWindow(QMainWindow):
         self._update_buttons_enabled()
         self._video_idx_queue += 1
 
-    def open_queue_manager(self):
+    def open_queue_manager(self, *_args, **_kw):
         dlg = QueueDialog(self.command_queue, self)
         if dlg.exec_() == QDialog.Accepted:
             newq = dlg.get_updated_queue()
@@ -4537,3 +4786,7 @@ class MainWindow(QMainWindow):
         if h >= 720 or w >= 1280:
             return "bt709"
         return None
+
+
+
+

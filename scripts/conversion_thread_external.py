@@ -96,3 +96,5 @@ class ConversionThreadExternal(QThread):
 
         self.progress.emit(100)
         self.finished.emit()
+
+
