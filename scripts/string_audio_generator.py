@@ -3258,20 +3258,20 @@ class AudioConverter(QDialog):
             base_noext = os.path.splitext(base)[0]
             target = os.path.join(os.path.dirname(src_path), base_noext + "_conv.m4a")
 
-        if is_ext:
-            seg.append("__HEVC_SAG_EXTERNAL__")
-        seg += [target]
-
         # HEVC: marker univoco per tracce esterne (no euristiche su nome/estensione)
 
+        forced_mute = False
+
         try:
-            if (getattr(self, "external_audio_file", None) is not None) or (
-                getattr(self, "chk_force_mute", None) is not None and self.chk_force_mute.isChecked()
-            ):
-                seg.append("__HEVC_SAG_EXT__")
+            forced_mute = bool(getattr(self, "chk_force_mute", None) and self.chk_force_mute.isChecked())
 
         except Exception:
-            pass
+            forced_mute = False
+
+        if is_ext or forced_mute:
+            seg.append("__HEVC_SAG_EXT__")
+
+        seg += [target]
 
         self.batch.add(seg)
         self.list.addItem(" ".join(shlex.quote(x) for x in seg))
