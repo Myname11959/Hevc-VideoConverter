@@ -437,6 +437,52 @@ a:hover { text-decoration: underline; }
         <b>Errore comune:</b> croppare troppo e tagliare contenuto o sottotitoli.
       </div>
 
+<!-- BEGIN CROP_HELP_IT -->
+<div class="note" style="margin-top:1rem">
+  <b>Guida rapida: finestra Crop</b>
+  <p>Queste opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.</p>
+  <h3 style="margin-top:0.9rem">Significato delle checkbox</h3>
+  <ul>
+    <li><b>Crop attivo: applica davvero il crop (crop=W:H:X:</b> Y).</li>
+    <li><b>Forza DAR 16:9: blocca il rettangolo di crop a 16:</b> 9 (solo come vincolo di selezione).</li>
+    <li><b>Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:</b> 1 (solo come vincolo di selezione).</li>
+  </ul>
+  <h3 style="margin-top:0.9rem">Combinazioni consigliate</h3>
+  <ul>
+    <li><b>Film già cinemascope “pulito” (es. 1280×544, senza bande):</b>
+      <ul>
+        <li>→ Non serve crop: lascia tutto OFF (Crop attivo OFF, Forza 16:9 OFF, Forza 2.35 OFF).</li>
+      </ul>
+    </li>
+    <li><b>Film 16:9 che ha già bande nere sopra/sotto (letterbox già presente):</b>
+      <ul>
+        <li>→ Devi togliere le bande esistenti: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.</li>
+        <li>Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande.</li>
+      </ul>
+    </li>
+    <li><b>Creare un cinemascope “finto” partendo da un video senza bande (16:9 pieno):</b>
+      <ul>
+        <li>→ È un taglio reale: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.</li>
+        <li>Poi scegli l'inquadratura spostando Y (per non tagliare facce/azioni).</li>
+      </ul>
+    </li>
+    <li><b>Creare/forzare un crop 16:9 (es. da 4:3 o da materiale con barre laterali):</b>
+      <ul>
+        <li>→ Crop attivo ON + Forza DAR 16:9 ON, Forza DAR 2.35 OFF.</li>
+        <li>Decidi se togliere barre laterali (tagliando W/X) o bande sopra/sotto (tagliando H/Y).</li>
+      </ul>
+    </li>
+  </ul>
+  <h3 style="margin-top:0.9rem">Note tecniche (anti-problemi)</h3>
+  <ul>
+    <li>Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.</li>
+    <li>Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni.</li>
+  </ul>
+  <p><i>Nota: Questa sezione corrisponde al pulsante &lt;b&gt;Aiuto&lt;/b&gt; nella finestra Crop.</i></p>
+</div>
+<!-- END CROP_HELP_IT -->
+
+
       <h3>7.2 Trim (tagli)</h3>
       <ul>
         <li>Taglia intro/finale o parti indesiderate.</li>
@@ -915,6 +961,52 @@ ffprobe -version</pre>
 </li>
       </ol>
 
+<!-- BEGIN CROP_HELP_EN -->
+<div class="note" style="margin-top:1rem">
+  <b>Quick guide: Crop window</b>
+  <p>These options help you: (1) physically crop the image and (2) keep a correct aspect ratio (16:9 or 2.35:1) without distortion.</p>
+  <h3 style="margin-top:0.9rem">Checkbox meaning</h3>
+  <ul>
+    <li><b>Crop enabled: applies a real crop (crop=W:H:X:</b> Y).</li>
+    <li><b>Force DAR 16:9: locks the crop rectangle to 16:</b> 9 (selection constraint only).</li>
+    <li><b>Force DAR 2.35:1: locks the crop rectangle to 2.35:</b> 1 (selection constraint only).</li>
+  </ul>
+  <h3 style="margin-top:0.9rem">Recommended combinations</h3>
+  <ul>
+    <li><b>Already clean cinemascope (e.g. 1280×544, no black bars):</b>
+      <ul>
+        <li>→ No crop needed: leave everything OFF (Crop OFF, Force 16:9 OFF, Force 2.35 OFF).</li>
+      </ul>
+    </li>
+    <li><b>16:9 video that already has black bars top/bottom (letterbox already present):</b>
+      <ul>
+        <li>→ Remove the existing bars: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.</li>
+        <li>Tip: set X=0 and W to full width; adjust H and Y until the black bars disappear.</li>
+      </ul>
+    </li>
+    <li><b>Create a “fake” cinemascope from a no-bar video (full 16:9):</b>
+      <ul>
+        <li>→ This is a real crop: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.</li>
+        <li>Then choose the framing by adjusting Y (so you don't cut faces/action).</li>
+      </ul>
+    </li>
+    <li><b>Create/force a 16:9 crop (e.g. from 4:3 or content with side bars):</b>
+      <ul>
+        <li>→ Crop ON + Force DAR 16:9 ON, Force DAR 2.35 OFF.</li>
+        <li>Decide whether to remove side bars (crop W/X) or top/bottom bars (crop H/Y).</li>
+      </ul>
+    </li>
+  </ul>
+  <h3 style="margin-top:0.9rem">Technical notes (avoid issues)</h3>
+  <ul>
+    <li>Keep W and H even (many codecs/pipelines require it). This window already rounds to even values when saving.</li>
+    <li>Use 'Filtered preview' to quickly check there is no distortion.</li>
+  </ul>
+  <p><i>Note: This section mirrors the &lt;b&gt;Help&lt;/b&gt; button inside the Crop window.</i></p>
+</div>
+<!-- END CROP_HELP_EN -->
+
+
       <h3>6.2 “I want to cut intro/outro”</h3>
       <ol>
         <li>Open <b>Trim</b>.<br>
@@ -1096,6 +1188,10 @@ ffprobe -version</pre>
     
 
   </div>
+
+
+
+
 
 
 </body></html>

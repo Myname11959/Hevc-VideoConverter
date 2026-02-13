@@ -1960,6 +1960,91 @@ class MainWindow(QMainWindow):
             if val:
                 vf_parts.append(val)
 
+        def _rewrite_sd_16x9_container(parts: list[str]) -> list[str]:
+            """
+            Se trova scale=720:576 o scale=720:480, riscrive la catena in:
+              - pre-scale nel dominio display 16:9 (PAL:1024x576 | NTSC:854x480) con FOAR=decrease
+              - pad nel dominio display (letterbox/pillarbox)
+              - scale finale a 720x576/480 con le opzioni originali (colormatrix/flags ecc.)
+              - setsar (PAL 64/45, NTSC 32/27) + setdar=16/9
+            E rimuove qualunque setsar/setdar/pad "vecchio" nel frame SD.
+            """
+            import re
+
+            # trova primo scale=W:H
+            scale_idx = -1
+            tw = th = None
+            for i, f in enumerate(parts):
+                s = f.replace(" ", "")
+                m = re.search(r"scale=(\d+):(-?\d+)", s)
+                if m:
+                    scale_idx = i
+                    tw = int(m.group(1))
+                    th = int(m.group(2))
+                    break
+
+            if scale_idx < 0 or tw is None or th is None:
+                return parts
+            if (tw, th) not in ((720, 576), (720, 480)):
+                return parts
+
+            # target SD → parametri container 16:9
+            if (tw, th) == (720, 576):
+                disp_w = 1024
+                sar = "64/45"
+            else:  # 720x480
+                disp_w = 854
+                sar = "32/27"
+
+            # estrai opzioni originali dello scale (tutto dopo scale=tw:th:)
+            orig = parts[scale_idx].replace(" ", "")
+            base_opts = ""
+            prefix = f"scale={tw}:{th}"
+            if orig.startswith(prefix):
+                base_opts = orig[len(prefix):]
+                if base_opts.startswith(":"):
+                    base_opts = base_opts[1:]
+
+            # togli FOAR dall'ultimo scale (lo vogliamo SOLO nel pre-scale)
+            base_opts = ":".join([p for p in base_opts.split(":") if p and not p.startswith("force_original_aspect_ratio=")])
+
+            # flags per il pre-scale (se non troviamo flags=..., lanczos)
+            flags_only = "flags=lanczos"
+            for p in base_opts.split(":"):
+                if p.startswith("flags="):
+                    flags_only = p
+                    break
+
+            scale_pre = f"scale={disp_w}:{th}:{flags_only}:force_original_aspect_ratio=decrease"
+            pad_pre = f"pad={disp_w}:{th}:(ow-iw)/2:(oh-ih)/2:color=black"
+            scale_final = f"scale={tw}:{th}" + (f":{base_opts}" if base_opts else "")
+
+            # ricostruisci lista:
+            # - sostituisci lo scale target con (scale_pre, pad_pre, scale_final)
+            # - elimina pad=720:576 / pad=720:480, setsar=*, setdar=*
+            out: list[str] = []
+            for i, f in enumerate(parts):
+                if i == scale_idx:
+                    out.extend([scale_pre, pad_pre, scale_final])
+                    continue
+
+                chunks = [c.strip() for c in f.split(",") if c.strip()]
+                cleaned = []
+                for c in chunks:
+                    if c.startswith("setsar=") or c.startswith("setdar="):
+                        continue
+                    if c.startswith("pad=720:576:") or c.startswith("pad=720:480:"):
+                        continue
+                    cleaned.append(c)
+
+                if cleaned:
+                    out.append(",".join(cleaned))
+
+            # chiudi aspect in modo robusto
+            out.append(f"setsar={sar}")
+            out.append("setdar=16/9")
+            return out
+
         def _bw_filter_local() -> str:
             if getattr(self, "rd_bw", None) and self.rd_bw.isChecked():
                 return "hue=s=0"
@@ -2210,6 +2295,7 @@ class MainWindow(QMainWindow):
         # ─────────────────────────────────────────────────────────────
         # 8) TRIM video (segmento da ELIMINARE) via split/trim/concat
         # ─────────────────────────────────────────────────────────────
+        vf_parts = _rewrite_sd_16x9_container(vf_parts)
         chain = ",".join(vf_parts) if vf_parts else ""
 
         trim_spec = None
@@ -2489,7 +2575,6 @@ class MainWindow(QMainWindow):
         except Exception:
             gui_filters = []
 
-        aresample_prefix = "aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,"
         if gui_filters:
             post_chain = ("aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,") + join_filters(gui_filters)
 
@@ -2551,7 +2636,6 @@ class MainWindow(QMainWindow):
         import re
         import shlex
         import os
-        from hevc_gui.core.constants import AUDIO_EXTS
 
         steps: list[tuple[Path, list[str]]] = []
         if not getattr(self, "_audio_opts", None):

@@ -4333,6 +4333,10 @@ Sends VOBs to HEVC for conversion.</translation>
         <source>Può integrare un remux DVD (lossless), opzionale se disponibile.</source>
         <translation>Can optionally integrate a DVD remux (lossless), if available.</translation>
     </message>
+    <message>
+        <source>Chiudi</source>
+        <translation>Close</translation>
+    </message>
 </context>
 <context>
     <name>hevc_gui.gui.about_donate</name>
@@ -4553,7 +4557,7 @@ Sends VOBs to HEVC for conversion.</translation>
     <message>
         <location filename="marks_L_auto.py" line="361"/>
         <source>Crop attivo</source>
-        <translation>Crop active</translation>
+        <translation>Crop enable</translation>
     </message>
     <message>
         <location filename="marks_L_auto.py" line="362"/>
@@ -4563,7 +4567,7 @@ Sends VOBs to HEVC for conversion.</translation>
     <message>
         <location filename="marks_L_auto.py" line="363"/>
         <source>Forza DAR 2.35:1</source>
-        <translation>Strength DAR 2.35:1</translation>
+        <translation>Force DAR 2.35:1</translation>
     </message>
     <message>
         <location filename="marks_L_auto.py" line="364"/>
@@ -4609,6 +4613,90 @@ Sends VOBs to HEVC for conversion.</translation>
         <location filename="_marks_ui.py" line="282"/>
         <source>Frame vuoto/illeggibile.</source>
         <translation>Empty/unreadable frame.</translation>
+    </message>
+    <message>
+        <source>Guida rapida: finestra Crop</source>
+        <translation>Quick guide: Crop window</translation>
+    </message>
+    <message>
+        <source>Queste opzioni servono a: (1) tagliare l&apos;immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.</source>
+        <translation>These options help you: (1) physically crop the image and (2) keep a correct aspect ratio (16:9 or 2.35:1) without distortion.</translation>
+    </message>
+    <message>
+        <source>Significato delle checkbox</source>
+        <translation>Checkbox meaning</translation>
+    </message>
+    <message>
+        <source>Crop attivo: applica davvero il crop (crop=W:H:X:Y).</source>
+        <translation>Crop enabled: applies a real crop (crop=W:H:X:Y).</translation>
+    </message>
+    <message>
+        <source>Forza DAR 16:9: blocca il rettangolo di crop a 16:9 (solo come vincolo di selezione).</source>
+        <translation>Force DAR 16:9: locks the crop rectangle to 16:9 (selection constraint only).</translation>
+    </message>
+    <message>
+        <source>Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1 (solo come vincolo di selezione).</source>
+        <translation>Force DAR 2.35:1: locks the crop rectangle to 2.35:1 (selection constraint only).</translation>
+    </message>
+    <message>
+        <source>Combinazioni consigliate</source>
+        <translation>Recommended combinations</translation>
+    </message>
+    <message>
+        <source>Film già cinemascope “pulito” (es. 1280×544, senza bande):</source>
+        <translation>Already clean cinemascope (e.g. 1280×544, no black bars):</translation>
+    </message>
+    <message>
+        <source>→ Non serve crop: lascia tutto OFF (Crop attivo OFF, Forza 16:9 OFF, Forza 2.35 OFF).</source>
+        <translation>→ No crop needed: leave everything OFF (Crop OFF, Force 16:9 OFF, Force 2.35 OFF).</translation>
+    </message>
+    <message>
+        <source>Film 16:9 che ha già bande nere sopra/sotto (letterbox già presente):</source>
+        <translation>16:9 video that already has black bars top/bottom (letterbox already present):</translation>
+    </message>
+    <message>
+        <source>→ Devi togliere le bande esistenti: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.</source>
+        <translation>→ Remove the existing bars: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.</translation>
+    </message>
+    <message>
+        <source>Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande.</source>
+        <translation>Tip: set X=0 and W to full width; adjust H and Y until the black bars disappear.</translation>
+    </message>
+    <message>
+        <source>Creare un cinemascope “finto” partendo da un video senza bande (16:9 pieno):</source>
+        <translation>Create a “fake” cinemascope from a no-bar video (full 16:9):</translation>
+    </message>
+    <message>
+        <source>→ È un taglio reale: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.</source>
+        <translation>→ This is a real crop: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.</translation>
+    </message>
+    <message>
+        <source>Poi scegli l&apos;inquadratura spostando Y (per non tagliare facce/azioni).</source>
+        <translation>Then choose the framing by adjusting Y (so you don&apos;t cut faces/action).</translation>
+    </message>
+    <message>
+        <source>Creare/forzare un crop 16:9 (es. da 4:3 o da materiale con barre laterali):</source>
+        <translation>Create/force a 16:9 crop (e.g. from 4:3 or content with side bars):</translation>
+    </message>
+    <message>
+        <source>→ Crop attivo ON + Forza DAR 16:9 ON, Forza DAR 2.35 OFF.</source>
+        <translation>→ Crop ON + Force DAR 16:9 ON, Force DAR 2.35 OFF.</translation>
+    </message>
+    <message>
+        <source>Decidi se togliere barre laterali (tagliando W/X) o bande sopra/sotto (tagliando H/Y).</source>
+        <translation>Decide whether to remove side bars (crop W/X) or top/bottom bars (crop H/Y).</translation>
+    </message>
+    <message>
+        <source>Note tecniche (anti-problemi)</source>
+        <translation>Technical notes (avoid issues)</translation>
+    </message>
+    <message>
+        <source>Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.</source>
+        <translation>Keep W and H even (many codecs/pipelines require it). This window already rounds to even values when saving.</translation>
+    </message>
+    <message>
+        <source>Usa &apos;Preview filtrata&apos; per controllare subito che non ci siano distorsioni.</source>
+        <translation>Use &apos;Filtered preview&apos; to quickly check there is no distortion.</translation>
     </message>
 </context>
 <context>

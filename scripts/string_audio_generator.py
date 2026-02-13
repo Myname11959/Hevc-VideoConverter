@@ -404,6 +404,124 @@ class PreviewProgressDialog(QDialog):
 
 
 class AudioConverter(QDialog):
+    def _apply_channel_policy_to_batch(self):
+        """
+        Fix centrale canali:
+        - Se input è mono e 'Mantieni MONO…' è spuntata -> resta mono.
+        - Se è selezionato 'Stereo (downmix 2ch)' oppure 'Samsung — Stereo' -> FORZA 2 canali SEMPRE
+          (anche da input mono: dual-mono L=R).
+        - Pulisce eventuali -ac duplicati e rimuove -channel_layout mono quando si richiede stereo.
+        - Aggiorna la metadata title 'AAC X.Y' coerente con l'output.
+        """
+        import re as _re
+
+        keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
+        want_2ch = bool(getattr(self, "chk_force_stereo", None) and self.chk_force_stereo.isChecked())
+        sb_stereo = bool(getattr(self, "chk_sb_stereo", None) and self.chk_sb_stereo.isChecked())
+        sb_51 = bool(getattr(self, "chk_sb_51", None) and self.chk_sb_51.isChecked())
+
+        # profilo 5.1: non tocchiamo nulla qui
+        if sb_51:
+            return
+
+        want_2ch = want_2ch or sb_stereo
+
+        def _drop_kv_opt(cmd, opt):
+            out = []
+            i = 0
+            while i < len(cmd):
+                if cmd[i] == opt and (i + 1) < len(cmd):
+                    i += 2
+                    continue
+                out.append(cmd[i])
+                i += 1
+            return out
+
+        def _ensure_pan_dual_mono(cmd):
+            # Inserisce pan dual-mono (L=R=c0) in -af, se manca.
+            pan = "pan=stereo|FL=c0|FR=c0"
+            if "-af" in cmd:
+                i = cmd.index("-af")
+                if i + 1 < len(cmd):
+                    f = cmd[i + 1]
+                    ff = str(f)
+                    if "pan=stereo" in ff and ("FL=c0" in ff or "c0" in ff and "FR=" in ff):
+                        return cmd
+                    cmd[i + 1] = pan + "," + ff
+                    return cmd
+            # nessun -af -> aggiungi
+            return cmd + ["-af", pan]
+
+        def _patch_title(cmd, target_ch):
+            # Modifica solo title=... su -metadata:s:a:0, se presente
+            for i in range(len(cmd) - 1):
+                if cmd[i] == "-metadata:s:a:0":
+                    v = str(cmd[i + 1])
+                    # normalizza quotes eventuali
+                    vv = v.strip().strip("'").strip('"')
+                    if vv.startswith("title="):
+                        # sostituisci "AAC ?.?" -> AAC 1.0 / 2.0
+                        new = _re.sub(r"(AAC\s+)\d\.\d", r"\g<1>" + (f"{int(target_ch)}.0"), vv)
+                        cmd[i + 1] = new
+                        return cmd
+            return cmd
+
+        # Se non si richiede nulla, non tocchiamo
+        if not want_2ch and not keep_mono:
+            return
+
+        for idx, seg in enumerate(list(getattr(self, "batch", None).items or [])):
+            cmd = list(seg)
+
+            # prova a capire quale traccia 0:a:N stiamo trattando (se presente)
+            map_idx = None
+            for j in range(len(cmd) - 1):
+                if cmd[j] == "-map":
+                    s = str(cmd[j + 1])
+                    mm = _re.search(r"0:a:(\d+)", s)
+                    if mm:
+                        try:
+                            map_idx = int(mm.group(1))
+                        except Exception:
+                            map_idx = None
+                        break
+
+            in_ch = None
+            try:
+                if map_idx is not None:
+                    in_ch = int(getattr(self, "_orig_channels", {}).get(map_idx) or 0) or None
+            except Exception:
+                in_ch = None
+
+            # decide target
+            target = None
+            if (in_ch == 1) and keep_mono:
+                target = 1
+            elif want_2ch:
+                target = 2
+
+            if target is None:
+                continue
+
+            # pulizia -ac duplicati + (se serve) channel_layout
+            cmd = _drop_kv_opt(cmd, "-ac")
+            cmd = _drop_kv_opt(cmd, "-channel_layout")
+
+            if target == 2:
+                # se input mono e NON keep_mono -> crea stereo fittizio
+                if (in_ch == 1) and (not keep_mono):
+                    cmd = _ensure_pan_dual_mono(cmd)
+                cmd += ["-ac", "2"]
+                # opzionale: layout stereo esplicito (di solito ok senza)
+                # cmd += ["-channel_layout", "stereo"]
+                cmd = _patch_title(cmd, 2)
+            else:
+                cmd += ["-ac", "1", "-channel_layout", "mono"]
+                cmd = _patch_title(cmd, 1)
+
+            # scrivi back
+            getattr(self, "batch").items[idx] = cmd
+
     def __init__(self, auto: str, parent=None):
         super().__init__(parent)
 
@@ -3390,6 +3508,7 @@ class AudioConverter(QDialog):
                     self.batch.file = None
             except Exception:
                 pass
+            self._apply_channel_policy_to_batch()
             self.batch.flush()
         except Exception as e:
             print(f"[string_audio_generator] Errore in flush(): {e}", file=sys.stderr, flush=True)

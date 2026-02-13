@@ -152,3 +152,6 @@ FFREPORT*.log
 tmp/
 tmp/**
 _repo_cleanup/
+
+# keep package init files tracked (avoid *_.py ignoring)
+!**/__init__.py

@@ -26,12 +26,13 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from PyQt5.QtCore import Qt, QRectF, QTimer
-from PyQt5.QtGui import QPixmap, QPen, QColor, QPainter, QBrush
+from PyQt5.QtGui import QPixmap, QPen, QColor, QPainter, QBrush, QIcon
 from PyQt5.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
+    QTextBrowser,
     QPushButton,
     QCheckBox,
     QSpinBox,
@@ -50,7 +51,6 @@ from PyQt5.QtWidgets import (
 from hevc_gui.core import constants as C
 
 from hevc_gui.video.crop_tools import (
-    CropSpec,  # compat / typing
     load_crop_settings,
     save_crop_settings,
     clear_crop_settings,
@@ -63,6 +63,47 @@ FRAME_PATH = Path("/dev/shm/hevc_gui/crop_frame.png")
 def _even(x: int) -> int:
     """Rende pari (per codec/compat: molte pipeline vogliono valori pari)."""
     return (x // 2) * 2
+
+def _i18n_mark_crop_help():
+    """
+    MARCATORE i18n: non viene chiamato.
+    Serve solo a far estrarre a pylupdate5 le stringhe dell'Aiuto.
+    """
+    from PyQt5.QtCore import QCoreApplication
+
+    # Duplichiamo in 2 contesti per massimizzare compatibilità con L()/translate()
+    ctxs = ("CropDialogHelp", "CropDialog")
+
+    for ctx in ctxs:
+        QCoreApplication.translate(ctx, "Guida rapida: finestra Crop")
+        QCoreApplication.translate(ctx, "Queste opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.")
+        QCoreApplication.translate(ctx, "Significato delle checkbox")
+        QCoreApplication.translate(ctx, "Crop attivo: applica davvero il crop (crop=W:H:X:Y).")
+        QCoreApplication.translate(ctx, "Forza DAR 16:9: blocca il rettangolo di crop a 16:9 (solo come vincolo di selezione).")
+        QCoreApplication.translate(ctx, "Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1 (solo come vincolo di selezione).")
+
+        QCoreApplication.translate(ctx, "Combinazioni consigliate")
+        QCoreApplication.translate(ctx, "Film già cinemascope “pulito” (es. 1280×544, senza bande):")
+        QCoreApplication.translate(ctx, "→ Non serve crop: lascia tutto OFF (Crop attivo OFF, Forza 16:9 OFF, Forza 2.35 OFF).")
+
+        QCoreApplication.translate(ctx, "Film 16:9 che ha già bande nere sopra/sotto (letterbox già presente):")
+        QCoreApplication.translate(ctx, "→ Devi togliere le bande esistenti: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
+        QCoreApplication.translate(ctx, "Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande.")
+
+        QCoreApplication.translate(ctx, "Creare un cinemascope “finto” partendo da un video senza bande (16:9 pieno):")
+        QCoreApplication.translate(ctx, "→ È un taglio reale: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
+        QCoreApplication.translate(ctx, "Poi scegli l'inquadratura spostando Y (per non tagliare facce/azioni).")
+
+        QCoreApplication.translate(ctx, "Creare/forzare un crop 16:9 (es. da 4:3 o da materiale con barre laterali):")
+        QCoreApplication.translate(ctx, "→ Crop attivo ON + Forza DAR 16:9 ON, Forza DAR 2.35 OFF.")
+        QCoreApplication.translate(ctx, "Decidi se togliere barre laterali (tagliando W/X) o bande sopra/sotto (tagliando H/Y).")
+
+        QCoreApplication.translate(ctx, "Note tecniche (anti-problemi)")
+        QCoreApplication.translate(ctx, "Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.")
+        QCoreApplication.translate(ctx, "Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni.")
+
+        QCoreApplication.translate(ctx, "Aiuto")
+        QCoreApplication.translate(ctx, "Chiudi")
 
 
 class CropView(QGraphicsView):
@@ -375,10 +416,22 @@ class CropDialog(QDialog):
         self.sld_time.actionTriggered.connect(self._on_seek_action)
 
         self.btn_preview = QPushButton(L("Preview filtrata"), self)
+        self.btn_help = QPushButton(L("Aiuto"), self)
+        try:
+            # prova path “portabile” (repo/install)
+            icon_path = (Path(__file__).resolve().parents[1] / "resources" / "icons" / "ph_help.png")
+            # fallback: path esplicito (se lavori nella repo su /mnt/Storage)
+            if not icon_path.exists():
+                icon_path = Path("/mnt/Storage/Hevc_gui/hevc_gui/resources/icons/ph_help.png")
+            if icon_path.exists():
+                self.btn_help.setIcon(QIcon(str(icon_path)))
+        except Exception:
+            pass
         self.btn_apply = QPushButton(L("Applica"), self)
         self.btn_cancel = QPushButton(L("Annulla (spegni)"), self)
 
         self.btn_preview.clicked.connect(self._on_preview)
+        self.btn_help.clicked.connect(self._on_help)
         self.btn_apply.clicked.connect(self._apply)
         self.btn_cancel.clicked.connect(self.reject)
 
@@ -386,6 +439,7 @@ class CropDialog(QDialog):
         bottom_row.setSpacing(8)
         bottom_row.addWidget(self.lbl_time)
         bottom_row.addWidget(self.sld_time, 1)
+        bottom_row.addWidget(self.btn_help)
         bottom_row.addWidget(self.btn_preview)
         bottom_row.addWidget(self.btn_apply)
         bottom_row.addWidget(self.btn_cancel)
@@ -706,6 +760,77 @@ class CropDialog(QDialog):
         )
         return True
 
+    def _help_html(self) -> str:
+        import html
+        def esc(x: str) -> str:
+            return html.escape(x, quote=False).replace("\n", "<br>")
+        def H1(x: str) -> str:
+            return f"<div style='font-size:22px;font-weight:700;margin:0 0 10px 0'>{esc(x)}</div>"
+        def H2(x: str) -> str:
+            return f"<div style='font-size:16px;font-weight:700;margin:14px 0 8px 0'>{esc(x)}</div>"
+        def li_bold_prefix(x: str) -> str:
+            x = (x or "").strip()
+            if x.startswith("→"):
+                return f"<li>{esc(x)}</li>"
+            if ":" in x:
+                a, b = x.split(":", 1)
+                return f"<li><b>{esc(a)}:</b>{esc(b)}</li>"
+            return f"<li>{esc(x)}</li>"
+
+        title = L("Guida rapida: finestra Crop")
+        intro = L("Queste opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.")
+
+        sec_chk = L("Significato delle checkbox")
+        chk1 = L("Crop attivo: applica davvero il crop (crop=W:H:X:Y).")
+        chk2 = L("Forza DAR 16:9: blocca il rettangolo di crop a 16:9 (solo come vincolo di selezione).")
+        chk3 = L("Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1 (solo come vincolo di selezione).")
+
+        sec_combo = L("Combinazioni consigliate")
+        c1 = L("Film già cinemascope “pulito” (es. 1280×544, senza bande):")
+        c1a = L("→ Non serve crop: lascia tutto OFF (Crop attivo OFF, Forza 16:9 OFF, Forza 2.35 OFF).")
+
+        c2 = L("Film 16:9 che ha già bande nere sopra/sotto (letterbox già presente):")
+        c2a = L("→ Devi togliere le bande esistenti: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
+        c2b = L("Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande.")
+
+        c3 = L("Creare un cinemascope “finto” partendo da un video senza bande (16:9 pieno):")
+        c3a = L("→ È un taglio reale: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
+        c3b = L("Poi scegli l'inquadratura spostando Y (per non tagliare facce/azioni).")
+
+        c4 = L("Creare/forzare un crop 16:9 (es. da 4:3 o da materiale con barre laterali):")
+        c4a = L("→ Crop attivo ON + Forza DAR 16:9 ON, Forza DAR 2.35 OFF.")
+        c4b = L("Decidi se togliere barre laterali (tagliando W/X) o bande sopra/sotto (tagliando H/Y).")
+
+        sec_note = L("Note tecniche (anti-problemi)")
+        n1 = L("Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.")
+        n2 = L("Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni.")
+
+        parts = []
+        parts.append(H1(title))
+        parts.append(f"<div style='margin:0 0 10px 0'>{esc(intro)}</div>")
+
+        parts.append(H2(sec_chk))
+        parts.append("<ul>")
+        parts.append(li_bold_prefix(chk1))
+        parts.append(li_bold_prefix(chk2))
+        parts.append(li_bold_prefix(chk3))
+        parts.append("</ul>")
+
+        parts.append(H2(sec_combo))
+        parts.append("<ul>")
+        parts.append(f"<li><b>{esc(c1)}</b><ul>{li_bold_prefix(c1a)}</ul></li>")
+        parts.append(f"<li><b>{esc(c2)}</b><ul>{li_bold_prefix(c2a)}{li_bold_prefix(c2b)}</ul></li>")
+        parts.append(f"<li><b>{esc(c3)}</b><ul>{li_bold_prefix(c3a)}{li_bold_prefix(c3b)}</ul></li>")
+        parts.append(f"<li><b>{esc(c4)}</b><ul>{li_bold_prefix(c4a)}{li_bold_prefix(c4b)}</ul></li>")
+        parts.append("</ul>")
+
+        parts.append(H2(sec_note))
+        parts.append("<ul>")
+        parts.append(li_bold_prefix(n1))
+        parts.append(li_bold_prefix(n2))
+        parts.append("</ul>")
+
+        return "<html><body style='font-family:Sans-Serif; font-size:12px;'>" + "".join(parts) + "</body></html>"
     def _apply(self):
         if not self._save_current_crop(show_warning=True):
             return
@@ -737,3 +862,25 @@ class CropDialog(QDialog):
         except Exception:
             pass
         super().reject()
+
+    def _on_help(self):
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QHBoxLayout
+        dlg = QDialog(self)
+        # titolo: usa il testo del bottone Help (già tradotto)
+        if hasattr(self, "btn_help") and self.btn_help is not None:
+            dlg.setWindowTitle(self.btn_help.text())
+        else:
+            dlg.setWindowTitle(L("Aiuto"))
+        dlg.setMinimumSize(760, 520)
+        lay = QVBoxLayout(dlg)
+        view = QTextBrowser(dlg)
+        view.setOpenExternalLinks(True)
+        view.setHtml(self._help_html())
+        lay.addWidget(view)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        btn = QPushButton(L("Chiudi"), dlg)
+        btn.clicked.connect(dlg.accept)
+        row.addWidget(btn)
+        lay.addLayout(row)
+        dlg.exec_()
