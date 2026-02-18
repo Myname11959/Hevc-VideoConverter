@@ -523,6 +523,8 @@ class MainWindow(QMainWindow):
         self._subtitle_inputs: list[Path] = []
         self._subtitle_langs: list[str] = []
         self._subtitle_types: list[str] = []
+        self._subtitle_maps: list[str] = []  # es: ['0:s:0','0:s:3'] per subs interni selezionati
+
         self._subtitle_out_opts: list[str] = []
         self._elapsed_secs = self._eta_secs = 0
         self._tick_timer = None
@@ -1377,6 +1379,9 @@ class MainWindow(QMainWindow):
         self._subtitle_inputs.clear()
         self._subtitle_langs.clear()
         self._subtitle_types.clear()
+        self._subtitle_maps.clear()
+
+        self._subs_integrated_count = 0
         self._chapter_opts.clear()
         self._chapters_handled = False
         self._subs_integrated_count = 0
@@ -1414,6 +1419,15 @@ class MainWindow(QMainWindow):
         if not self._current_file:
             return
         dlg = AudioConverter(str(self._current_file), parent=self)
+# SAG_TRACK_EDITOR_HOOK
+        try:
+            from hevc_gui.core.sag_track_editor import attach_track_editor
+            attach_track_editor(dlg, L)
+        except Exception as _e:
+            try:
+                self.txt_info.append(L("! SAG: editor tracce non disponibile ({0})").format(_e))
+            except Exception:
+                pass
         if dlg.exec_() != QDialog.Accepted:
             return
 
@@ -1680,7 +1694,7 @@ class MainWindow(QMainWindow):
             w = QApplication.activeModalWidget()
             if w is not None:
                 self._preview_restore_widget = w
-                w.showMinimized()
+                w.hide()
         except Exception:
             self._preview_restore_widget = None
 
@@ -1818,7 +1832,7 @@ class MainWindow(QMainWindow):
         w = getattr(self, "_preview_restore_widget", None)
         if w is not None:
             try:
-                w.showNormal()
+                w.show()
                 w.raise_()
                 w.activateWindow()
                 w.setFocus()
@@ -1834,7 +1848,7 @@ class MainWindow(QMainWindow):
         w = getattr(self, "_preview_restore_widget", None)
         if w is not None:
             try:
-                w.showNormal()
+                w.show()
                 w.raise_()
                 w.activateWindow()
                 w.setFocus()
@@ -2483,6 +2497,7 @@ class MainWindow(QMainWindow):
             tail = []
         else:
             ext = ".mka"
+            '-default_mode', 'passthrough',
             container = ["-f", "matroska"]
             tail = []
 
@@ -2930,8 +2945,8 @@ class MainWindow(QMainWindow):
                     idx_map = next(it, "")
                     m = re.match(r"^0:a:(\d+)$", idx_map)
                     if m:
-                        # tua logica storica: shift indici di 1 (manteniamola)
-                        new_idx = max(int(m.group(1)) - 1, 0)
+                        # indice audio 0-based: usa esattamente quello passato in -map 0:a:N
+                        new_idx = int(m.group(1))
                         audio_map = f"0:a:{new_idx}"
                         audio_idx_for_fc = new_idx
                     # NON aggiungiamo -map qui: lo facciamo dopo (dipende se TRIM attivo)
@@ -3331,13 +3346,21 @@ class MainWindow(QMainWindow):
         # Sottotitoli incorporati (stream 0:s:x)
         track_idx = 0
         internal_count = len(self._subtitle_langs) - len(self._subtitle_inputs)
+        # Se la GUI ci passa map espliciti (0:s:N), usali. Fallback: 0:s:<idx>
+        try:
+            internal_maps = list(getattr(self, "_subtitle_maps", []) or [])
+            if internal_maps:
+                internal_count = len(internal_maps)
+        except Exception:
+            internal_maps = []
         for idx in range(internal_count):
             lang = self._subtitle_langs[idx]
             kind = self._subtitle_types[idx]
 
+            map_str = internal_maps[idx] if idx < len(internal_maps) and internal_maps[idx] else f"0:s:{idx}"
             cmd += [
                 "-map",
-                f"0:s:{idx}",
+                map_str,
                 "-c:s",
                 "copy",
                 f"-metadata:s:s:{track_idx}",
@@ -3385,6 +3408,8 @@ class MainWindow(QMainWindow):
         cmd += [
             "-metadata",
             f"title={clean_name}",
+            *getattr(self, '_subtitle_out_opts', []),
+            '-default_mode', 'passthrough',
             "-cluster_time_limit",
             "20",
             "-cluster_size_limit",
@@ -4874,3 +4899,67 @@ class MainWindow(QMainWindow):
 
 
 
+
+    def _post_mkvpropedit_fix(self, ffmpeg_cmd) -> None:
+        """Post-step: forza flag default/forced dei sottotitoli in MKV via mkvpropedit.
+        Soft dependency: se mkvpropedit non c'è, non fallire.
+        """
+        try:
+            from shutil import which
+            import subprocess
+            from pathlib import Path
+        except Exception:
+            return
+
+        if not isinstance(ffmpeg_cmd, (list, tuple)) or not ffmpeg_cmd:
+            return
+        # deve essere mux matroska
+        if "matroska" not in ffmpeg_cmd:
+            return
+        out = ffmpeg_cmd[-1]
+        try:
+            outp = Path(str(out))
+        except Exception:
+            return
+        if outp.suffix.lower() != ".mkv":
+            return
+
+        sub_types = list(getattr(self, "_subtitle_types", []) or [])
+        if not sub_types:
+            return
+
+        exe = which("mkvpropedit")
+        if not exe:
+            try:
+                self.txt_info.append("! mkvpropedit non trovato: installa mkvtoolnix per sistemare default/forced dei sottotitoli.")
+            except Exception:
+                pass
+            return
+
+        # default: primo non-forced (regular). Se sono tutti forced, default sul primo.
+        default_idx = 0
+        for i, k in enumerate(sub_types):
+            if (k or "").lower() != "forced":
+                default_idx = i
+                break
+
+        args = [exe, str(outp)]
+        for i, k in enumerate(sub_types):
+            kk = (k or "").lower()
+            forced = 1 if kk == "forced" else 0
+            default = 1 if (i == default_idx and forced == 0) else 0
+            track = f"track:s{i+1}"  # mkvpropedit: s1,s2,...
+            args += ["--edit", track, "--set", f"flag-default={default}", "--set", f"flag-forced={forced}"]
+
+        try:
+            subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                self.txt_info.append("> mkvpropedit: flag sottotitoli aggiornati (default/forced)")
+            except Exception:
+                pass
+        except Exception:
+            try:
+                self.txt_info.append("! mkvpropedit: errore durante l'aggiornamento flag sottotitoli")
+            except Exception:
+                pass
+            return

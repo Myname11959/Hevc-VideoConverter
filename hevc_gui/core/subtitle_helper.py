@@ -403,6 +403,12 @@ def select_subtitles(main_win) -> None:
       lingua/tipo degli embedded e agganciare eventuali SRT/VobSub esterni.
     - Consente comunque di aggiungere sottotitoli esterni (loop manuale)
     - Popola tutti i campi: inputs, langs, types, opts, out_opts
+
+    Fix 2026-02-17:
+    - preserva SELEZIONE MULTIPLA embedded
+    - salva map embedded in mw._subtitle_maps
+    - salva conteggio embedded in mw._subs_integrated_count
+    - aggiunge -map solo dopo Accept (liste sempre allineate)
     """
     mw = main_win
 
@@ -412,6 +418,13 @@ def select_subtitles(main_win) -> None:
     mw._subtitle_langs.clear()
     mw._subtitle_types.clear()
     mw._subtitle_out_opts.clear()
+
+    # Nuovi campi (retrocompatibili)
+    if hasattr(mw, "_subtitle_maps"):
+        mw._subtitle_maps.clear()
+    else:
+        mw._subtitle_maps = []
+    mw._subs_integrated_count = 0
 
     sidecar = getattr(mw, "_ldvd_sidecar", None)
 
@@ -439,7 +452,7 @@ def select_subtitles(main_win) -> None:
 
             tmp_streams.append(
                 {
-                    "index": idx,
+                    "index": idx,          # stream index (ffprobe "index")
                     "language": lang,
                     "kind": kind,
                     "codec": _get(sub, "format", "") or "vobsub",
@@ -449,11 +462,37 @@ def select_subtitles(main_win) -> None:
 
         streams = tmp_streams
 
+    embedded_maps: List[str] = []
+
     if streams:
+        # Proviamo a derivare un indice relativo tra i soli sottotitoli (0:s:N),
+        # mantenendo fallback su 0:<global_index> se non possiamo.
+        rel_map: Dict[int, int] = {}
+        try:
+            idxs = []
+            for d in streams:
+                if "index" in d:
+                    idxs.append(int(d["index"]))
+            idxs_sorted = sorted(dict.fromkeys(idxs))
+            rel_map = {g: i for i, g in enumerate(idxs_sorted)}
+        except Exception:
+            rel_map = {}
+
         sels = sman.select_embedded_dialog(streams, parent=mw)
         if sels:
             for s in sels:
-                spec = f"0:{s['index']}"
+                try:
+                    gidx = int(s["index"])
+                except Exception:
+                    continue
+
+                # Preferisci 0:s:<rel> (coerente con il resto della pipeline).
+                # Se non abbiamo rel_map, fallback su stream index globale.
+                if gidx in rel_map:
+                    spec = f"0:s:{rel_map[gidx]}"
+                else:
+                    spec = f"0:{gidx}"
+
                 # hint base da ffprobe + subtitle_manager (language + kind)
                 pre_lang = s.get("language", "und") or "und"
                 pre_kind = (s.get("kind") or "normal").lower()
@@ -467,12 +506,22 @@ def select_subtitles(main_win) -> None:
                     if hint:
                         pre_lang, pre_kind = hint
 
-                mw._subtitle_opts += ["-map", spec]
                 dlg = SubTagDialog(mw, pre_lang=_norm_lang(pre_lang), pre_kind=pre_kind)
-                if dlg.exec_() == QDialog.Accepted:
-                    lang, kind = dlg.result()
-                    mw._subtitle_langs.append(lang or _norm_lang(pre_lang))
-                    mw._subtitle_types.append(kind)
+                if dlg.exec_() != QDialog.Accepted:
+                    continue
+
+                lang, kind = dlg.result()
+
+                # Append SOLO ora: liste sempre allineate
+                mw._subtitle_opts += ["-map", spec]
+                embedded_maps.append(spec)
+
+                mw._subtitle_langs.append(lang or _norm_lang(pre_lang))
+                mw._subtitle_types.append(kind)
+
+    # Salva embedded maps + conteggio (usati dal mux/queue)
+    mw._subtitle_maps = list(embedded_maps)
+    mw._subs_integrated_count = len(embedded_maps)
 
     # ────────────── Esterni dal sidecar LDVD (auto-suggest) ──────────────
     if sidecar is not None:
@@ -495,7 +544,6 @@ def select_subtitles(main_win) -> None:
                 pre_kind = item.get("kind") or "normal"
                 src = item.get("source") or ""
 
-                # Piccolo log di servizio
                 try:
                     mw.txt_info.append(
                         f"  - {path.name}  [{pre_lang} / {pre_kind}]  ← {src}"
@@ -503,7 +551,6 @@ def select_subtitles(main_win) -> None:
                 except Exception:
                     pass
 
-                # Conferma lingua/tipo (così l'utente può correggere al volo)
                 dlg = SubTagDialog(mw, pre_lang=_norm_lang(pre_lang), pre_kind=pre_kind)
                 if dlg.exec_() != QDialog.Accepted:
                     continue
@@ -524,7 +571,7 @@ def select_subtitles(main_win) -> None:
             L('SubRip (*.srt);;ASS (*.ass);;Tutti i file (*)'),
         )
         if not path:
-            break  # interrotto
+            break
 
         fixed_path = ensure_utf8(Path(path), C.TEMP_DIR)
         mw._subtitle_inputs.append(fixed_path)
@@ -544,13 +591,27 @@ def select_subtitles(main_win) -> None:
         mw.txt_info.append(L("! Nessun sottotitolo aggiunto."))
         return
 
-    # ────────────── Costruzione flag -disposition ──────────────
-    for idx, kind in enumerate(mw._subtitle_types):
-        flag = KIND_MAP.get(kind)
-        if flag:
-            mw._subtitle_out_opts += [f"-disposition:s:{idx}", flag]
+    # Disposition: 1 solo default (il primo regular), forced solo dove serve
+    default_idx = None
+    for i, k in enumerate(mw._subtitle_types):
+        if (k or "").lower() != "forced":
+            default_idx = i
+            break
+    if default_idx is None:
+        default_idx = 0
+
+    for i, k in enumerate(mw._subtitle_types):
+        kk = (k or "").lower()
+    
+        # override totale (non “modifier”): cancella tutto e reimposta solo ciò che serve
+        mw._subtitle_out_opts += [f"-disposition:s:{i}", "0"]
+        if i == default_idx:
+            mw._subtitle_out_opts += [f"-disposition:s:{i}", "default"]
+        if kk == "forced":
+            mw._subtitle_out_opts += [f"-disposition:s:{i}", "forced"]
 
     # ────────────── UI update ──────────────
     mw.txt_info.append(L('> Sottotitoli: {0} tracce selezionate').format(len(mw._subtitle_types)))
     mw.btn_chapter.setEnabled(True)
     mw.btn_copy_log.setEnabled(False)
+

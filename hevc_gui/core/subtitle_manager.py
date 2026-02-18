@@ -297,34 +297,47 @@ class SubtitleManager:
         tmp = Path(temp_name)
         tmp.write_text(text, encoding="utf-8")
         return tmp
-
     @staticmethod
     def select_embedded_dialog(streams: list[dict], parent=None) -> list[dict]:
+        """Dialog multi per scegliere uno o più sottotitoli incorporati.
+        Fix: usa checkbox (spunte) così non esiste più il problema
+        'doppio click -> resta selezionato solo l'ultimo'.
         """
-        Dialog multi-select per scegliere uno o più flussi incorporati.
-        Restituisce la lista dei dict selezionati, o [] se nessuno.
+        if not streams:
+            return []
 
-        Mostra ora anche codec + kind, es.:
-          #2 [ita] Italiano — VobSub (SDH)
-          #3 [eng] English — VobSub (forced)
-        """
+        # Import locale compatibile (PyQt5/PySide6)
+        try:
+            from PyQt5.QtWidgets import (
+                QDialog, QVBoxLayout, QListWidget, QListWidgetItem,
+                QDialogButtonBox, QLabel
+            )
+            from PyQt5.QtCore import Qt
+        except Exception:
+            from PySide6.QtWidgets import (
+                QDialog, QVBoxLayout, QListWidget, QListWidgetItem,
+                QDialogButtonBox, QLabel
+            )
+            from PySide6.QtCore import Qt
+
         dlg = QDialog(parent)
         dlg.setWindowTitle(L("Scegli sottotitoli incorporati"))
         layout = QVBoxLayout(dlg)
 
-        listw = QListWidget()
-        listw.setSelectionMode(QAbstractItemView.MultiSelection)
+        layout.addWidget(QLabel(L("Spunta uno o più sottotitoli (puoi anche usare Ctrl/Shift).")))
 
-        for s in streams:
+        listw = QListWidget(dlg)
+        listw.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        layout.addWidget(listw)
+
+        # Popola lista con checkbox + idx via UserRole
+        for row, s in enumerate(streams):
             idx = s.get("index")
             lang = _norm_lang(s.get("language", "und"))
             codec_label = s.get("codec_label") or ""
             kind = (s.get("kind") or "normal").lower()
 
-            # Nome lingua “umano”
             lang_disp = C.LANGUAGE_NAMES.get(lang, lang.upper())
-
-            # Kind in forma carina
             kind_disp = _kind_display(kind)
 
             parts = [lang_disp]
@@ -332,39 +345,59 @@ class SubtitleManager:
                 parts.append(f"— {codec_label}")
             if kind_disp:
                 parts.append(f"({kind_disp})")
-
             desc = " ".join(parts)
+
             label = f"#{idx} [{lang}] {desc}"
-            listw.addItem(label)
+            it = QListWidgetItem(label)
+            it.setData(Qt.UserRole, row)
+            it.setFlags(it.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            it.setCheckState(Qt.Unchecked)
+            listw.addItem(it)
 
-        layout.addWidget(listw)
-
-        # Doppio clic = conferma (OK)
-        def _on_dblclick(item):
-            # in MultiSelection, assicuriamoci che l’item doppio-cliccato risulti selezionato
+        # Doppio click: toggle check (NON chiude)
+        def _toggle_check(item):
             try:
-                if item and not item.isSelected():
-                    item.setSelected(True)
+                if item.checkState() == Qt.Checked:
+                    item.setCheckState(Qt.Unchecked)
+                else:
+                    item.setCheckState(Qt.Checked)
             except Exception:
                 pass
-            dlg.accept()
+        listw.itemDoubleClicked.connect(_toggle_check)
 
-        listw.itemDoubleClicked.connect(_on_dblclick)
+        box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, parent=dlg)
+        box.accepted.connect(dlg.accept)
+        box.rejected.connect(dlg.reject)
+        layout.addWidget(box)
 
-        btns = QHBoxLayout()
-        ok = QPushButton(L("OK"))
-        cancel = QPushButton(L("Annulla"))
-        ok.clicked.connect(dlg.accept)
-        cancel.clicked.connect(dlg.reject)
-        btns.addStretch()
-        btns.addWidget(ok)
-        btns.addWidget(cancel)
-        layout.addLayout(btns)
+        if dlg.exec_() != QDialog.Accepted:
+            return []
 
-        if dlg.exec_() == QDialog.Accepted:
-            selected = []
-            for item in listw.selectedItems():
-                row = listw.row(item)
+        selected: list[dict] = []
+
+        # 1) Prima scelta: tutti i checked
+        for i in range(listw.count()):
+            it = listw.item(i)
+            if it.checkState() == Qt.Checked:
+                row = int(it.data(Qt.UserRole))
                 selected.append(streams[row])
+
+        if selected:
             return selected
-        return []
+
+        # 2) Fallback: eventuali selezionati (highlight)
+        for it in listw.selectedItems():
+            row = int(it.data(Qt.UserRole))
+            selected.append(streams[row])
+
+        # Dedup preservando ordine
+        out = []
+        seen = set()
+        for s in selected:
+            key = s.get("index")
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(s)
+        return out
+

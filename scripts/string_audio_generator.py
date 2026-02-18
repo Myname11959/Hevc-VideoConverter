@@ -569,7 +569,12 @@ class AudioConverter(QDialog):
         # caricamento iniziale
         self.load_file(auto)
 
-    # === Helpers lingua (unica fonte UI, ma per-traccia) =======================
+        # === Helpers lingua (unica fonte UI, ma per-traccia) =======================
+        try:
+            _sag_hook_btn_add(self)
+            _sag_sync_btn_add(self)
+        except Exception:
+            pass
 
     def _lang_choices(self):
         """
@@ -1147,7 +1152,7 @@ class AudioConverter(QDialog):
         self.btn_add = QPushButton(L("Agg. traccia"), self)
         self.btn_cancel = QPushButton(L("Annulla"), self)
         self.btn_ok = QPushButton(L("OK / Esci"), self)
-        self.btn_add.setEnabled(False)
+        self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         for b in (self.btn_add, self.btn_cancel, self.btn_ok):
             b.setFixedHeight(M["H_BTN"])
 
@@ -1875,8 +1880,7 @@ class AudioConverter(QDialog):
         self.cmb_track.clear()
         self.cmb_track.addItem(L("Seleziona traccia…"), (-1, None, None))
         self.cmb_track.setEnabled(False)
-        self.btn_add.setEnabled(False)
-
+        self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         ui_default_lang = self._lang_code_from_combo() or "und"
 
         # ───────── Sidecar LDVD (se esiste) ─────────
@@ -2278,15 +2282,14 @@ class AudioConverter(QDialog):
 
         if items:
             self.cmb_track.setEnabled(True)
-            self.btn_add.setEnabled(True)
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
             if default_combo_idx <= 0:
                 default_combo_idx = 1
             self.cmb_track.setCurrentIndex(default_combo_idx)
         else:
             self.cmb_track.setCurrentIndex(0)
             self.cmb_track.setEnabled(False)
-            self.btn_add.setEnabled(False)
-
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         self.cmb_track.blockSignals(False)
 
         print(
@@ -2455,7 +2458,7 @@ class AudioConverter(QDialog):
             self.cmb_track.addItem(L("File muto → carica audio esterno…"), (-1, None, None))
             self.cmb_track.setEnabled(False)
             self.btn_load_external_audio.show()
-            self.btn_add.setEnabled(False)
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         else:
             # → Torna a modalità interna (usa il file video caricato)
             self.audio_externo = False
@@ -2471,8 +2474,7 @@ class AudioConverter(QDialog):
                 self.cmb_track.clear()
                 self.cmb_track.addItem(L("Seleziona traccia…"), (-1, None, None))
                 self.cmb_track.setEnabled(False)
-            self.btn_add.setEnabled(False)
-
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         try:
             self._refresh_filter_availability()
             self._update_pan_preset_label()
@@ -2491,11 +2493,11 @@ class AudioConverter(QDialog):
         """
         data = self.cmb_track.itemData(combo_idx)
         if not isinstance(data, (tuple, list)) or len(data) < 3:
-            self.btn_add.setEnabled(False)
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
             return
         idx, lang, br = data
         if idx is None or idx < 0:
-            self.btn_add.setEnabled(False)
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
             return
 
         # assicura un codice lingua pulito
@@ -2507,7 +2509,7 @@ class AudioConverter(QDialog):
         # porta la combo lingua sulla lingua della traccia selezionata
         self._set_lang_combo(eff_lang)
 
-        self.btn_add.setEnabled(True)
+        self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         QTimer.singleShot(0, self._after_track_change_refresh_safe)
 
     @pyqtSlot(int)
@@ -3395,8 +3397,7 @@ class AudioConverter(QDialog):
         self.list.addItem(" ".join(shlex.quote(x) for x in seg))
         self.list.scrollToBottom()
 
-        self.btn_add.setEnabled(False)
-
+        self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         try:
             self._update_pan_preset_label()
         except Exception:
@@ -3571,10 +3572,17 @@ class AudioConverter(QDialog):
             self.cmb_track.clear()
             self.cmb_track.addItem(L("Seleziona traccia…"), (-1, None, None))
             self.cmb_track.setEnabled(False)
-            self.btn_add.setEnabled(False)
-
+            self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         self._update_pan_preset_label()
         self._refresh_filter_availability()
+
+        # HEVC_BTN_ADD_INSTALL_CALL
+
+        try:
+            _hevc_sag_install_btn_add_logic(self)
+
+        except Exception:
+            pass
 
 
 # ──────────────────────────── Entry point di test ────────────────────────────
@@ -3599,6 +3607,294 @@ def main():
     ret = app.exec_()
     sys.exit(ret)
 
+
+# SAG_BTN_ADD_SYNC_BEGIN
+def _sag_has_input(ac) -> bool:
+    """True se SAG ha un input valido (da HEVC o scelto manualmente)."""
+    # 1) attributi comuni (path / file)
+    for a in (
+        "_current_file",
+        "current_file",
+        "_input_file",
+        "_input_path",
+        "input_path",
+        "_in_file",
+        "in_file",
+        "file_in",
+        "_file",
+        "file",
+        "_src",
+        "src",
+    ):
+        try:
+            v = getattr(ac, a, None)
+        except Exception:
+            v = None
+        if v:
+            return True
+    # 2) line edit “input” (nomi tipici)
+    for n in (
+        "txt_in",
+        "le_in",
+        "edt_in",
+        "line_in",
+        "edit_in",
+        "txt_input",
+        "le_input",
+        "edt_input",
+        "line_input",
+        "input_edit",
+        "in_path",
+        "path_in",
+        "ed_in",
+    ):
+        w = getattr(ac, n, None)
+        if w is not None and hasattr(w, "text"):
+            try:
+                t = str(w.text()).strip()
+            except Exception:
+                t = ""
+            if t:
+                return True
+    # 3) fallback: cerca un QLineEdit che sembra contenere un percorso
+    try:
+        from PyQt5.QtWidgets import QLineEdit
+
+        for w in ac.findChildren(QLineEdit):
+            try:
+                t = str(w.text()).strip()
+            except Exception:
+                continue
+            if not t:
+                continue
+            if "/" in t or "\\" in t:
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _sag_sync_btn_add(ac) -> None:
+    """Regola btn_add: input vuoto -> OFF, input presente -> ON."""
+    btn = getattr(ac, "btn_add", None)
+    if btn is None or not hasattr(btn, "setEnabled"):
+        return
+    try:
+        btn.setEnabled(bool(_sag_has_input(ac)))
+    except Exception:
+        pass
+
+
+def _sag_hook_btn_add(ac) -> None:
+    """Aggancia eventi utili (track change / input change) e sync iniziale."""
+    if getattr(ac, "_sag_btn_add_hooked", False):
+        return
+    setattr(ac, "_sag_btn_add_hooked", True)
+
+    # sync iniziale
+    _sag_sync_btn_add(ac)
+
+    # combobox tracce
+    cmb = getattr(ac, "cmb_track", None)
+    if cmb is not None and hasattr(cmb, "currentIndexChanged"):
+        try:
+            cmb.currentIndexChanged.connect(lambda *_: _sag_sync_btn_add(ac))
+        except Exception:
+            pass
+
+    # input lineedit (nomi tipici)
+    for n in (
+        "txt_in",
+        "le_in",
+        "edt_in",
+        "line_in",
+        "edit_in",
+        "txt_input",
+        "le_input",
+        "edt_input",
+        "line_input",
+        "input_edit",
+        "in_path",
+        "path_in",
+        "ed_in",
+    ):
+        w = getattr(ac, n, None)
+        if w is not None and hasattr(w, "textChanged"):
+            try:
+                w.textChanged.connect(lambda *_: _sag_sync_btn_add(ac))
+            except Exception:
+                pass
+
+    # fallback: se troviamo QLineEdit “path-like”, agganciamo anche quelli
+    try:
+        from PyQt5.QtWidgets import QLineEdit
+
+        for w in ac.findChildren(QLineEdit):
+            if not hasattr(w, "textChanged"):
+                continue
+            try:
+                t = str(w.text()).strip()
+            except Exception:
+                t = ""
+            # aggancia solo se sembra un campo percorso (oppure è vuoto: tanto non fa danni)
+            if (not t) or ("/" in t or "\\" in t):
+                try:
+                    w.textChanged.connect(lambda *_: _sag_sync_btn_add(ac))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+# SAG_BTN_ADD_SYNC_END
+
+
+# HEVC_SAG_BTN_ADD_GUARD_BEGIN
+def _hevc_sag_btn_add(ac):
+    try:
+        b = getattr(ac, "btn_add", None)
+        if b is not None and hasattr(b, "setEnabled"):
+            return b
+    except Exception:
+        pass
+    try:
+        from PyQt5.QtWidgets import QAbstractButton
+
+        for b in ac.findChildren(QAbstractButton):
+            try:
+                tx = (b.text() or "").lower()
+            except Exception:
+                tx = ""
+            try:
+                on = (b.objectName() or "").lower()
+            except Exception:
+                on = ""
+            blob = (tx + " " + on).strip()
+            if ("aggiungi" in blob and "tracc" in blob) or ("add" in blob and "track" in blob):
+                return b
+    except Exception:
+        pass
+    return None
+
+
+def _hevc_sag_input_present(ac) -> bool:
+    """INPUT presente = path non vuoto (meglio se file esiste)."""
+    # 1) attributi comuni (Path/string/oggetti path-like)
+    try:
+        for v in ac.__dict__.values():
+            try:
+                if v is None:
+                    continue
+                if isinstance(v, (str, bytes)):
+                    s = v.decode() if isinstance(v, bytes) else v
+                    s = str(s).strip()
+                    if not s:
+                        continue
+                    p = Path(s)
+                    if p.exists() and p.is_file():
+                        return True
+                    # fallback: stringa path-like
+                    if ("/" in s) or ("\\\\" in s):
+                        return True
+                else:
+                    try:
+                        p = Path(v)
+                        if p.exists() and p.is_file():
+                            return True
+                    except Exception:
+                        pass
+            except Exception:
+                continue
+    except Exception:
+        pass
+    # 2) QLineEdit con testo non vuoto
+    try:
+        from PyQt5.QtWidgets import QLineEdit
+
+        for w in ac.findChildren(QLineEdit):
+            try:
+                s = str(w.text()).strip()
+            except Exception:
+                continue
+            if not s:
+                continue
+            p = Path(s)
+            if p.exists() and p.is_file():
+                return True
+            if ("/" in s) or ("\\\\" in s):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _hevc_sag_sync_btn_add(ac) -> None:
+    b = _hevc_sag_btn_add(ac)
+    if b is None:
+        return
+    try:
+        b.setEnabled(bool(_hevc_sag_input_present(ac)))
+    except Exception:
+        pass
+
+
+def _hevc_sag_guard_btn_add(ac) -> None:
+    b = _hevc_sag_btn_add(ac)
+    if b is None:
+        return
+    if getattr(b, "_hevc_guarded", False):
+        return
+    try:
+        orig = b.setEnabled
+
+        def guarded(en):
+            try:
+                if (not en) and _hevc_sag_input_present(ac):
+                    en = True
+            except Exception:
+                pass
+            return orig(en)
+
+        b.setEnabled = guarded
+        b._hevc_guarded = True
+    except Exception:
+        pass
+
+
+def _hevc_sag_install_btn_add_logic(ac) -> None:
+    if getattr(ac, "_hevc_btn_add_installed", False):
+        return
+    ac._hevc_btn_add_installed = True
+    try:
+        from PyQt5 import QtCore, QtWidgets
+    except Exception:
+        return
+
+    def resync(*_a):
+        _hevc_sag_guard_btn_add(ac)
+        _hevc_sag_sync_btn_add(ac)
+
+    try:
+        QtCore.QTimer.singleShot(0, resync)
+    except Exception:
+        pass
+    # resync su cambi testo/track
+    try:
+        for w in ac.findChildren(QtWidgets.QLineEdit):
+            try:
+                w.textChanged.connect(resync)
+            except Exception:
+                pass
+        for w in ac.findChildren(QtWidgets.QComboBox):
+            try:
+                w.currentIndexChanged.connect(resync)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+# HEVC_SAG_BTN_ADD_GUARD_END
 
 if __name__ == "__main__":
     main()
