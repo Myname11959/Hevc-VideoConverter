@@ -647,7 +647,7 @@ class MainWindow(QMainWindow):
         self.cmb_frmode = QComboBox()
         self.cmb_frmode.addItems([L(x) for x in C.FR_MODE])
         self.cmb_frval = QComboBox()
-        self.cmb_frval.addItems([L(x) for x in C.FR_CONST_VALUES])
+        self.cmb_frval.addItems(list(C.FR_CONST_VALUES))  # valori FPS NON tradotti (evita 23,976 in EN)
         self.cmb_frval.setEnabled(False)
 
         self.cmb_frmode.currentTextChanged.connect(
@@ -1284,20 +1284,59 @@ class MainWindow(QMainWindow):
             return None
 
     def _apply_detected_fps(self, fps: float) -> None:
-        def _to_float(s: str) -> float | None:
+        # --- HEVC_FR_EN_FIX_V1: robust framerate suggestion across IT/EN labels ---
+        def _to_float(v) -> float | None:
             try:
-                return float(s)
+                return float(str(v).strip().replace(",", "."))
             except Exception:
                 return None
 
-        candidates = [x for x in C.FR_CONST_VALUES if x != "Nessuno"]
-        cand_vals = [(_to_float(x), x) for x in candidates]
-        cand_vals = [(v, s) for (v, s) in cand_vals if v is not None]
-        best = min(cand_vals, key=lambda p: abs((p[0] or 0.0) - fps))[1] if cand_vals else L("Nessuno")
+        candidates: list[tuple[float, str]] = []
+        for x in getattr(C, "FR_CONST_VALUES", []):
+            xs = str(x).strip()
+            if not xs:
+                continue
+            if xs.lower() in ("nessuno", "none"):
+                continue
+            fv = _to_float(xs)
+            if fv is None:
+                continue
+            candidates.append((fv, xs))
 
-        self.cmb_frval.setCurrentText(best)
+        best = min(candidates, key=lambda p: abs(p[0] - float(fps)))[1] if candidates else "23.976"
+
+        picked = False
         try:
-            self.txt_info.append(L("> Frame-rate sorgente: {0} fps → suggerito '{1}' (se in modalità Costante).").format(fps, best))
+            target = _to_float(best)
+            if target is not None and hasattr(self, "cmb_frval") and self.cmb_frval is not None:
+                for i in range(self.cmb_frval.count()):
+                    t = self.cmb_frval.itemText(i)
+                    v = _to_float(t)
+                    if v is not None and abs(v - target) < 0.02:
+                        self.cmb_frval.setCurrentIndex(i)
+                        picked = True
+                        break
+        except Exception:
+            picked = False
+
+        if not picked:
+            try:
+                self.cmb_frval.setCurrentText(best)
+                picked = True
+            except Exception:
+                picked = False
+
+        # se il combo è editabile (o diventa editabile con helper), prova comunque
+        if not picked:
+            try:
+                self.cmb_frval.setEditText(best)
+            except Exception:
+                pass
+
+        try:
+            self.txt_info.append(
+                L("> Frame-rate sorgente: {0} fps → suggerito '{1}' (se in modalità Costante).").format(fps, best)
+            )
         except Exception:
             pass
 
@@ -2358,24 +2397,44 @@ class MainWindow(QMainWindow):
             if crf and crf != "Nessuno":
                 cmd += ["-crf", crf]
 
-        fr_mode = getattr(self, "cmb_frmode", None).currentText().strip() if getattr(self, "cmb_frmode", None) else ""
-        fr_val = getattr(self, "cmb_frval", None).currentText().strip() if getattr(self, "cmb_frval", None) else ""
+        # --- HEVC_FR_EN_FIX_V1: normalize framerate mode/value (IT/EN + comma decimals) ---
+        fr_mode_text = getattr(self, "cmb_frmode", None).currentText().strip() if getattr(self, "cmb_frmode", None) else ""
+        fr_val_text = getattr(self, "cmb_frval", None).currentText().strip() if getattr(self, "cmb_frval", None) else ""
+
+        fr_mode_key = str(fr_mode_text or "").strip().lower()
+        if fr_mode_key in ("costante", "constant"):
+            fr_mode_key = "constant"
+        elif fr_mode_key in ("variabile", "variable"):
+            fr_mode_key = "variable"
+        elif fr_mode_key in ("originale", "original"):
+            fr_mode_key = "original"
+        elif fr_mode_key in ("nessuno", "none"):
+            fr_mode_key = "none"
+
+        fr_val_norm = str(fr_val_text or "").strip().replace(",", ".")
+
         try:
-            self.txt_info.append(f"[DBG] FR: mode='{fr_mode}' value='{fr_val}'")
+            self.txt_info.append(
+                f"[DBG] FR: mode='{fr_mode_text}' ({fr_mode_key}) value='{fr_val_text}' norm='{fr_val_norm}'"
+            )
         except Exception:
             pass
 
         if (
-            (fr_mode or "").strip().lower() in ("costante", "constant")
-            and fr_val
-            and str(fr_val).strip().lower() not in ("nessuno", "none")
+            fr_mode_key == "constant"
+            and fr_val_norm
+            and fr_val_norm.lower() not in ("nessuno", "none")
         ):
             try:
-                fr = str(float(fr_val)).rstrip("0").rstrip(".")
+                fr_num = float(fr_val_norm)
+                if fr_num <= 0:
+                    raise ValueError("fps<=0")
+                fr = str(fr_num).rstrip("0").rstrip(".")
             except Exception:
-                fr = fr_val
+                # lascia comunque passare il testo normalizzato (evita regressioni con combo editable)
+                fr = fr_val_norm
             cmd += ["-r", fr, "-vsync", "cfr"]
-        elif fr_mode == "Variabile":
+        elif fr_mode_key == "variable":
             cmd += ["-vsync", "vfr"]
         else:
             cmd += ["-vsync", "0"]
@@ -4400,7 +4459,19 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def show_info(self):
-        from hevc_gui.core.constants import APP_VERSION
+        APP_VERSION = ""
+        try:
+            from pathlib import Path
+            _hevc_ver_file = Path(__file__).resolve().parents[1] / "VERSION"
+            if _hevc_ver_file.is_file():
+                APP_VERSION = (_hevc_ver_file.read_text(encoding="utf-8").strip() or "")
+        except Exception:
+            APP_VERSION = ""
+        if not APP_VERSION:
+            try:
+                from hevc_gui.core.constants import APP_VERSION  # legacy fallback
+            except Exception:
+                APP_VERSION = "unknown"
 
         pp_w, pp_h = 120, 120
         logo_w, logo_h = 160, 160

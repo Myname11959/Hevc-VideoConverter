@@ -155,3 +155,5 @@ _repo_cleanup/
 
 # keep package init files tracked (avoid *_.py ignoring)
 !**/__init__.py
+
+!hevc_gui/resources/icons_rc.py

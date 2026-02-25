@@ -39,6 +39,10 @@
     <file alias="ph_view-refresh.png">icons/ph_view-refresh.png</file>
     <file alias="ph_clear-queue.png">icons/ph_clear-queue.png</file>
     <file alias="ph_edit-clear.png">icons/ph_edit-clear.png</file>
+    <file alias="ph_mkv.png">icons/ph_mkv.png</file>
+    <file alias="ph_out_folder.png">icons/ph_out_folder.png</file>
+    <file alias="ph_user_manual.png">icons/ph_user_manual.png</file>
+    <file alias="ph_send.png">icons/ph_send.png</file>
   </qresource>
 </RCC>
 

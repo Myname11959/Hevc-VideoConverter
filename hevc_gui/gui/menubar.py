@@ -12,6 +12,7 @@ hevc_gui/gui/menubar.py
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from typing import TYPE_CHECKING
 
@@ -287,6 +288,51 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
     m_tools.addActions([act_crop, act_color, act_trim])
     m_tools.addSeparator()
     m_tools.addAction(act_dvd)
+
+    # --- MKV Suite (embedded-only) ---
+    def _open_mkv_suite():
+        try:
+            cmd = [sys.executable, "-m", "hevc_gui.mkv_suite.shells.embedded_app", "--embedded"]
+            env = os.environ.copy()
+            try:
+                from hevc_gui.i18n import child_env
+                for _k, _v in child_env().items():
+                    env[str(_k)] = str(_v)
+            except Exception:
+                pass
+            env["HEVC_MKV_EMBEDDED"] = "1"
+            subprocess.Popen(cmd, env=env)
+        except Exception as e:
+            QMessageBox.warning(
+                win,
+                L("Errore"),
+                L("Impossibile avviare Strumenti MKV:") + "\\n" + str(e),
+            )
+
+    _mkv_text = L("Strumenti MKV")
+    try:
+        from hevc_gui.i18n import get_lang as _hevc_get_lang
+        _mkv_lang = (_hevc_get_lang() or "").lower()
+    except Exception:
+        _mkv_lang = (os.environ.get("HEVC_LANG", "") or "").lower()
+    if _mkv_lang.startswith("en") and (_mkv_text.strip() in ("", "Strumenti MKV")):
+        _mkv_text = "MKV Tools"
+
+    act_mkv_suite = QAction(_mkv_text, win)
+    try:
+        _ic = QIcon(":/icons/ph_mkv.png")
+        if _ic.isNull():
+            _ic = QIcon(":/icons/ph_tools.png")
+        if _ic.isNull():
+            _ic = QIcon(":/icons/ph_video_file.png")
+        if _ic.isNull() and "act_dvd" in locals():
+            _ic = act_dvd.icon()
+        if _ic and (not _ic.isNull()):
+            act_mkv_suite.setIcon(_ic)
+    except Exception:
+        pass
+    act_mkv_suite.triggered.connect(_open_mkv_suite)
+    m_tools.addAction(act_mkv_suite)
 
     # — SETTINGS —
     m_settings = menubar.addMenu(L("&Settings"))
