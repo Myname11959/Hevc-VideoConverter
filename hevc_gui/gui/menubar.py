@@ -294,6 +294,15 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
         try:
             cmd = [sys.executable, "-m", "hevc_gui.mkv_suite.shells.embedded_app", "--embedded"]
             env = os.environ.copy()
+            # Ensure hevc_gui is importable in subprocess (installed .deb uses local sys.path)
+            try:
+                from pathlib import Path as _P
+                _pkg = _P(__file__).resolve().parents[2]  # .../hevc_gui
+                _root = str(_pkg)  # /usr/lib/hevc-video-converter (serve per import hevc_gui nel subprocess)                 # parent dir to add on PYTHONPATH
+                _pp = env.get('PYTHONPATH', '')
+                env['PYTHONPATH'] = _root + (os.pathsep + _pp if _pp else '')
+            except Exception:
+                pass
             try:
                 from hevc_gui.i18n import child_env
                 for _k, _v in child_env().items():
