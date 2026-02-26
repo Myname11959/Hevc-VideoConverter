@@ -2,6 +2,7 @@
 <html lang="it"><head>
 
 
+
   <meta http-equiv="content-type" content="text/html; charset=UTF-8"><title>HEVC-Video Converter — Manuale Utente / User Manual</title>
   
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -150,13 +151,19 @@ a:hover { text-decoration: underline; }
     function setLang(which){
       var it = document.getElementById('lang-it');
       var en = document.getElementById('lang-en');
+      var navIt = document.getElementById('nav-it');
+      var navEn = document.getElementById('nav-en');
       if(which === 'en'){
         en.classList.add('active'); it.classList.remove('active');
+        if(navEn) navEn.style.display = 'block';
+        if(navIt) navIt.style.display = 'none';
         document.documentElement.lang = 'en';
         document.title = 'HEVC-Video Converter — User Manual';
         location.hash = '#en-intro';
       }else{
         it.classList.add('active'); en.classList.remove('active');
+        if(navIt) navIt.style.display = 'block';
+        if(navEn) navEn.style.display = 'none';
         document.documentElement.lang = 'it';
         document.title = 'HEVC-Video Converter — Manuale Utente';
         location.hash = '#introduzione';
@@ -164,7 +171,7 @@ a:hover { text-decoration: underline; }
     }
   </script></head><body>
 
-  <h1>HEVC-Video Converter <span class="badge">2025</span></h1>
+  <h1>HEVC-Video Converter <span class="badge">v2.2.0.0</span> <span class="badge">2026</span></h1>
   <p class="small">
     Manuale in <b>Italiano</b> e <b>English</b> nello stesso file.
     Usa i pulsanti qui sotto per cambiare lingua e poi <b>Stampa / Salva in PDF (A4)</b>.
@@ -176,7 +183,7 @@ a:hover { text-decoration: underline; }
     <button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF (A4)</button>
   </div>
 
-  <nav class="no-print">
+    <nav id="nav-it" class="no-print">
     <a href="#introduzione">Introduzione</a>
     <a href="#requisiti">Requisiti</a>
     <a href="#installazione">Installazione</a>
@@ -188,12 +195,28 @@ a:hover { text-decoration: underline; }
     <a href="#subs">Sottotitoli</a>
     <a href="#capitoli">Capitoli</a>
     <a href="#coda">Coda</a>
+    <a href="#mkv-suite">MKV Suite</a>
     <a href="#ldvd">LDVD Ripper</a>
     <a href="#subtitle-edit">Subtitle Edit (fallback)</a>
     <a href="#troubleshoot">Problemi comuni</a>
     <a href="#faq">FAQ</a>
     <a href="#info">Info</a>
     <a href="#note-legali">Note Legali</a>
+  </nav>
+
+  <nav id="nav-en" class="no-print" style="display: none;">
+    <a href="#en-intro">Introduction</a>
+    <a href="#en-req">Requirements</a>
+    <a href="#en-install">Install &amp; Run</a>
+    <a href="#en-ui">UI Overview</a>
+    <a href="#en-encode">How to Encode</a>
+    <a href="#en-recipes">Recipes</a>
+    <a href="#en-mkv-suite">MKV Suite</a>
+    <a href="#en-subs">Subtitles</a>
+    <a href="#en-ldvd">LDVD Ripper</a>
+    <a href="#en-subtitle-edit">Subtitle Edit</a>
+    <a href="#en-troubleshoot">Troubleshooting</a>
+    <a href="#en-info">Project Info</a>
   </nav>
 
   <!-- ====================== ITALIANO ====================== -->
@@ -211,13 +234,12 @@ a:hover { text-decoration: underline; }
       <div class="note">
         <b>Novità principali (versione attuale):</b>
         <ul>
+          <li><b>MKV Suite integrata</b> (Tools → <b>Strumenti MKV</b>): Estrai / Applica Tag / Crea MKV / Unisci episodi.</li>
           <li><b>Toolbar icon-only</b> (pulsanti = icone PNG, stile LDVD).</li>
           <li>Voce <b>File → Riavvia…</b> per riavvio “pulito” dell’app (reset stato in RAM).</li>
           <li>Modulo integrato <b>LDVD Ripper</b>: DVD → file locale + (opzionale) OCR sottotitoli in SRT + handoff a HEVC.</li>
           <li>Risorse icone Qt: path standard <code>:/icons/...</code> (generate durante il build del <code>.deb</code>).</li>
-  <li>Scelta Lingua (IT/EN)<br>
-  </li>
-
+          <li>Scelta lingua (IT/EN).</li>
         </ul>
       </div>
 
@@ -254,7 +276,10 @@ a:hover { text-decoration: underline; }
         <li><b>Subtitle Edit</b> (consigliato come piano B) per estrarre/convertire sottotitoli quando l’OCR automatico fallisce.</li>
         <li><b>Mono</b> (Linux/macOS) se usi Subtitle Edit versione .NET.</li>
         <li>Tool DVD (a seconda del flusso LDVD): utilità per leggere titoli/capitoli/stream.</li>
-      </ul>
+      
+          <li><b>MKVToolNix</b> (mkvmerge/mkvextract/mkvpropedit) se usi <b>MKV Suite</b>.</li>
+          <li><b>gnome-subtitles</b> per ottenere una <b>corretta modifica dei sottotitoli</b> dall’editor (Linux).</li>
+</ul>
     
 
     <section>
@@ -320,6 +345,7 @@ a:hover { text-decoration: underline; }
         <li><strong>Campo input video:</strong> scegli/trascina il file da convertire.</li>
         <li><strong>Impostazioni video:</strong> qualità (CRF/bitrate), preset, filtri.</li>
         <li><strong>Strumenti:</strong> <em>Preview</em>, <em>Preview filtrata</em>, <em>Crop</em>, <em>Trim</em>, <em>Colore</em>, <em>Aspetto</em>.</li>
+        <li><strong>Strumenti MKV:</strong> <em>Estrai</em>, <em>Applica Tag</em>, <em>Crea MKV</em>, <em>Unisci episodi</em>.</li>
         <li><strong>Audio:</strong> scelta tracce e profili (downmix, ecc.).</li>
         <li><strong>Sottotitoli / Capitoli:</strong> gestione inclusione e sorgenti.</li>
         <li><strong>Log e avanzamento:</strong> messaggi tecnici, progress bar, tempo stimato.</li>
@@ -438,16 +464,18 @@ a:hover { text-decoration: underline; }
       </div>
 
 <!-- BEGIN CROP_HELP_IT -->
-<div class="note" style="margin-top:1rem">
+<div class="note" style="">
   <b>Guida rapida: finestra Crop</b>
-  <p>Queste opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.</p>
-  <h3 style="margin-top:0.9rem">Significato delle checkbox</h3>
+  <p>Queste
+opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti
+a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.</p>
+  <h3 style="">Significato delle checkbox</h3>
   <ul>
     <li><b>Crop attivo: applica davvero il crop (crop=W:H:X:</b> Y).</li>
     <li><b>Forza DAR 16:9: blocca il rettangolo di crop a 16:</b> 9 (solo come vincolo di selezione).</li>
     <li><b>Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:</b> 1 (solo come vincolo di selezione).</li>
   </ul>
-  <h3 style="margin-top:0.9rem">Combinazioni consigliate</h3>
+  <h3 style="">Combinazioni consigliate</h3>
   <ul>
     <li><b>Film già cinemascope “pulito” (es. 1280×544, senza bande):</b>
       <ul>
@@ -473,7 +501,7 @@ a:hover { text-decoration: underline; }
       </ul>
     </li>
   </ul>
-  <h3 style="margin-top:0.9rem">Note tecniche (anti-problemi)</h3>
+  <h3 style="">Note tecniche (anti-problemi)</h3>
   <ul>
     <li>Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.</li>
     <li>Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni.</li>
@@ -564,11 +592,106 @@ conversione in formato FFmpeg-friendly (dipende dal setup).</p>
     
 
     <section>
-      </section><h2 id="ldvd">12. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
+      </section>
+    <section>
+      </section><h2 id="mkv-suite">12. MKV Suite (Tools → “Strumenti MKV”)</h2>
+
+      <p>
+        <b>MKV Suite</b> è il modulo integrato per lavorare sui file MKV <b>senza ricodificare</b>:
+        estrazione tracce, tagging, creazione MKV (remux) e unione episodi.
+        Lo trovi in <b>Tools → Strumenti MKV</b>.
+      </p>
+
+      <div class="note">
+        <b>Prerequisiti (obbligatori per usare bene MKV Suite):</b>
+        <ul>
+          <li><b>MKVToolNix</b> (servono i comandi <code>mkvmerge</code>, <code>mkvextract</code>, <code>mkvpropedit</code>).</li>
+          <li><b>gnome-subtitles</b> (Linux) per ottenere una <b>modifica corretta dei sottotitoli</b> dall’editor integrato.</li>
+        </ul>
+        <pre>sudo apt install mkvtoolnix mkvtoolnix-gui gnome-subtitles</pre>
+      </div>
+
+      <h3> 15.1 Regola d’oro: cartella output = “job dir”</h3>
+      <ul>
+        <li>MKV Suite <b>non</b> usa una cartella di default: alla prima operazione ti chiede dove salvare.</li>
+        <li>La cartella che scegli diventa la <b>cartella di lavoro</b> (job dir) e dentro crea automaticamente queste sottocartelle:</li>
+      </ul>
+      <pre>JOB_DIR/<br>  extract/<br>  chapters/<br>  remux/</pre>
+      <div class="warn">
+        <b>Consiglio da “dummy”:</b> usa una cartella output <b>vuota</b> per ogni film/episodi.
+        Se riusi sempre la stessa, ti ritrovi i file mescolati e poi non capisci più niente.
+      </div>
+
+      <h3> 15.2 Workflow “a prova di principiante” (ordine consigliato)</h3>
+      <ol>
+        <li>Apri <b>Tools → Strumenti MKV</b>.</li>
+        <li>Imposta la <b>cartella output</b> (job dir).</li>
+        <li>Aggiungi una sorgente MKV (o più episodi) nella lista a sinistra.</li>
+        <li>Vai su <b>Tracce</b> e controlla lingue/flag/nome tracce.</li>
+        <li>Usa una funzione alla volta: <b>Estrai</b> oppure <b>Applica Tag</b> oppure <b>Crea MKV</b> oppure <b>Unisci episodi</b>.</li>
+        <li>Se tocchi capitoli o sottotitoli: fai prima <b>Estrai</b>, poi modifica, poi <b>Crea MKV</b>.</li>
+      </ol>
+
+      <h3> 15.3 Estrai</h3>
+      <ul>
+        <li>Estrae tracce selezionate e/o info dal MKV <b>senza conversioni</b>.</li>
+        <li>Output in <code>extract/</code>.</li>
+        <li>Video: viene estratto come MKV con suffisso <code>_e.mkv</code>.</li>
+        <li>Audio/Sottotitoli: vengono estratti nel loro formato “naturale” con suffisso <code>_e</code> nel nome file.</li>
+      </ul>
+
+      <h3> 15.4 Applica Tag</h3>
+      <ul>
+        <li>Serve per impostare <b>lingua</b>, <b>nome traccia</b>, flag <b>default/forced</b>, ecc. (quello che poi vedi bene anche in VLC).</li>
+        <li>Non ricodifica: applica metadati/flag tramite tool di MKVToolNix.</li>
+      </ul>
+      <div class="warn">
+        <b>Se vuoi zero rischi:</b> lavora su una copia del MKV (così non tocchi l’originale).
+      </div>
+
+      <h3> 15.5 Crea MKV (Remux)</h3>
+      <ul>
+        <li>Crea un nuovo MKV riassemblando le tracce selezionate (<b>senza ricodificare</b>).</li>
+        <li>Output in <code>remux/</code>.</li>
+        <li>Capitoli: gestiscili dal tab <b>Capitoli</b> (i file capitoli <b>non</b> vanno aggiunti come “sorgenti”).</li>
+        <li>Se usi capitoli esterni, MKV Suite evita duplicati (niente capitoli doppi).</li>
+      </ul>
+
+      <h3> 15.6 Unisci episodi (Merge Episodes)</h3>
+      <ul>
+        <li>Seleziona più episodi e uniscili in un unico MKV (ordine = ordine lista).</li>
+        <li>Output in <code>remux/</code>.</li>
+        <li>È pensato per serie/mini-episodi: prima controlla sempre audio/lingue.</li>
+      </ul>
+
+      <h3> 15.7 Capitoli (tab Capitoli)</h3>
+      <ul>
+        <li>Puoi <b>estrarre</b> capitoli esistenti oppure <b>generarli</b> (scene detect o intervallo fisso) e salvarli in <code>chapters/</code>.</li>
+        <li>Per usarli nel remux: genera/salva → poi <b>Crea MKV</b> usando quei capitoli.</li>
+      </ul>
+
+      <h3> 15.8 Editor sottotitoli (richiede gnome-subtitles)</h3>
+      <ul>
+        <li>Se vuoi correggere un SRT (sync, refusi, caratteri), installa <b>gnome-subtitles</b>.</li>
+        <li>Flusso consigliato: <b>Estrai</b> sottotitolo → modifica in editor → <b>Crea MKV</b> includendo il SRT corretto.</li>
+      </ul>
+
+      <h3> 15.9 Differenze IT / EN (nomi interfaccia)</h3>
+      <table>
+        <tbody><tr><th>Italiano</th><th>English</th></tr>
+        <tr><td>Tools → <b>Strumenti MKV</b></td><td>Tools → <b>MKV Tools</b></td></tr>
+        <tr><td><b>Crea MKV</b></td><td><b>Remux</b></td></tr>
+        <tr><td><b>Unisci episodi</b></td><td><b>Merge Episodes</b></td></tr>
+        <tr><td><b>Applica Tag</b></td><td><b>Apply Tags</b></td></tr>
+        <tr><td><b>Estrai</b></td><td><b>Extract</b></td></tr>
+      </tbody></table>
+
+
+<h2 id="ldvd"> 13. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
 
       <p><b>Scopo:</b> rippare una volta sola dal DVD e lavorare poi su file locali (più veloci, più stabili, riusabili).</p>
 
-      <h3>12.1 Flusso semplice e consigliato</h3>
+      <h3> 15.1 Flusso semplice e consigliato</h3>
       <ol>
         <li>Apri <b>DVD Ripper</b>.</li>
         <li>Seleziona il DVD o la cartella <code>VIDEO_TS</code>.</li>
@@ -586,7 +709,7 @@ spesso è perché non è stato scelto il titolo/stream corretto. </div>
     
 
     <section>
-      </section><h2 id="subtitle-edit">13. Subtitle Edit (fallback quando OCR fallisce)</h2>
+      </section><h2 id="subtitle-edit"> 14. Subtitle Edit (fallback quando OCR fallisce)</h2>
 
       <p>
         Se l’OCR automatico non produce un SRT decente (o non produce nulla), puoi usare <b>Subtitle Edit</b> per estrarre e convertire i sottotitoli
@@ -602,7 +725,7 @@ spesso è perché non è stato scelto il titolo/stream corretto. </div>
         </ul>
       </div>
 
-      <h3>13.1 Flusso “semplice” (consigliato ai meno esperti)</h3>
+      <h3> 15.1 Flusso “semplice” (consigliato ai meno esperti)</h3>
       <ol>
         <li>Apri <b>LDVD Ripper</b> e completa <b>Estrai</b> (così lavori su file locali).</li>
         <li>Apri <b>Subtitle Edit</b>.</li>
@@ -631,7 +754,7 @@ spesso è perché non è stato scelto il titolo/stream corretto. </div>
         </ul>
       </div>
 
-      <h3>13.2 Se Subtitle Edit non vede i sottotitoli</h3>
+      <h3> 15.2 Se Subtitle Edit non vede i sottotitoli</h3>
       <ul>
         <li>Verifica di aver scelto il titolo/segmento corretto del DVD (VTS giusto).</li>
         <li>Prova ad aprire un altro file/IFO del film (spesso quello giusto è <code>VTS_01_0.IFO</code>, ma non sempre).</li>
@@ -640,39 +763,45 @@ spesso è perché non è stato scelto il titolo/stream corretto. </div>
     
 
     <section>
-      </section><h2 id="troubleshoot">14. Problemi comuni (soluzioni rapide)</h2>
+      </section><h2 id="troubleshoot"> 15. Problemi comuni (soluzioni rapide)</h2>
 
-      <h3>14.1 “Non vedo le icone / pulsanti vuoti”</h3>
+      <h3> 15.1 “Non vedo le icone / pulsanti vuoti”</h3>
       <div class="danger">
         <b>Causa:</b> risorse Qt non compilate (manca <code>icons_rc.py</code>) oppure path errati.<br>
         <b>Soluzione:</b> usa il pacchetto <code>.deb</code> (consigliato) oppure rigenera le risorse nel tuo ambiente di sviluppo.
       </div>
 
-      <h3>14.2 “FFmpeg non trovato”</h3>
+      <h3> 15.2 “FFmpeg non trovato”</h3>
       <div class="warn">
         Verifica:
         <pre>ffmpeg -version<br>ffprobe -version</pre>
         Se non funzionano, installa FFmpeg o aggiungilo al PATH.
       </div>
 
-      <h3>14.3 “Crop deforma l’immagine”</h3>
+      <h3> 15.3 “Crop deforma l’immagine”</h3>
       <div class="warn">
         Controlla forzature aspect. Se non sei sicuro, disattiva forzature e usa crop + preview filtrata.
       </div>
 
-      <h3>14.4 “Audio senza dialoghi dopo downmix”</h3>
+      <h3> 15.4 “Audio senza dialoghi dopo downmix”</h3>
       <div class="warn">
         Cambia profilo downmix / traccia audio e prova su una scena parlata.
       </div>
 
-      <h3>14.5 “Riavvia…” per ripartire pulito</h3>
+      <h3> 15.5 “Riavvia…” per ripartire pulito</h3>
       <div class="note">
         Menù <b>File → Riavvia…</b> = reset completo dello stato in RAM, come chiudere e riaprire l’app.
       </div>
     
 
     <section>
-      </section><h2 id="faq">15. FAQ</h2>
+      </section>      <h3>15.6 MKV Suite: “mkvmerge non trovato” / editor sottotitoli mancante</h3>
+      <div class="warn">
+        Installa i prerequisiti:
+        <pre>sudo apt install mkvtoolnix mkvtoolnix-gui gnome-subtitles</pre>
+      </div>
+
+<h2 id="faq"> 16. FAQ</h2>
       <dl>
         <dt>Quali formati video sono supportati?</dt>
         <dd>Tutti i formati supportati da FFmpeg (MP4, MKV, MOV, AVI, TS, ecc.).</dd>
@@ -692,8 +821,8 @@ spesso è perché non è stato scelto il titolo/stream corretto. </div>
     
 
     <section>
-      </section><h2 id="info">16. Informazioni sul Progetto e Contatti</h2>
-      <p><strong>HEVC-Video Converter</strong> — progetto 2025</p>
+      </section><h2 id="info"> 17. Informazioni sul Progetto e Contatti</h2>
+      <p><strong>HEVC-Video Converter</strong> — progetto 2026</p>
       <p>Creato e mantenuto da <strong>LorisPaganiniHomeStudio</strong>.</p>
       <p>Per info/bug report/suggerimenti:</p>
       <p><a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a></p>
@@ -703,14 +832,14 @@ spesso è perché non è stato scelto il titolo/stream corretto. </div>
     
 
     <section>
-      </section><h2 id="note-legali">17. Note Legali e Disclaimer</h2>
+      </section><h2 id="note-legali"> 18. Note Legali e Disclaimer</h2>
       <p style="font-weight: bold; color: rgb(185, 28, 28);">HEVC-Video Converter è fornito "così com’è" senza garanzie di alcun tipo.</p>
       <p style="font-weight: bold; color: rgb(185, 28, 28);">L’autore non è responsabile per danni diretti o indiretti derivanti dall’uso del software.</p>
       <p>FFmpeg e altri componenti terzi mantengono le loro rispettive licenze.</p>
       <p>È responsabilità dell’utente verificare la conformità alle leggi locali relative a copyright e uso dei codec.</p>
 
       <button class="btn-print" onclick="printManual()" aria-label="Stampa o esporta manuale in PDF">📄 Stampa / Esporta PDF (A4)</button>
-      <footer><small>© 2025 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
+      <footer><small>© 2026 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
     
 
   </div>
@@ -732,6 +861,8 @@ queue/batch).</p>
       <div class="note">
         <b>Main highlights (current version):</b>
         <ul>
+          <li><b>Integrated MKV Suite</b> (Tools → <b>MKV Tools</b>): Extract / Apply Tags / Remux / Merge Episodes.<br>
+</li>
           <li><b>Icon-only toolbar</b> (buttons are PNG icons, LDVD-style).<br>
 </li>
           <li><b>File → Restart…</b> menu entry to restart the app cleanly (RAM state reset).<br>
@@ -749,23 +880,28 @@ queue/batch).</p>
     
 
     <section>
-      </section><h2>2. Requirements</h2>
+      </section><h2 id="en-req">2. Requirements</h2>
 
       <h3>2.1 Supported operating systems</h3>
       <ul>
         <li><strong>Linux</strong> (Mint/Ubuntu derivatives) — main target.<br>
+    <br>
 </li>
         <li><strong>macOS</strong> — supported via build scripts and installable dependencies.<br>
+    <br>
 </li>
         <li><strong>Windows</strong> — possible, but setup is more manual and some features depend on external tools.<br>
+    <br>
 </li>
       </ul>
 
       <h3>2.2 Core dependencies (all OS)</h3>
       <ul>
         <li><strong>FFmpeg + FFprobe</strong> available in your PATH.<br>
+    <br>
 </li>
         <li><strong>Python 3</strong> + <strong>PyQt5</strong> if running from sources.<br>
+    <br>
 </li>
       </ul>
 
@@ -779,40 +915,54 @@ ffprobe -version</pre>
       <h3>2.3 Optional tools (only if you need those features)</h3>
       <ul>
         <li><b>Subtitle Edit</b> (recommended fallback) if automatic OCR fails.<br>
+    <br>
 </li>
         <li><b>Mono</b> (Linux/macOS) if you use the .NET version of Subtitle Edit.<br>
+    <br>
 </li>
         <li>DVD helper tools (depending on your LDVD workflow).<br>
+    <br>
 </li>
-      </ul>
+      
+          <li><b>MKVToolNix</b> (mkvmerge/mkvextract/mkvpropedit) for <b>MKV Suite</b>.<br><br>
+</li>
+          <li><b>gnome-subtitles</b> for reliable subtitle editing from the integrated workflow (Linux).<br><br>
+</li>
+</ul>
     
 
     <section>
-      </section><h2>3. Install &amp; Run (Linux / macOS / Windows)</h2>
+      </section><h2 id="en-install">3. Install &amp; Run (Linux / macOS / Windows)</h2>
 
       <h3>3.1 Linux — .deb package (recommended)</h3>
       <ol>
         <li>Download the <code>.deb</code> release.<br>
+    <br>
 </li>
         <li>Install:
           <pre>sudo apt install ./hevc-video-converter_*.deb</pre>
         <br>
+    <br>
 </li>
         <li>Run:
           <pre>hevc-video-converter</pre>
         <br>
+    <br>
 </li>
       </ol>
 
       <h3>3.2 Linux — run from sources (development)</h3>
       <ol>
         <li>Clone the repository.<br>
+    <br>
 </li>
         <li>Install Python dependencies (if needed) and make sure FFmpeg works.<br>
+    <br>
 </li>
         <li>Run:
           <pre>python3 main.py</pre>
         <br>
+    <br>
 </li>
       </ol>
 
@@ -826,26 +976,33 @@ ffprobe -version</pre>
         <li>Install FFmpeg (Homebrew):
           <pre>brew install ffmpeg</pre>
         <br>
+    <br>
 </li>
         <li>Ensure Python 3 + PyQt5.<br>
+    <br>
 </li>
         <li>Run:
           <pre>python3 main.py</pre>
         <br>
+    <br>
 </li>
       </ol>
 
       <h3>3.4 Windows — guidelines</h3>
       <ol>
         <li>Install Python 3.<br>
+    <br>
 </li>
         <li>Install FFmpeg (ZIP) and add <code>bin</code> to PATH.<br>
+    <br>
 </li>
         <li>Install PyQt5 and project dependencies.<br>
+    <br>
 </li>
         <li>Run:
           <pre>python main.py</pre>
         <br>
+    <br>
 </li>
       </ol>
       <div class="warn">
@@ -854,24 +1011,34 @@ ffprobe -version</pre>
     
 
     <section>
-      </section><h2>4. User Interface Overview</h2>
+      </section><h2 id="en-ui">4. User Interface Overview</h2>
 
       <ul>
         <li><strong>Menu bar + icon-only toolbar</strong> for the main actions.<br>
+    <br>
 </li>
         <li><strong>Input path</strong> to open/drag a video file.<br>
+    <br>
 </li>
         <li><strong>Video settings</strong> (CRF/bitrate, preset, filters).<br>
+    <br>
 </li>
         <li><strong>Tools</strong>: Preview, Filtered Preview, Crop, Trim, Color, Aspect.<br>
+    <br>
+</li>
+        <li><strong>MKV Tools</strong>: Extract, Apply Tags, Remux, Merge Episodes.<br><br>
 </li>
         <li><strong>Audio</strong>: track selection and profiles (downmix, etc.).<br>
+    <br>
 </li>
         <li><strong>Subtitles / Chapters</strong>: include embedded streams or external files.<br>
+    <br>
 </li>
         <li><strong>Logs + progress</strong>: status, errors, timing.<br>
+    <br>
 </li>
         <li><strong>Queue</strong>: batch processing.<br>
+    <br>
 </li>
       </ul>
 
@@ -883,47 +1050,59 @@ ffprobe -version</pre>
       <table>
         <tbody><tr>
           <th>Term<br>
+      <br>
 </th>
           <th>Simple explanation<br>
+      <br>
 </th>
         </tr>
         <tr>
           <td><b>CRF</b><br>
+      <br>
 </td>
           <td>“Quality mode”: you pick a number (e.g. 20–24). Lower = better quality = bigger file.<br>
+      <br>
 </td>
         </tr>
         <tr>
           <td><b>Bitrate</b><br>
+      <br>
 </td>
           <td>“Size budget mode”: you pick a bitrate. Quality adapts to that limit. Useful for consistent output sizes.<br>
+      <br>
 </td>
         </tr>
         <tr>
           <td><b>Preset</b><br>
+      <br>
 </td>
           <td>Speed vs efficiency: slower presets usually compress better but take longer.<br>
+      <br>
 </td>
         </tr>
       </tbody></table>
     
 
     <section>
-      </section><h2>5. How to Encode (step-by-step)</h2>
+      </section><h2 id="en-encode">5. How to Encode (step-by-step)</h2>
 
       <h3>5.1 Open a file</h3>
       <ol>
         <li>Click <b>Open</b> (toolbar icon) and select your video.<br>
+    <br>
 </li>
         <li>Do a <b>Preview</b> first to confirm it’s the right file.<br>
+    <br>
 </li>
       </ol>
 
       <h3>5.2 Choose quality and preset</h3>
       <ul>
         <li><b>New users:</b> use <b>CRF</b> and a medium/slow preset.<br>
+    <br>
 </li>
         <li><b>Don’t change 10 things at once:</b> change one setting, then test with filtered preview.<br>
+    <br>
 </li>
       </ul>
 
@@ -936,8 +1115,10 @@ ffprobe -version</pre>
       <h3>5.4 Convert</h3>
       <ol>
         <li>Click <b>Convert</b>.<br>
+    <br>
 </li>
         <li>Wait for completion and verify the output.<br>
+    <br>
 </li>
       </ol>
 
@@ -947,60 +1128,80 @@ ffprobe -version</pre>
     
 
     <section>
-      </section><h2>6. Ready-made recipes (quick results)</h2>
+      </section><h2 id="en-recipes">6. Ready-made recipes (quick results)</h2>
 
       <h3>6.1 “My video has black bars”</h3>
       <ol>
         <li>Open the video.<br>
+    <br>
 </li>
         <li>Use <b>Crop</b> to remove only the black bars.<br>
+    <br>
 </li>
         <li>Run <b>Filtered Preview</b>.<br>
+    <br>
 </li>
         <li>Convert.<br>
+    <br>
 </li>
       </ol>
 
 <!-- BEGIN CROP_HELP_EN -->
-<div class="note" style="margin-top:1rem">
+<div class="note" style="">
   <b>Quick guide: Crop window</b>
   <p>These options help you: (1) physically crop the image and (2) keep a correct aspect ratio (16:9 or 2.35:1) without distortion.</p>
-  <h3 style="margin-top:0.9rem">Checkbox meaning</h3>
+  <h3 style="">Checkbox meaning</h3>
   <ul>
-    <li><b>Crop enabled: applies a real crop (crop=W:H:X:</b> Y).</li>
-    <li><b>Force DAR 16:9: locks the crop rectangle to 16:</b> 9 (selection constraint only).</li>
-    <li><b>Force DAR 2.35:1: locks the crop rectangle to 2.35:</b> 1 (selection constraint only).</li>
+    <li><b>Crop enabled: applies a real crop (crop=W:H:X:</b> Y).<br>
+</li>
+    <li><b>Force DAR 16:9: locks the crop rectangle to 16:</b> 9 (selection constraint only).<br>
+</li>
+    <li><b>Force DAR 2.35:1: locks the crop rectangle to 2.35:</b> 1 (selection constraint only).<br>
+</li>
   </ul>
-  <h3 style="margin-top:0.9rem">Recommended combinations</h3>
+  <h3 style="">Recommended combinations</h3>
   <ul>
     <li><b>Already clean cinemascope (e.g. 1280×544, no black bars):</b>
       <ul>
-        <li>→ No crop needed: leave everything OFF (Crop OFF, Force 16:9 OFF, Force 2.35 OFF).</li>
+        <li>→ No crop needed: leave everything OFF (Crop OFF, Force 16:9 OFF, Force 2.35 OFF).<br>
+</li>
       </ul>
-    </li>
+    <br>
+</li>
     <li><b>16:9 video that already has black bars top/bottom (letterbox already present):</b>
       <ul>
-        <li>→ Remove the existing bars: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.</li>
-        <li>Tip: set X=0 and W to full width; adjust H and Y until the black bars disappear.</li>
+        <li>→ Remove the existing bars: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.<br>
+</li>
+        <li>Tip: set X=0 and W to full width; adjust H and Y until the black bars disappear.<br>
+</li>
       </ul>
-    </li>
+    <br>
+</li>
     <li><b>Create a “fake” cinemascope from a no-bar video (full 16:9):</b>
       <ul>
-        <li>→ This is a real crop: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.</li>
-        <li>Then choose the framing by adjusting Y (so you don't cut faces/action).</li>
+        <li>→ This is a real crop: Crop ON + Force DAR 2.35:1 ON, Force DAR 16:9 OFF.<br>
+</li>
+        <li>Then choose the framing by adjusting Y (so you don't cut faces/action).<br>
+</li>
       </ul>
-    </li>
+    <br>
+</li>
     <li><b>Create/force a 16:9 crop (e.g. from 4:3 or content with side bars):</b>
       <ul>
-        <li>→ Crop ON + Force DAR 16:9 ON, Force DAR 2.35 OFF.</li>
-        <li>Decide whether to remove side bars (crop W/X) or top/bottom bars (crop H/Y).</li>
+        <li>→ Crop ON + Force DAR 16:9 ON, Force DAR 2.35 OFF.<br>
+</li>
+        <li>Decide whether to remove side bars (crop W/X) or top/bottom bars (crop H/Y).<br>
+</li>
       </ul>
-    </li>
+    <br>
+</li>
   </ul>
-  <h3 style="margin-top:0.9rem">Technical notes (avoid issues)</h3>
+  <h3 style="">Technical notes (avoid issues)</h3>
   <ul>
-    <li>Keep W and H even (many codecs/pipelines require it). This window already rounds to even values when saving.</li>
-    <li>Use 'Filtered preview' to quickly check there is no distortion.</li>
+    <li>Keep W and H even (many codecs/pipelines require it). This window already rounds to even values when saving.<br>
+</li>
+    <li>Use 'Filtered preview' to quickly check there is no distortion.<br>
+</li>
   </ul>
   <p><i>Note: This section mirrors the &lt;b&gt;Help&lt;/b&gt; button inside the Crop window.</i></p>
 </div>
@@ -1010,52 +1211,150 @@ ffprobe -version</pre>
       <h3>6.2 “I want to cut intro/outro”</h3>
       <ol>
         <li>Open <b>Trim</b>.<br>
+    <br>
 </li>
         <li>Set start/end and keep a small safety margin.<br>
+    <br>
 </li>
         <li>Filtered Preview, then Convert.<br>
+    <br>
 </li>
       </ol>
 
       <h3>6.3 “5.1 audio: I hear sounds but no dialog”</h3>
       <ol>
         <li>Open the <b>Audio</b> module.<br>
+    <br>
 </li>
         <li>Change downmix profile / audio track.<br>
+    <br>
 </li>
         <li>Test on 1–2 minutes with clear dialog.<br>
+    <br>
 </li>
       </ol>
 
       <h3>6.4 “I have a DVD and want SRT subtitles”</h3>
       <ol>
         <li>Use <b>LDVD Ripper</b> to extract the DVD to local files.<br>
+    <br>
 </li>
         <li>Try <b>OCR SRT</b>.<br>
+    <br>
 </li>
         <li>If OCR fails, use <b>Subtitle Edit</b> (see dedicated section).<br>
+    <br>
 </li>
         <li>Handoff to HEVC and convert.<br>
+    <br>
 </li>
       </ol>
     
 
     <section>
-      </section><h2>7. Subtitles (embedded / external / from DVD)</h2>
+      </section>
+    <section>
+      </section><h2 id="en-mkv-suite">7. MKV Suite (Tools → “MKV Tools”)</h2>
+
+      <p>
+        <b>MKV Suite</b> is the integrated module to work on MKV files <b>without re-encoding</b>:
+        track extraction, tagging, remux, and episode merging.
+        Open it from <b>Tools → MKV Tools</b>.
+      </p>
+
+      <div class="note">
+        <b>Prerequisites (needed for MKV Suite):</b>
+        <ul>
+          <li><b>MKVToolNix</b> (CLI tools: <code>mkvmerge</code>, <code>mkvextract</code>, <code>mkvpropedit</code>).<br>
+</li>
+          <li><b>gnome-subtitles</b> (Linux) for reliable subtitle editing from the integrated editor workflow.<br>
+</li>
+        </ul>
+        <pre>sudo apt install mkvtoolnix mkvtoolnix-gui gnome-subtitles</pre>
+      </div>
+
+      <h3>7.1 Key concept: output folder = “job dir”</h3>
+      <pre>JOB_DIR/
+  extract/
+  chapters/
+  remux/</pre>
+
+      <h3>7.2 Beginner-proof workflow</h3>
+      <ol>
+        <li>Open <b>Tools → MKV Tools</b>.<br>
+</li>
+        <li>Pick an <b>output folder</b> (job dir).<br>
+</li>
+        <li>Add your MKV source(s) on the left.<br>
+</li>
+        <li>Check <b>Tracks</b> (languages/flags/names).<br>
+</li>
+        <li>Use one action at a time: <b>Extract</b> / <b>Apply Tags</b> / <b>Remux</b> / <b>Merge Episodes</b>.<br>
+</li>
+        <li>If you edit chapters/subtitles: Extract → edit → Remux.<br>
+</li>
+      </ol>
+
+      <h3>7.3 Extract</h3>
+      <ul>
+        <li>No conversion: files keep their natural formats.<br>
+</li>
+        <li>Output goes to <code>extract/</code>.<br>
+</li>
+      </ul>
+
+      <h3>7.4 Apply Tags</h3>
+      <ul>
+        <li>Set language, track name, default/forced flags, etc. (VLC-friendly naming).<br>
+</li>
+        <li>No re-encoding.<br>
+</li>
+      </ul>
+
+      <h3>7.5 Remux</h3>
+      <ul>
+        <li>Create a new MKV by reassembling selected tracks (no re-encode).<br>
+</li>
+        <li>Output goes to <code>remux/</code>.<br>
+</li>
+        <li>Chapters are handled from the <b>Chapters</b> tab (don’t add chapter files as “sources”).<br>
+</li>
+      </ul>
+
+      <h3>7.6 Merge Episodes</h3>
+      <ul>
+        <li>Merge multiple episodes into one MKV (order = left list order).<br>
+</li>
+        <li>Output goes to <code>remux/</code>.<br>
+</li>
+      </ul>
+
+      <h3>7.7 Subtitle editor (requires gnome-subtitles)</h3>
+      <ul>
+        <li>Recommended: Extract → edit SRT → Remux with the fixed subtitles.<br>
+</li>
+      </ul>
+
+
+<h2 id="en-subs">8. Subtitles (embedded / external / from DVD)</h2>
 
       <h3>7.1 Embedded subtitles</h3>
       <ul>
         <li>If your file contains subtitle streams (common in MKV), select the one you want.<br>
+    <br>
 </li>
         <li>If you don’t see any, the file might not actually contain subtitles.<br>
+    <br>
 </li>
       </ul>
 
       <h3>7.2 External subtitles (SRT)</h3>
       <ul>
         <li>SRT is plain text and widely compatible.<br>
+    <br>
 </li>
         <li>Keep filenames clear when you have multiple languages.<br>
+    <br>
 </li>
       </ul>
 
@@ -1067,24 +1366,31 @@ ffprobe -version</pre>
     
 
     <section>
-      </section><h2>8. LDVD Ripper (DVD → local files + OCR + handoff)</h2>
+      </section><h2 id="en-ldvd">9. LDVD Ripper (DVD → local files + OCR + handoff)</h2>
 
       <p><b>Goal:</b> rip only once from the physical disc, then work on fast local files.</p>
 
       <ol>
         <li>Open <b>DVD Ripper</b>.<br>
+    <br>
 </li>
         <li>Select the DVD / <code>VIDEO_TS</code>.<br>
+    <br>
 </li>
         <li>Queue the needed files (VTS + matching IFO).<br>
+    <br>
 </li>
         <li>Click <b>Extract</b> and wait.<br>
+    <br>
 </li>
         <li>(Optional) Click <b>OCR SRT</b>.<br>
+    <br>
 </li>
         <li>If OCR fails, use <b>Subtitle Edit</b> (next section).<br>
+    <br>
 </li>
         <li>Click <b>Handoff to HEVC</b>.<br>
+    <br>
 </li>
       </ol>
 
@@ -1094,7 +1400,7 @@ ffprobe -version</pre>
     
 
     <section>
-      </section><h2 id="en-subtitle-edit">9. Subtitle Edit (fallback when OCR fails)</h2>
+      </section><h2 id="en-subtitle-edit">10. Subtitle Edit (fallback when OCR fails)</h2>
 
       <p>
         If automatic OCR produces an empty/broken SRT (or no SRT at all), use <b>Subtitle Edit</b> as a guided fallback.
@@ -1105,39 +1411,51 @@ ffprobe -version</pre>
         <b>When should you use Subtitle Edit?</b>
         <ul>
           <li>Automatic OCR creates an empty SRT, garbage characters, or unreadable text.<br>
+    <br>
 </li>
           <li>Subtitles are “forced/SDH” or use difficult fonts.<br>
+    <br>
 </li>
           <li>You want to quickly fix accents, names, and common OCR errors before muxing.<br>
+    <br>
 </li>
         </ul>
       </div>
 
-      <h3>9.1 Beginner-friendly workflow</h3>
+      <h3>10.1 Beginner-friendly workflow</h3>
       <ol>
         <li>Use <b>LDVD Ripper</b> to <b>Extract</b> first (work on local files).<br>
+    <br>
 </li>
         <li>Open <b>Subtitle Edit</b>.<br>
+    <br>
 </li>
         <li>Open the DVD subtitle source:
           <ul>
             <li>Typically you open a VobSub pair (<code>.idx</code>/<code>.sub</code>) if available, or open from DVD structure if supported.<br>
+        <br>
 </li>
           </ul>
         <br>
+    <br>
 </li>
         <li>If you see the subtitles (as images), run OCR:
           <ul>
             <li>Select the correct OCR language (e.g. Italian).<br>
+        <br>
 </li>
             <li>Run “Recognize / OCR” and confirm/correct prompts.<br>
+        <br>
 </li>
           </ul>
         <br>
+    <br>
 </li>
         <li>Save as <b>SRT</b>.<br>
+    <br>
 </li>
         <li>Back in HEVC, include the saved SRT in your final output.<br>
+    <br>
 </li>
       </ol>
 
@@ -1146,19 +1464,22 @@ ffprobe -version</pre>
         set the right <b>language</b>, choose <b>SRT</b> output, and don’t tweak advanced settings until it works.
       </div>
 
-      <h3>9.2 If Subtitle Edit cannot find subtitles</h3>
+      <h3>10.2 If Subtitle Edit cannot find subtitles</h3>
       <ul>
         <li>Try a different DVD title/VTS/IFO (common on multi-title DVDs).<br>
+    <br>
 </li>
         <li>Check you are opening the correct movie segment, not extras/menus.<br>
+    <br>
 </li>
         <li>If OCR is poor, try changing language or improving contrast/zoom inside Subtitle Edit.<br>
+    <br>
 </li>
       </ul>
     
 
     <section>
-      </section><h2>10. Troubleshooting</h2>
+      </section><h2 id="en-troubleshoot">11. Troubleshooting</h2>
 
       <h3>Icons missing / empty toolbar buttons</h3>
       <div class="danger">
@@ -1178,13 +1499,19 @@ ffprobe -version</pre>
       </div>
     
 
-    <section>
-      </section><h2>11. Project Info / Contact</h2>
-      <p>Maintained by <strong>LorisPaganiniHomeStudio</strong> — 2025</p>
+          <h3>MKV Suite: “mkvmerge not found” / subtitle editor missing</h3>
+      <div class="warn">
+        Install prerequisites:
+        <pre>sudo apt install mkvtoolnix mkvtoolnix-gui gnome-subtitles</pre>
+      </div>
+
+<section>
+      </section><h2 id="en-info">12. Project Info / Contact</h2>
+      <p>Maintained by <strong>LorisPaganiniHomeStudio</strong> — 2026</p>
       <p><a href="mailto:loris.paganini@gmail.com">loris.paganini@gmail.com</a></p>
 
       <button class="btn-print" onclick="printManual()" aria-label="Print or export manual to PDF">📄 Print / Export PDF (A4)</button>
-      <footer><small>© 2025 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
+      <footer><small>© 2026 LorisPaganiniHomeStudio — HEVC-Video Converter</small></footer>
     
 
   </div>
