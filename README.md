@@ -22,6 +22,10 @@
 ![Main UI](docs/screenshots/main.png)  
 ![LDVD Ripper](docs/screenshots/ldvd.png)
 ![MKV Tools](docs/screenshots/mkv_tools.png)
+![MKV Tools](docs/screenshots/color.png)
+![MKV Tools](docs/screenshots/crop.png)
+![MKV Tools](docs/screenshots/trim.png)
+![MKV Tools](docs/screenshots/sag.png)
 ---
 
 ## Highlights (EN)
