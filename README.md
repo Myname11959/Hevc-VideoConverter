@@ -1,4 +1,4 @@
-# HEVC – Video Converter
+# HEVC – Video Converter v2.2.0.0
 
 **All releases / Tutte le release:** https://github.com/Myname11959/Hevc-VideoConverter/releases  
 **Changelog / Changelog:** https://github.com/Myname11959/Hevc-VideoConverter/releases
