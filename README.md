@@ -9,7 +9,7 @@
 ![Ruff](https://github.com/Myname11959/Hevc-VideoConverter/actions/workflows/ruff.yml/badge.svg)
 
 **Qt/PyQt5 GUI for FFmpeg** → convert video to **HEVC/x265** with reproducible command lines, advanced audio profiles, preview, and an integrated **tool suite**:
-**HEVC-GUI + MKV Suite + LDVD Ripper + String Audio Generator**.
+**HEVC-GUI + MKV Suite + LDVD Ripper**.
 
 **Languages / Lingue:** English — Italiano  
 **Download (Linux .deb + Source .tar.gz):** https://github.com/Myname11959/Hevc-VideoConverter/releases  
