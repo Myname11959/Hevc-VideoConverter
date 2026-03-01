@@ -3337,6 +3337,113 @@ class MainWindow(QMainWindow):
         # tutto il resto → solo label, nessun flag
         return (k, None)
 
+
+    # ───────────────────────────────────────────────────────────────
+    # HEVC_AUTO_AUDIO_DELAY_MUX_V1
+    # Legge Delay audio da mediainfo (container) e genera itsoffset per mux.
+    # itsoffset = -Delay  (es: Delay 3.200s => -itsoffset -3.200)
+    # ───────────────────────────────────────────────────────────────
+    def _mi_audio_delay_ms_map(self, src_path):
+        import json
+        import subprocess
+        import re
+        from pathlib import Path as _P
+
+        key = str(_P(src_path))
+
+        # cache semplice per non richiamare mediainfo 100 volte
+        try:
+            if getattr(self, "_mi_delay_cache_key", None) == key:
+                return dict(getattr(self, "_mi_delay_cache_map", {}) or {})
+        except Exception:
+            pass
+
+        def _parse_ms(v):
+            if v is None:
+                return 0
+            s = str(v).strip()
+            if not s:
+                return 0
+
+            # 00:00:03.200 (opzionale segno -)
+            m = re.match(r"^(-)?(\d+):(\d+):(\d+(?:\.\d+)?)$", s)
+            if m:
+                sign = -1 if m.group(1) else 1
+                hh = int(m.group(2)); mm = int(m.group(3)); ss = float(m.group(4))
+                return int(round(sign * (hh*3600 + mm*60 + ss) * 1000.0))
+
+            # "3 s 200 ms"
+            m = re.match(r"^(-)?\s*(?:(\d+)\s*s\s*)?(?:(\d+)\s*ms)?\s*$", s)
+            if m and (m.group(2) or m.group(3)):
+                sign = -1 if m.group(1) else 1
+                sec = int(m.group(2) or 0)
+                ms  = int(m.group(3) or 0)
+                return sign * (sec*1000 + ms)
+
+            # numero "nudo": mediainfo spesso dà secondi (es "3.200")
+            try:
+                f = float(s.replace(",", "."))
+                return int(round(f * 1000.0)) if abs(f) < 1000 else int(round(f))
+            except Exception:
+                return 0
+
+        out_map = {}
+        try:
+            raw = subprocess.check_output(["mediainfo", "--Full", "--Output=JSON", key], text=True)
+            js = json.loads(raw)
+            tracks = (js.get("media", {}) or {}).get("track", []) or []
+            audios = [t for t in tracks if t.get("@type") == "Audio"]
+
+            for idx, a in enumerate(audios):
+                # applichiamo SOLO se il delay viene dal container (cautela)
+                src = (a.get("Delay_Source_String") or a.get("Delay_Source") or "").strip().lower()
+                if src and src != "container":
+                    out_map[idx] = 0
+                    continue
+
+                v = (
+                    a.get("Delay_String3")
+                    or a.get("Delay_String2")
+                    or a.get("Delay_String1")
+                    or a.get("Delay_String")
+                    or a.get("Delay")
+                )
+                out_map[idx] = _parse_ms(v)
+        except Exception:
+            out_map = {}
+
+        try:
+            self._mi_delay_cache_key = key
+            self._mi_delay_cache_map = dict(out_map)
+        except Exception:
+            pass
+
+        return out_map
+
+    def _src_audio_index_from_spec(self, raw_audio_opts, job_i):
+        """
+        Ritorna N da -map 0:a:N per il job job_i, oppure None se non sicuro.
+        (Versione prudente: se non capisco la mappa, NON applico offset.)
+        """
+        import re
+        try:
+            if not raw_audio_opts or job_i < 0 or job_i >= len(raw_audio_opts):
+                return None
+            spec = raw_audio_opts[job_i] or []
+
+            # se è audio esterno/SAG, non applichiamo delay del container (cautela)
+            if "__HEVC_SAG_EXTERNAL__" in spec or "__HEVC_SAG_EXT__" in spec:
+                return None
+
+            if "-map" in spec:
+                p = spec.index("-map")
+                if p + 1 < len(spec):
+                    m = re.match(r"^0:a:(\d+)$", str(spec[p + 1]))
+                    if m:
+                        return int(m.group(1))
+        except Exception:
+            return None
+        return None
     def build_ffmpeg_mux_cmd(
         self,
         *,
@@ -3364,8 +3471,28 @@ class MainWindow(QMainWindow):
             str(video_temp),
         ]
 
-        # ingressi audio
-        for a in audio_files:
+        # ingressi audio (+ itsoffset automatico da MediaInfo Delay, se presente)
+        import os
+        delay_map = {}
+        try:
+            enabled = str(os.getenv("HEVC_AUTO_AUDIO_DELAY", "1")).strip().lower() not in ("0", "false", "no", "off")
+            if enabled:
+                delay_map = self._mi_audio_delay_ms_map(input_mkv)
+        except Exception:
+            delay_map = {}
+
+        for i, a in enumerate(audio_files):
+            try:
+                src_idx = self._src_audio_index_from_spec(raw_audio_opts, i)
+                ms = int(delay_map.get(int(src_idx), 0)) if src_idx is not None else 0
+
+                # soglia anti-rumore: sotto 10ms non tocchiamo
+                if abs(ms) >= 10:
+                    off = -(ms / 1000.0)
+                    cmd += ["-itsoffset", "{0:.3f}".format(off)]
+            except Exception:
+                pass
+
             cmd += ["-i", str(a)]
 
         # ingressi sottotitoli esterni (file)

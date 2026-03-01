@@ -55,7 +55,7 @@ class MediaInfoDialog(QDialog):
          + ASPECT (ffprobe) aggiuntivo all’inizio (Storage/SAR/DAR/PixFmt)
         """
         # 1) invoca mediainfo in JSON
-        cmd = ["mediainfo", "--Output=JSON", str(path)]
+        cmd = ["mediainfo", "--Full", "--Output=JSON", str(path)]
         data = subprocess.check_output(cmd, text=True)
         js = json.loads(data)
         tracks = js["media"]["track"]
@@ -162,6 +162,8 @@ class MediaInfoDialog(QDialog):
                 ("ChannelLayout", "ChannelLayout"),
                 ("SamplingRate", "SamplingRate"),
                 ("FrameRate", "FrameRate"),
+                ("Delay_String3", "Delay"),
+                ("Delay_Source_String", "Delay Source"),
                 ("Compression_Mode", "Compression Mode"),
                 ("StreamSize", "StreamSize"),
                 ("Title", "Title"),
