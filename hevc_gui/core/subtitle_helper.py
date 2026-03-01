@@ -21,6 +21,7 @@
 
 from hevc_gui.i18n import L
 import tempfile
+import os
 from pathlib import Path
 from typing import Tuple, List, Dict, Any
 
@@ -338,6 +339,9 @@ def _collect_external_from_sidecar(sidecar: Any) -> List[Dict[str, Any]]:
 def ensure_utf8(srt_path: Path, temp_dir: Path) -> Path:
     """
     Se il file non è UTF-8, lo ricodifica e restituisce il path del nuovo file.
+
+    Fix: se temp_dir non è scrivibile (tipico nel .deb quando punta a /usr/lib/...),
+    usa un fallback scrivibile (preferenza RAM: /dev/shm/hevc_gui).
     """
     raw = srt_path.read_bytes()
     enc = chardet.detect(raw).get("encoding") or "utf-8"
@@ -345,15 +349,42 @@ def ensure_utf8(srt_path: Path, temp_dir: Path) -> Path:
         return srt_path
 
     text = raw.decode(enc, errors="replace")
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    tmp = Path(tempfile.mkstemp(dir=str(temp_dir), suffix=srt_path.suffix)[1])
+
+    # HEVC_SUBTITLE_TMP_FALLBACK_V1
+    temp_dir = Path(temp_dir)
+
+    # prova prima la dir richiesta, poi fallback robusti
+    cand_dirs = [
+        temp_dir / "subtitles",
+        Path("/dev/shm/hevc_gui/tmp/subtitles"),
+        Path("/dev/shm/hevc_gui/subtitles"),
+        Path(tempfile.gettempdir()) / "hevc_gui" / "tmp" / "subtitles",
+        Path.home() / ".cache" / "hevc_gui" / "tmp" / "subtitles",
+    ]
+
+    picked = None
+    for d in cand_dirs:
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            t = d / ".hevc_write_test"
+            t.write_text("1", encoding="utf-8")
+            try:
+                t.unlink()
+            except FileNotFoundError:
+                pass
+            picked = d
+            break
+        except Exception:
+            continue
+
+    if picked is None:
+        # fallback estremo: lascia temp_dir (fallirà con errore leggibile più avanti)
+        picked = temp_dir
+
+    tmp = Path(tempfile.mkstemp(dir=str(picked), suffix=srt_path.suffix)[1])
     tmp.write_text(text, encoding="utf-8")
     return tmp
 
-
-# ─────────────────────────────────────────────────────────────────────
-# Dialog per scegliere lingua + tipo
-# ─────────────────────────────────────────────────────────────────────
 
 class SubTagDialog(QDialog):
     """
