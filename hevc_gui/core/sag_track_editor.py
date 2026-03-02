@@ -12,7 +12,7 @@ def attach_track_editor(dlg, tr):
     dlg._sag_track_editor_attached = True
     dlg._sag_tr = tr
 
-    from PyQt5 import QtGui, QtWidgets
+    from PyQt5 import QtCore, QtGui, QtWidgets
 
     lw = getattr(dlg, "list", None)
     if lw is None or not isinstance(lw, QtWidgets.QListWidget):
@@ -20,6 +20,121 @@ def attach_track_editor(dlg, tr):
         lw = kids[0] if kids else None
     if lw is None:
         return
+
+
+    # ───────────────────────────────────────────────────────────────
+    # HEVC_SAG_EDITOR_DELETE_EMPTY_V1
+    # - Se l'editor viene salvato vuoto => elimina la riga (come 'Elimina selezionate')
+    # - Menu tasto destro sulla lista: Modifica… / Elimina
+    # ───────────────────────────────────────────────────────────────
+    def _delete_rows(rows):
+        if not rows:
+            return
+        try:
+            rows = sorted(set(int(r) for r in rows), reverse=True)
+        except Exception:
+            return
+
+        for r in rows:
+            # n prima della cancellazione (serve per poppare liste interne)
+            try:
+                n = int(lw.count())
+            except Exception:
+                n = -1
+
+            try:
+                it = lw.item(r)
+                old_txt = it.text() if it is not None else ""
+            except Exception:
+                old_txt = ""
+
+            # rimuovi dalla UI
+            try:
+                lw.takeItem(r)
+            except Exception:
+                pass
+
+            # caso principale: batch.items
+            try:
+                batch = getattr(dlg, "batch", None)
+                items = getattr(batch, "items", None) if batch is not None else None
+                if isinstance(items, list) and n > 0 and len(items) == n and 0 <= r < len(items):
+                    items.pop(r)
+            except Exception:
+                pass
+
+            # best-effort: altre liste interne allineate alla QListWidget
+            try:
+                dct = getattr(dlg, "__dict__", {}) or {}
+                for k, v in list(dct.items()):
+                    try:
+                        if isinstance(v, list) and n > 0 and len(v) == n and 0 <= r < len(v):
+                            cur = v[r]
+                            if isinstance(cur, str):
+                                if cur == old_txt:
+                                    v.pop(r)
+                            elif isinstance(cur, dict):
+                                for kk in ("cmd", "line", "text", "value"):
+                                    if cur.get(kk) == old_txt:
+                                        v.pop(r)
+                                        break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        # refresh best-effort
+        for name in ("refresh","update_preview","update_cmd","update_output","_update_preview","_update_output","_update_buttons","update_buttons"):
+            try:
+                fn = getattr(dlg, name, None)
+                if callable(fn):
+                    fn()
+            except Exception:
+                pass
+
+    def _delete_item(item):
+        if item is None:
+            return
+        try:
+            r = lw.row(item)
+        except Exception:
+            return
+        if r < 0:
+            return
+        _delete_rows([r])
+
+    def _on_ctx_menu(pos):
+        try:
+            it = lw.itemAt(pos)
+        except Exception:
+            it = None
+
+        # click destro su riga non selezionata => selezionala
+        try:
+            if it is not None and not it.isSelected():
+                lw.clearSelection()
+                it.setSelected(True)
+                lw.setCurrentItem(it)
+        except Exception:
+            pass
+
+        menu = QtWidgets.QMenu(lw)
+        act_edit = menu.addAction(tr("Modifica…"))
+        act_del = menu.addAction(tr("Elimina"))
+        act_del.setEnabled(bool(lw.selectedItems()) or it is not None)
+
+        chosen = menu.exec_(lw.mapToGlobal(pos))
+        if chosen == act_edit:
+            _edit_item(it or lw.currentItem())
+        elif chosen == act_del:
+            try:
+                sel = lw.selectedItems()
+                if sel:
+                    _delete_rows([lw.row(x) for x in sel])
+                else:
+                    _delete_item(it)
+            except Exception:
+                pass
 
     def _edit_item(item):
         if item is None:
@@ -69,7 +184,16 @@ def attach_track_editor(dlg, tr):
 
         new = edit.toPlainText().rstrip("\n")
         new = " ".join(new.splitlines()).strip()
-        if not new or new == old:
+
+        # se l'utente 'sbianca' => elimina la riga
+        if not new:
+            try:
+                _delete_item(item)
+            except Exception:
+                pass
+            return
+
+        if new == old:
             return
 
         try:
@@ -109,5 +233,7 @@ def attach_track_editor(dlg, tr):
     try:
         lw.itemClicked.connect(_edit_item)
         lw.itemActivated.connect(_edit_item)
+        lw.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        lw.customContextMenuRequested.connect(_on_ctx_menu)
     except Exception:
         pass
