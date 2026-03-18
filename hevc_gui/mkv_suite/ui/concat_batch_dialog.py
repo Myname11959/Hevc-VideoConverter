@@ -14,8 +14,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtWidgets import QDialog
 
+from hevc_gui.mkv_suite.i18n import L
 try:
-    from hevc_gui.i18n import L
+    from hevc_gui.mkv_suite.i18n import L
 except Exception:
     def L(s: str) -> str:
         return s
@@ -404,8 +405,23 @@ class ConcatBatchDialog(QDialog):
 
         # Progress
         self.progress = QProgressBar()
+        # ZERO_CHUNK_progress
+        self.progress.setProperty('zero', True)
+        self.progress.setStyleSheet(
+            "QProgressBar { text-align: center; }\n"
+            "QProgressBar::chunk { background-color: palette(highlight); }\n"
+            "QProgressBar[zero=\"true\"]::chunk { background-color: transparent; width: 0px; }\n"
+        )
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
+        # ZERO_CHUNK_SET_progress
+        try:
+            self.progress.setProperty('zero', (self.progress.value() <= 0))
+            self.progress.style().unpolish(self.progress)
+            self.progress.style().polish(self.progress)
+            self.progress.update()
+        except Exception:
+            pass
         self.progress.setMinimumHeight(18)
         root.addWidget(self.progress)
 
@@ -736,7 +752,7 @@ class ConcatBatchDialog(QDialog):
     def _restore_window_geometry_prefs(self) -> None:
         """Ripristina geometria dialog; default 600x800 al primo avvio."""
         try:
-            st = QSettings("HEVC-GUI", "MKVSuiteEmbedded")
+            st = QSettings("MKV-Tools", "MKVTools")
             geo = st.value("concat_batch_dialog/geometry")
             if geo:
                 self.restoreGeometry(geo)
@@ -750,7 +766,7 @@ class ConcatBatchDialog(QDialog):
 
     def _save_window_geometry_prefs(self) -> None:
         try:
-            st = QSettings("HEVC-GUI", "MKVSuiteEmbedded")
+            st = QSettings("MKV-Tools", "MKVTools")
             st.setValue("concat_batch_dialog/geometry", self.saveGeometry())
         except Exception:
             pass
@@ -884,6 +900,14 @@ class ConcatBatchDialog(QDialog):
         self.tbl_files.setRowCount(0)
         self.tbl_groups.setRowCount(0)
         self.progress.setValue(0)
+        # ZERO_CHUNK_SET_progress
+        try:
+            self.progress.setProperty('zero', (self.progress.value() <= 0))
+            self.progress.style().unpolish(self.progress)
+            self.progress.style().polish(self.progress)
+            self.progress.update()
+        except Exception:
+            pass
         self._update_auto_diagnostics()
         self._log("[OK] Lista unione svuotata.")
 
@@ -975,6 +999,14 @@ class ConcatBatchDialog(QDialog):
 
         self._queue = list(valid)
         self.progress.setValue(0)
+        # ZERO_CHUNK_SET_progress
+        try:
+            self.progress.setProperty('zero', (self.progress.value() <= 0))
+            self.progress.style().unpolish(self.progress)
+            self.progress.style().polish(self.progress)
+            self.progress.update()
+        except Exception:
+            pass
         self._set_busy(True)
         self._log(f"[RUN] Unione gruppi in: {out_dir}")
         self._run_next()
@@ -982,6 +1014,14 @@ class ConcatBatchDialog(QDialog):
     def _run_next(self) -> None:
         if not self._queue:
             self.progress.setValue(100)
+            # ZERO_CHUNK_SET_progress
+            try:
+                self.progress.setProperty('zero', (self.progress.value() <= 0))
+                self.progress.style().unpolish(self.progress)
+                self.progress.style().polish(self.progress)
+                self.progress.update()
+            except Exception:
+                pass
             self._set_busy(False)
             self._log("[OK] Unione completata.")
             return
@@ -1014,6 +1054,14 @@ class ConcatBatchDialog(QDialog):
 
         self._set_group_status(g, "in corso")
         self.progress.setValue(0)
+        # ZERO_CHUNK_SET_progress
+        try:
+            self.progress.setProperty('zero', (self.progress.value() <= 0))
+            self.progress.style().unpolish(self.progress)
+            self.progress.style().polish(self.progress)
+            self.progress.update()
+        except Exception:
+            pass
         self._proc_buf = ""
 
         if self._proc is not None:
@@ -1044,6 +1092,14 @@ class ConcatBatchDialog(QDialog):
                 if m:
                     try:
                         self.progress.setValue(max(0, min(100, int(m.group(1)))))
+                        # ZERO_CHUNK_SET_progress
+                        try:
+                            self.progress.setProperty('zero', (self.progress.value() <= 0))
+                            self.progress.style().unpolish(self.progress)
+                            self.progress.style().polish(self.progress)
+                            self.progress.update()
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
@@ -1054,6 +1110,14 @@ class ConcatBatchDialog(QDialog):
                 pass
             if code == 0:
                 self.progress.setValue(100)
+                # ZERO_CHUNK_SET_progress
+                try:
+                    self.progress.setProperty('zero', (self.progress.value() <= 0))
+                    self.progress.style().unpolish(self.progress)
+                    self.progress.style().polish(self.progress)
+                    self.progress.update()
+                except Exception:
+                    pass
                 self._set_group_status(g, "ok")
                 self._log(f"[OK] Gruppo {g.index} -> {out_path.name}")
                 self._run_next()
@@ -1079,4 +1143,12 @@ class ConcatBatchDialog(QDialog):
         self._queue = []
         self._set_busy(False)
         self.progress.setValue(0)
+        # ZERO_CHUNK_SET_progress
+        try:
+            self.progress.setProperty('zero', (self.progress.value() <= 0))
+            self.progress.style().unpolish(self.progress)
+            self.progress.style().polish(self.progress)
+            self.progress.update()
+        except Exception:
+            pass
         self._log("[STOP] Unione interrotta.")

@@ -171,7 +171,7 @@ a:hover { text-decoration: underline; }
     }
   </script></head><body>
 
-  <h1>HEVC-Video Converter <span class="badge">v2.2.0.0</span> <span class="badge">2026</span></h1>
+  <h1>HEVC-Video Converter <span class="badge">v2.3.0.0</span> <span class="badge">2026</span></h1>
   <p class="small">
     Manuale in <b>Italiano</b> e <b>English</b> nello stesso file.
     Usa i pulsanti qui sotto per cambiare lingua e poi <b>Stampa / Salva in PDF (A4)</b>.
@@ -531,23 +531,56 @@ a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.</p>
     
 
     <section>
-      </section><h2 id="audio">8. Modulo Audio</h2>
+      </section><h2 id="audio">8. Modulo Audio / String Audio Generator (SAG)</h2>
 
-      <p>Il
-modulo audio serve per selezionare tracce, impostare
-codec/bitrate/canali e applicare miglioramenti (se disponibili nel tuo
-setup).</p>
+      <p>Il modulo audio e il <b>String Audio Generator (SAG)</b> servono per preparare una traccia audio in modo guidato:
+      scelta traccia, lingua, codec/bitrate/canali, miglioramenti e preview prima del salvataggio.</p>
 
-      <h3>8.1 Problema tipico: “Sento rumori ma non i dialoghi”</h3>
+      <div class="note">
+        <b>Regola pratica:</b> usa sempre la <b>Preview</b> su una scena con dialoghi chiari.
+        In SAG la preview segue la stessa catena audio principale, quindi quello che senti in prova è molto vicino al risultato finale.
+      </div>
+
+      <h3>8.1 Flusso semplice consigliato</h3>
+      <ol>
+        <li>Seleziona la <b>traccia input</b> corretta e imposta la <b>lingua</b>.</li>
+        <li>Lascia bitrate/sample rate su valori standard se non hai esigenze particolari.</li>
+        <li>Se parti da 5.1 o da una traccia difficile, prova prima <b>Stereo (2ch downmix)</b> oppure un profilo <b>Samsung</b>.</li>
+        <li>Applica un miglioramento alla volta e fai subito <b>Preview</b>.</li>
+        <li>Quando il test va bene, usa <b>Add track</b> per aggiungere la traccia al lavoro.</li>
+      </ol>
+
+      <h3>8.2 Noise Reduction (dialog separato)</h3>
+      <ul>
+        <li>La riduzione rumore ora si gestisce in una finestra dedicata, più chiara da usare.</li>
+        <li>Dentro il dialog puoi fare <b>preview</b>, <b>analisi</b> e <b>applica</b> prima di tornare a SAG.</li>
+        <li>Consiglio semplice: usala con moderazione, solo quando senti davvero fruscio o rumore costante.</li>
+      </ul>
+
+      <h3>8.3 Stereo Enh: Pan stereo / Stereo Widen</h3>
+      <ul>
+        <li><b>Pan stereo</b> è utile quando vuoi ridistribuire meglio il contenuto verso un downmix stereo, soprattutto se i dialoghi risultano deboli.</li>
+        <li><b>Stereo Widen</b> serve invece ad allargare la scena stereo: è un effetto di spazialità, non una cura per dialoghi mancanti.</li>
+        <li>Il pulsante <b>info</b> accanto a questa voce spiega la differenza in modo rapido.</li>
+      </ul>
+
+      <h3>8.4 Opzioni utili da conoscere</h3>
+      <ul>
+        <li><b>Auto-loudness (DynAudNorm)</b>: prova a rendere il volume più uniforme.</li>
+        <li><b>Dialog Boost</b>: dà una piccola spinta alla zona delle voci.</li>
+        <li><b>Keep MONO if mono input</b>: evita di “fingere” uno stereo quando la sorgente è davvero mono.</li>
+        <li><b>Avoid clipping</b>: aiuta a contenere distorsioni quando sommi più interventi.</li>
+      </ul>
+
+      <h3>8.5 Problema tipico: “Sento rumori ma non i dialoghi”</h3>
       <div class="danger">
         <b>Causa frequente:</b> downmix errato (il canale centrale con i dialoghi non viene miscelato bene).<br>
-        <b>Soluzione semplice:</b> prova un profilo downmix diverso e testa su una scena parlata.
+        <b>Soluzione semplice:</b> prova prima <b>Stereo (2ch downmix)</b>, poi un profilo <b>Samsung</b> se serve, e verifica sempre con una scena parlata.
       </div>
 
       <div class="note">
         <b>Consiglio pratico:</b> prima di convertire un film intero, fai sempre una prova breve su 1–2 minuti con dialoghi evidenti.
       </div>
-    
 
     <section>
       </section><h2 id="subs">9. Sottotitoli (interni / esterni / da DVD)</h2>
@@ -598,7 +631,7 @@ conversione in formato FFmpeg-friendly (dipende dal setup).</p>
 
       <p>
         <b>MKV Suite</b> è il modulo integrato per lavorare sui file MKV <b>senza ricodificare</b>:
-        estrazione tracce, tagging, creazione MKV (remux) e unione episodi.
+        estrazione tracce, tagging, creazione MKV (remux), unione episodi, <b>Trim</b> per tagli precisi e <b>Insert clips</b> per inserire una o più clip in punti specifici del video principale.
         Lo trovi in <b>Tools → Strumenti MKV</b>.
       </p>
 
@@ -611,28 +644,31 @@ conversione in formato FFmpeg-friendly (dipende dal setup).</p>
         <pre>sudo apt install mkvtoolnix mkvtoolnix-gui gnome-subtitles</pre>
       </div>
 
-      <h3> 15.1 Regola d’oro: cartella output = “job dir”</h3>
+      <h3>12.1 Regola d’oro: cartella output = “job dir”</h3>
       <ul>
         <li>MKV Suite <b>non</b> usa una cartella di default: alla prima operazione ti chiede dove salvare.</li>
         <li>La cartella che scegli diventa la <b>cartella di lavoro</b> (job dir) e dentro crea automaticamente queste sottocartelle:</li>
       </ul>
-      <pre>JOB_DIR/<br>  extract/<br>  chapters/<br>  remux/</pre>
+      <pre>JOB_DIR/
+  extract/
+  chapters/
+  remux/</pre>
       <div class="warn">
         <b>Consiglio da “dummy”:</b> usa una cartella output <b>vuota</b> per ogni film/episodi.
         Se riusi sempre la stessa, ti ritrovi i file mescolati e poi non capisci più niente.
       </div>
 
-      <h3> 15.2 Workflow “a prova di principiante” (ordine consigliato)</h3>
+      <h3>12.2 Workflow “a prova di principiante” (ordine consigliato)</h3>
       <ol>
         <li>Apri <b>Tools → Strumenti MKV</b>.</li>
         <li>Imposta la <b>cartella output</b> (job dir).</li>
         <li>Aggiungi una sorgente MKV (o più episodi) nella lista a sinistra.</li>
         <li>Vai su <b>Tracce</b> e controlla lingue/flag/nome tracce.</li>
-        <li>Usa una funzione alla volta: <b>Estrai</b> oppure <b>Applica Tag</b> oppure <b>Crea MKV</b> oppure <b>Unisci episodi</b>.</li>
+        <li>Usa una funzione alla volta: <b>Estrai</b>, <b>Applica Tag</b>, <b>Crea MKV</b>, <b>Unisci episodi</b>, <b>Trim</b> oppure <b>Insert clips</b>.</li>
         <li>Se tocchi capitoli o sottotitoli: fai prima <b>Estrai</b>, poi modifica, poi <b>Crea MKV</b>.</li>
       </ol>
 
-      <h3> 15.3 Estrai</h3>
+      <h3>12.3 Estrai</h3>
       <ul>
         <li>Estrae tracce selezionate e/o info dal MKV <b>senza conversioni</b>.</li>
         <li>Output in <code>extract/</code>.</li>
@@ -640,7 +676,7 @@ conversione in formato FFmpeg-friendly (dipende dal setup).</p>
         <li>Audio/Sottotitoli: vengono estratti nel loro formato “naturale” con suffisso <code>_e</code> nel nome file.</li>
       </ul>
 
-      <h3> 15.4 Applica Tag</h3>
+      <h3>12.4 Applica Tag</h3>
       <ul>
         <li>Serve per impostare <b>lingua</b>, <b>nome traccia</b>, flag <b>default/forced</b>, ecc. (quello che poi vedi bene anche in VLC).</li>
         <li>Non ricodifica: applica metadati/flag tramite tool di MKVToolNix.</li>
@@ -649,7 +685,7 @@ conversione in formato FFmpeg-friendly (dipende dal setup).</p>
         <b>Se vuoi zero rischi:</b> lavora su una copia del MKV (così non tocchi l’originale).
       </div>
 
-      <h3> 15.5 Crea MKV (Remux)</h3>
+      <h3>12.5 Crea MKV (Remux)</h3>
       <ul>
         <li>Crea un nuovo MKV riassemblando le tracce selezionate (<b>senza ricodificare</b>).</li>
         <li>Output in <code>remux/</code>.</li>
@@ -657,37 +693,75 @@ conversione in formato FFmpeg-friendly (dipende dal setup).</p>
         <li>Se usi capitoli esterni, MKV Suite evita duplicati (niente capitoli doppi).</li>
       </ul>
 
-      <h3> 15.6 Unisci episodi (Merge Episodes)</h3>
+      <h3>12.6 Unisci episodi (Merge Episodes)</h3>
       <ul>
         <li>Seleziona più episodi e uniscili in un unico MKV (ordine = ordine lista).</li>
         <li>Output in <code>remux/</code>.</li>
         <li>È pensato per serie/mini-episodi: prima controlla sempre audio/lingue.</li>
       </ul>
 
-      <h3> 15.7 Capitoli (tab Capitoli)</h3>
+      <h3>12.7 Capitoli (tab Capitoli)</h3>
       <ul>
         <li>Puoi <b>estrarre</b> capitoli esistenti oppure <b>generarli</b> (scene detect o intervallo fisso) e salvarli in <code>chapters/</code>.</li>
         <li>Per usarli nel remux: genera/salva → poi <b>Crea MKV</b> usando quei capitoli.</li>
       </ul>
 
-      <h3> 15.8 Editor sottotitoli (richiede gnome-subtitles)</h3>
+      <h3>12.8 Sync audio (Auto / Manuale + Preview)</h3>
+      <ul>
+        <li>Serve quando una traccia audio è leggermente in anticipo o in ritardo rispetto al video.</li>
+        <li>La modalità <b>Auto</b> ti dà un punto di partenza; la modalità <b>Manuale</b> ti lascia regolare il delay in modo preciso.</li>
+        <li>Usa sempre <b>Preview</b> per verificare il risultato su un piccolo test prima del remux finale.</li>
+      </ul>
+      <div class="note">
+        <b>Flusso consigliato:</b> <b>Analizza</b> → <b>Preview</b> → piccoli aggiustamenti → <b>Crea MKV</b>.
+      </div>
+
+      <h3>12.9 Subtitle drift</h3>
+      <ul>
+        <li>È utile quando il sottotitolo parte giusto ma, andando avanti, si “sfascia” sempre di più.</li>
+        <li>Funziona bene con sottotitoli <b>testuali</b> esterni e con sottotitoli testuali/interni estraibili temporaneamente.</li>
+        <li>Per i sottotitoli <b>bitmap</b> non c’è un vero retime progressivo: in quel caso usa solo un offset fisso.</li>
+      </ul>
+
+      <h3>12.10 Trim (taglio preciso assistito)</h3>
+      <ul>
+        <li>Serve per togliere parti indesiderate del video, per esempio <b>pubblicità</b>, sigle, spezzoni rovinati o code finali.</li>
+        <li>Hai due approcci semplici:
+          <ul>
+            <li><b>Taglio preciso con ricodifica</b>: più lento, ma il punto di taglio è più accurato.</li>
+            <li><b>Taglio veloce senza ricodifica</b>: molto più rapido, ma il taglio può cadere leggermente prima o dopo il punto scelto.</li>
+          </ul>
+        </li>
+        <li>Usa la preview per segnare bene inizio/fine e fai sempre un piccolo test se il punto è importante.</li>
+        <li>Se il file era già stato preparato in HEVC, il tool cerca di mantenere il più possibile le impostazioni originali senza costringerti a rifare tutto a mano.</li>
+      </ul>
+
+      <h3>12.11 Insert clips</h3>
+      <ul>
+        <li>Serve per <b>inserire una o più clip</b> dentro un video principale in punti precisi.</li>
+        <li>È utile per aggiungere recap, loghi iniziali/finali, scene recuperate, versioni estese o spezzoni corretti.</li>
+        <li>Il tool cerca di far sì che le clip inserite mantengano una <b>forma visiva corretta</b> e si adattino bene al video principale, evitando immagini schiacciate o allargate.</li>
+        <li>Anche qui conviene fare una preview o un test breve, soprattutto quando il materiale inserito proviene da file diversi.</li>
+      </ul>
+
+      <h3>12.12 Editor sottotitoli (richiede gnome-subtitles)</h3>
       <ul>
         <li>Se vuoi correggere un SRT (sync, refusi, caratteri), installa <b>gnome-subtitles</b>.</li>
         <li>Flusso consigliato: <b>Estrai</b> sottotitolo → modifica in editor → <b>Crea MKV</b> includendo il SRT corretto.</li>
       </ul>
 
-      <h3> 15.9 Differenze IT / EN (nomi interfaccia)</h3>
+      <h3>12.13 Differenze IT / EN (nomi interfaccia)</h3>
       <table>
-        <tbody><tr><th>Italiano</th><th>English</th></tr>
+        <tr><th>Italiano</th><th>English</th></tr>
         <tr><td>Tools → <b>Strumenti MKV</b></td><td>Tools → <b>MKV Tools</b></td></tr>
         <tr><td><b>Crea MKV</b></td><td><b>Remux</b></td></tr>
         <tr><td><b>Unisci episodi</b></td><td><b>Merge Episodes</b></td></tr>
         <tr><td><b>Applica Tag</b></td><td><b>Apply Tags</b></td></tr>
         <tr><td><b>Estrai</b></td><td><b>Extract</b></td></tr>
-      </tbody></table>
+      </table>
 
-
-<h2 id="ldvd"> 13. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
+    <section>
+      </section><h2 id="ldvd"> 13. LDVD Ripper (DVD → file locale + SRT + handoff)</h2>
 
       <p><b>Scopo:</b> rippare una volta sola dal DVD e lavorare poi su file locali (più veloci, più stabili, riusabili).</p>
 
@@ -1254,21 +1328,44 @@ ffprobe -version</pre>
     <section>
       </section>
     <section>
+      </section><h3 id="en-audio">6.5 Audio / String Audio Generator (SAG)</h3>
+      <p>
+        The audio module and <b>String Audio Generator (SAG)</b> help you build or convert an audio track in a guided way:
+        choose the input track, set language/output options, apply enhancements, and test everything before saving.
+      </p>
+
+      <div class="note">
+        <b>Practical rule:</b> always use <b>Preview</b> on a scene with clear dialog.
+        In SAG, preview follows the same main audio chain, so the test is very close to the final result.
+      </div>
+
+      <ul>
+        <li>Pick the correct <b>input track</b> and <b>language</b> first.</li>
+        <li>Use <b>Stereo (2ch downmix)</b> or a <b>Samsung</b> profile when voices are weak or the source starts from 5.1.</li>
+        <li>Apply one change at a time, then run <b>Preview</b> again.</li>
+        <li>The separate <b>Noise Reduction</b> dialog lets you preview, analyze, and apply the cleanup more safely.</li>
+        <li>The built-in help near <b>Stereo Enh</b> explains the difference between <b>Stereo Pan</b> and <b>Stereo Widen</b>.</li>
+      </ul>
+
+      <div class="warn">
+        <b>Typical issue:</b> “I hear effects but not dialog.”<br>
+        Start with a better <b>downmix</b>, then test a short spoken scene before you process a full movie.
+      </div>
+
+    <section>
       </section><h2 id="en-mkv-suite">7. MKV Suite (Tools → “MKV Tools”)</h2>
 
       <p>
         <b>MKV Suite</b> is the integrated module to work on MKV files <b>without re-encoding</b>:
-        track extraction, tagging, remux, and episode merging.
+        track extraction, tagging, remux, episode merging, <b>Trim</b> for accurate cuts, and <b>Insert Clips</b> to place one or more clips at specific points inside the main video.
         Open it from <b>Tools → MKV Tools</b>.
       </p>
 
       <div class="note">
         <b>Prerequisites (needed for MKV Suite):</b>
         <ul>
-          <li><b>MKVToolNix</b> (CLI tools: <code>mkvmerge</code>, <code>mkvextract</code>, <code>mkvpropedit</code>).<br>
-</li>
-          <li><b>gnome-subtitles</b> (Linux) for reliable subtitle editing from the integrated editor workflow.<br>
-</li>
+          <li><b>MKVToolNix</b> (CLI tools: <code>mkvmerge</code>, <code>mkvextract</code>, <code>mkvpropedit</code>).</li>
+          <li><b>gnome-subtitles</b> (Linux) for reliable subtitle editing from the integrated editor workflow.</li>
         </ul>
         <pre>sudo apt install mkvtoolnix mkvtoolnix-gui gnome-subtitles</pre>
       </div>
@@ -1281,62 +1378,85 @@ ffprobe -version</pre>
 
       <h3>7.2 Beginner-proof workflow</h3>
       <ol>
-        <li>Open <b>Tools → MKV Tools</b>.<br>
-</li>
-        <li>Pick an <b>output folder</b> (job dir).<br>
-</li>
-        <li>Add your MKV source(s) on the left.<br>
-</li>
-        <li>Check <b>Tracks</b> (languages/flags/names).<br>
-</li>
-        <li>Use one action at a time: <b>Extract</b> / <b>Apply Tags</b> / <b>Remux</b> / <b>Merge Episodes</b>.<br>
-</li>
-        <li>If you edit chapters/subtitles: Extract → edit → Remux.<br>
-</li>
+        <li>Open <b>Tools → MKV Tools</b>.</li>
+        <li>Pick an <b>output folder</b> (job dir).</li>
+        <li>Add your MKV source(s) on the left.</li>
+        <li>Check <b>Tracks</b> (languages/flags/names).</li>
+        <li>Use one action at a time: <b>Extract</b> / <b>Apply Tags</b> / <b>Remux</b> / <b>Merge Episodes</b> / <b>Trim</b> / <b>Insert Clips</b>.</li>
+        <li>If you edit chapters/subtitles: Extract → edit → Remux.</li>
       </ol>
 
       <h3>7.3 Extract</h3>
       <ul>
-        <li>No conversion: files keep their natural formats.<br>
-</li>
-        <li>Output goes to <code>extract/</code>.<br>
-</li>
+        <li>No conversion: files keep their natural formats.</li>
+        <li>Output goes to <code>extract/</code>.</li>
       </ul>
 
       <h3>7.4 Apply Tags</h3>
       <ul>
-        <li>Set language, track name, default/forced flags, etc. (VLC-friendly naming).<br>
-</li>
-        <li>No re-encoding.<br>
-</li>
+        <li>Set language, track name, default/forced flags, etc. (VLC-friendly naming).</li>
+        <li>No re-encoding.</li>
       </ul>
 
       <h3>7.5 Remux</h3>
       <ul>
-        <li>Create a new MKV by reassembling selected tracks (no re-encode).<br>
-</li>
-        <li>Output goes to <code>remux/</code>.<br>
-</li>
-        <li>Chapters are handled from the <b>Chapters</b> tab (don’t add chapter files as “sources”).<br>
-</li>
+        <li>Create a new MKV by reassembling selected tracks (no re-encode).</li>
+        <li>Output goes to <code>remux/</code>.</li>
+        <li>Chapters are handled from the <b>Chapters</b> tab (don’t add chapter files as “sources”).</li>
       </ul>
 
       <h3>7.6 Merge Episodes</h3>
       <ul>
-        <li>Merge multiple episodes into one MKV (order = left list order).<br>
-</li>
-        <li>Output goes to <code>remux/</code>.<br>
-</li>
+        <li>Merge multiple episodes into one MKV (order = left list order).</li>
+        <li>Output goes to <code>remux/</code>.</li>
       </ul>
 
-      <h3>7.7 Subtitle editor (requires gnome-subtitles)</h3>
+      <h3>7.7 Audio sync (Auto / Manual + Preview)</h3>
       <ul>
-        <li>Recommended: Extract → edit SRT → Remux with the fixed subtitles.<br>
-</li>
+        <li>Use this when an audio track is slightly early or late compared to the video.</li>
+        <li><b>Auto</b> gives you a starting point; <b>Manual</b> lets you refine the delay more precisely.</li>
+        <li>Always use <b>Preview</b> on a short test before the final remux.</li>
       </ul>
 
+      <div class="note">
+        <b>Recommended flow:</b> <b>Analyze</b> → <b>Preview</b> → small corrections → <b>Remux</b>.
+      </div>
 
-<h2 id="en-subs">8. Subtitles (embedded / external / from DVD)</h2>
+      <h3>7.8 Subtitle drift</h3>
+      <ul>
+        <li>Useful when subtitles start correctly but drift more and more over time.</li>
+        <li>Best for <b>text subtitles</b> (external or text-based internal subtitles that can be extracted temporarily).</li>
+        <li><b>Bitmap subtitles</b> do not support true progressive retiming here: use a fixed offset instead.</li>
+      </ul>
+
+      <h3>7.9 Trim (assisted precise cut)</h3>
+      <ul>
+        <li>Use it to remove unwanted parts of the video, such as <b>commercial breaks</b>, intros, damaged sections, or end credits.</li>
+        <li>You have two simple approaches:
+          <ul>
+            <li><b>Precise cut with re-encode</b>: slower, but the cut point is more accurate.</li>
+            <li><b>Fast cut without re-encode</b>: much faster, but the cut may land slightly before or after the chosen point.</li>
+          </ul>
+        </li>
+        <li>Use preview to mark start/end carefully, and run a short test when the cut point matters.</li>
+        <li>If the file was already prepared in HEVC, the tool tries to keep the original settings as much as possible so you do not have to rebuild everything manually.</li>
+      </ul>
+
+      <h3>7.10 Insert Clips</h3>
+      <ul>
+        <li>Use it to <b>insert one or more clips</b> inside a main video at specific points.</li>
+        <li>Useful for recap segments, opening/ending logos, recovered scenes, extended versions, or corrected parts.</li>
+        <li>The tool tries to keep inserted clips looking <b>visually correct</b> and consistent with the main video, avoiding stretched or squashed images.</li>
+        <li>As usual, do a short preview or test first, especially when inserted material comes from different files.</li>
+      </ul>
+
+      <h3>7.11 Subtitle editor (requires gnome-subtitles)</h3>
+      <ul>
+        <li>Recommended: Extract → edit SRT → Remux with the fixed subtitles.</li>
+      </ul>
+
+    <section>
+      </section><h2 id="en-subs">8. Subtitles (embedded / external / from DVD)</h2>
 
       <h3>7.1 Embedded subtitles</h3>
       <ul>

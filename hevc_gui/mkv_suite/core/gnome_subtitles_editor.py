@@ -8,6 +8,7 @@ from pathlib import Path
 from PyQt5.QtCore import QObject, QProcess
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QProgressDialog
 
+from hevc_gui.mkv_suite.i18n import L
 TEXT_CODEC_TO_EXT = {
     "S_TEXT/UTF8": "srt",
     "S_TEXT/ASS": "ass",
@@ -257,7 +258,7 @@ class GnomeSubtitlesEditor(QObject):
         self._proc_extract.setArguments(["tracks", str(src), f"{track_id}:{out_extract}"])
 
         self._busy = QProgressDialog("Estrazione sottotitolo...", "Stop", 0, 0, self.parent_widget)
-        self._busy.setWindowTitle("MKV Suite")
+        self._busy.setWindowTitle(L("MKV Suite"))
         self._busy.setMinimumDuration(0)
         self._busy.canceled.connect(lambda: self._proc_extract.kill() if self._proc_extract else None)
         self._busy.show()

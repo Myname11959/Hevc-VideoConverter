@@ -1,4 +1,4 @@
-# HEVC – Video Converter v2.2.0.0
+# HEVC – Video Converter v2.3.0.0
 
 **All releases / Tutte le release:** https://github.com/Myname11959/Hevc-VideoConverter/releases  
 **Changelog / Changelog:** https://github.com/Myname11959/Hevc-VideoConverter/releases
@@ -31,24 +31,24 @@
 ## Highlights (EN)
 
 - **Video**: CRF/preset or bitrate, stream mapping, crop/scale/filters, CFR/VFR, preview.
-- **Audio**: ready profiles (Samsung Stereo / Samsung 5.1 AC-3), downmix, loudness, limiter, dialog boost.
+- **Audio**: ready profiles (Samsung Stereo / Samsung 5.1 AC-3), downmix, loudness, limiter, dialog boost, and guided audio preview.
 - **Reproducible**: the app shows/uses clear FFmpeg command lines (easy to debug/share).
 - **Suite**:
-  - **MKV Suite (Tools → MKV Tools)**: Extract / Apply Tags / Remux / Merge Episodes (no re-encode).
+  - **MKV Suite (Tools → MKV Tools)**: Extract / Apply Tags / Remux / Merge Episodes / Auto-sync audio / Subtitle drift / Trim / Insert Clips.
   - **LDVD Ripper**: DVD → local files + (optional) subtitle OCR to SRT + handoff to HEVC.
-  - **String Audio Generator**: helper/builder for audio args.
+  - **String Audio Generator (SAG)**: helper/builder for audio args, now with a separate **Noise Reduction** dialog with preview/analyze/apply workflow.
 
 ---
 
 ## Punti chiave (IT)
 
 - **Video**: CRF/preset o bitrate, mapping stream, crop/scale/filtri, CFR/VFR, preview.
-- **Audio**: profili pronti (Samsung Stereo / Samsung 5.1 AC-3), downmix, loudness, limiter, dialog boost.
+- **Audio**: profili pronti (Samsung Stereo / Samsung 5.1 AC-3), downmix, loudness, limiter, dialog boost e preview guidata.
 - **Riproducibile**: comandi FFmpeg chiari (facili da condividere e debug).
 - **Suite**:
-  - **MKV Suite (Tools → Strumenti MKV)**: Estrai / Applica Tag / Crea MKV / Unisci episodi (senza ricodificare).
+  - **MKV Suite (Tools → Strumenti MKV)**: Estrai / Applica Tag / Crea MKV / Unisci episodi / Auto-sync audio / Subtitle drift / Trim / Insert Clips.
   - **LDVD Ripper**: DVD → file locale + (opzionale) OCR sottotitoli in SRT + handoff a HEVC.
-  - **String Audio Generator**: helper/builder per parametri audio.
+  - **String Audio Generator (SAG)**: helper/builder per parametri audio, ora con dialog separato di **Noise Reduction** con preview/analisi/applica.
 
 ---
 
@@ -58,11 +58,15 @@
 - EN: Tools → MKV Tools  
 - IT: Tools → Strumenti MKV  
 
-### What it does (no re-encode)
+### What it does
 - **Extract / Estrai**: export tracks from MKV (video/audio/subs) in their natural formats.
 - **Apply Tags / Applica Tag**: set language, track name, default/forced flags (VLC-friendly).
 - **Remux / Crea MKV**: build a new MKV from selected tracks (no conversion).
 - **Merge Episodes / Unisci episodi**: join multiple episodes into one MKV (order = list order).
+- **Auto-sync audio**: analyze and correct audio delay with Preview before the final remux.
+- **Subtitle drift**: fix text subtitle drift when subtitles go more and more out of sync over time.
+- **Trim**: cut unwanted parts such as commercials, intros, damaged sections, or credits; use precise cut with re-encode for accuracy, or fast cut without re-encode for speed.
+- **Insert Clips**: insert one or more clips at chosen points inside a main video, keeping the inserted material visually consistent and avoiding stretched/squashed results.
 
 ### Output folder = “job dir” (important!)
 MKV Suite uses ONE output folder per job, and creates:
@@ -75,12 +79,18 @@ MKV Suite uses ONE output folder per job, and creates:
 **Beginner-proof workflow:**
 1) Choose an empty output folder (job dir)  
 2) Add source MKV(s)  
-3) (Optional) Extract → edit subtitles/chapters → Remux  
-4) Remux / Merge Episodes  
+3) Check tracks/languages/flags  
+4) Use one action at a time: Extract / Apply Tags / Remux / Merge Episodes / Trim / Insert Clips  
+5) (Optional) Extract → edit subtitles/chapters → Remux  
+6) For sync work: Analyze → Preview → small corrections → Remux  
 
-### Chapters & subtitles notes
+### Chapters, subtitles, and prerequisites
 - **Chapters**: manage them from the Chapters tab (save to `chapters/`, use them when remuxing).  
-- **Subtitle editing (Linux)**: install **gnome-subtitles** to get a correct/clean subtitle edit workflow.
+- **Subtitle editing (Linux)**: install **gnome-subtitles** to get a correct/clean subtitle edit workflow.  
+- **MKV tools required**: install **mkvtoolnix** / **mkvtoolnix-gui** for the full MKV Suite workflow.
+
+### SAG / Audio note
+- **String Audio Generator (SAG)** now includes a separate **Noise Reduction** dialog with preview, analysis, and apply workflow, aligned with the main audio chain used for preview/final output.
 
 ---
 

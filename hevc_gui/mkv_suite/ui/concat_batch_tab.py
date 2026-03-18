@@ -5,8 +5,9 @@ from __future__ import annotations
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QMessageBox
 
+from hevc_gui.mkv_suite.i18n import L
 try:
-    from hevc_gui.i18n import L
+    from hevc_gui.mkv_suite.i18n import L
 except Exception:
     def L(s: str) -> str:
         return s

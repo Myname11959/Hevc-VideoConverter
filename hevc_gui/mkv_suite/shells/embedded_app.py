@@ -1,9 +1,60 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+# STANDALONE_SAFETY_DEFAULTS
+from hevc_gui.mkv_suite.i18n import L, LT
+if '_APPLY_APPEARANCE' not in globals():
+    _APPLY_APPEARANCE = None
+if '_LOAD_APPEARANCE' not in globals():
+    _LOAD_APPEARANCE = None
+
+from pathlib import Path
 
 import os
 import sys
+
+
+def _is_hevc_embedded(argv=None) -> bool:
+    env = (os.environ.get("HEVC_MKV_EMBEDDED", "") or "").strip().lower()
+    if env in ("1", "true", "yes", "on"):
+        return True
+    try:
+        args = list(argv) if argv is not None else list(sys.argv[1:])
+    except Exception:
+        args = []
+    return "--embedded" in args
+
+
+def _embedded_lang_env() -> str:
+    v = (os.environ.get("HEVC_LANG", "") or "").strip().lower()
+    if v.startswith("en"):
+        return "en"
+    if v.startswith("it"):
+        return "it"
+    return ""
+try:
+    from mkv_tools.version import get_version  # standalone
+except Exception:
+    def get_version():
+        try:
+            vf = Path(__file__).resolve().parents[2] / "VERSION"
+            if vf.is_file():
+                return vf.read_text(encoding="utf-8").strip() or "1.0.0.0"
+        except Exception:
+            pass
+        return "1.0.0.0"
+
+from hevc_gui.mkv_suite.i18n_apply import install_auto_translator, apply_to_widget_tree
+from hevc_gui.mkv_suite import i18n as _i18n
+# STANDALONE_I18N_RELOAD
+import importlib as _importlib
+_i18n = _importlib.reload(_i18n)
+L = _i18n.L
+# STANDALONE_I18N_FORCE_L
+_orig_L = _i18n.L
+L = _i18n.L
+from hevc_gui.mkv_suite.ui.restart_action import build_restart_action
+from hevc_gui.mkv_suite.ui.lang_menu import install_language_menu
 
 from PyQt5.QtCore import Qt, QSize, QSettings, QTimer
 from PyQt5.QtGui import QPixmap, QIcon
@@ -18,372 +69,94 @@ except Exception:
     pass
 
 try:
-    from hevc_gui.i18n import L, get_lang
+    from hevc_gui.mkv_suite.i18n import L, get_lang
 except Exception:
     def L(s: str) -> str:
         return s
-    def get_lang(*a, **k) -> str:
-        return os.environ.get("HEVC_LANG", "it")
-
-_APPLY_APPEARANCE = None
-try:
-    from hevc_gui.gui.appearance_settings import apply_appearance as _apply_appearance  # type: ignore
-    _APPLY_APPEARANCE = _apply_appearance
-except Exception:
-    _APPLY_APPEARANCE = None
-
-
-# --- MKV Suite EN fallback (solo chiavi mancanti nel catalogo) ---
-def _install_mkv_en_fallbacks() -> None:
-    try:
-        import hevc_gui.i18n as _i18n  # type: ignore
-    except Exception:
-        return
-
-    if getattr(_i18n, "_MKV_EN_FALLBACKS_PATCHED", False):
-        return
-
-    _orig_L = getattr(_i18n, "L", None)
-    if not callable(_orig_L):
-        return
-
-    _MAP_EN = {
-        "Strumenti MKV": "MKV Tools",
-        "Crea MKV": "Remux",
-        "Unisci episodi": "Merge Episodes",
-        "Cos'è MKV Suite": "What MKV Suite is",
-        "Mini manuale interno di MKV Suite (spiegazioni semplici + stampa/esporta PDF).": "Built-in MKV Suite mini manual (simple explanations + print/export PDF).",
-    }
-
-
-    # --- MKV fallback extra batch 1 (labels + manual) ---
-    _MAP_EN.update({
-        # shells/embedded_app.py (menu/toolbar/main window)
-        "Strumenti MKV": "MKV Tools",
-        "Estrae le tracce selezionate nella cartella extract/.": "Extracts selected tracks into the extract/ folder.",
-        "Cartella output…": "Output folder…",
-        "Apri cartella output": "Open output folder",
-        "Applica Tag": "Apply Tags",
-        "Estrai tracce…": "Extract tracks…",
-        "Crea MKV": "Remux",
-        "Stop": "Stop",
-        "User manual": "User manual",
-        "Barra strumenti": "Toolbar",
-        "Ripristina layout": "Reset layout",
-        "Log": "Log",
-        "Vai a Tracce": "Go to Tracks",
-        "Vai a Capitoli": "Go to Chapters",
-        "Vai a Unisci episodi": "Go to Merge Episodes",
-        "File": "File",
-        "Operazioni": "Actions",
-        "Vai alla scheda": "Go to tab",
-        "Pannello log non trovato in questa schermata.": "Log panel not found in this view.",
-        "Log ": "Log ",
-        "mostrato": "shown",
-        "nascosto": "hidden",
-        "Layout ripristinato (solo aspetto).": "Layout restored (appearance only).",
-        "Layout ripristinato (toolbar/log).": "Layout restored (toolbar/log).",
-        "Schede non trovate in questa schermata.": "Tabs not found in this view.",
-        "Scheda attivata: ": "Tab activated: ",
-        "Scheda non disponibile in questa schermata.": "Tab not available in this view.",
-        "Impossibile caricare il manuale interno: {e}": "Unable to load the built-in manual: {e}",
-        "Impossibile aprire il manuale interno: {e}": "Unable to open the built-in manual: {e}",
-        "Versione embedded": "Embedded version",
-        "Suite interna per estrazione, rimux, capitoli e strumenti MKV.": "Internal suite for extraction, remux, chapters and MKV tools.",
-
-        # ui/main_widget.py (label principali / pulsanti / tab / messaggi base)
-        "Sorgenti (Crea MKV) / File (Estrai)": "Sources (Remux) / Files (Extract)",
-        "ID": "ID",
-        "Includi": "Include",
-        "Sorgente": "Source",
-        "Tipo": "Type",
-        "Default": "Default",
-        "Forced": "Forced",
-        "Nome traccia": "Track name",
-        "Tracce": "Tracks",
-        "Capitoli nel video: nessun MKV selezionato.": "Chapters in video: no MKV selected.",
-        "File capitoli esterno (opzionale: .xml / .txt)": "External chapters file (optional: .xml / .txt)",
-        "Nessun file capitoli esterno selezionato": "No external chapters file selected",
-        "Genera": "Generate",
-        "Unisci episodi": "Merge Episodes",
-        "Titolo e output": "Title and output",
-        "Anno": "Year",
-        "Titolo": "Title",
-        "Nome file": "File name",
-        "Titolo media": "Media title",
-        "Apri": "Open",
-        "Cartella output": "Output folder",
-        "Operazioni": "Actions",
-        "Tutti i file (*.*);;Capitoli (*.xml *.txt)": "All files (*.*);;Chapters (*.xml *.txt)",
-        "Seleziona capitoli": "Select chapters",
-        "Capitoli nel video: assenti. Puoi usare un file capitoli esterno (.xml/.txt) oppure generarli.": "Chapters in video: none. You can use an external chapters file (.xml/.txt) or generate them.",
-        "Capitoli nel video: presenti (1 capitolo).": "Chapters in video: present (1 chapter).",
-        "Capitoli nel video: presenti ({n} capitoli).": "Chapters in video: present ({n} chapters).",
-        "Aggiungi o seleziona un MKV per generare i capitoli.": "Add or select an MKV to generate chapters.",
-        "Info": "Info",
-        "Il file contiene già capitoli.\nVuoi generarli comunque?": "The file already contains chapters.\nDo you want to generate them anyway?",
-        "Genera capitoli": "Generate chapters",
-        "Metodo:": "Method:",
-        "Intervallo fisso (minuti)": "Fixed interval (minutes)",
-        "Scene (auto)": "Scenes (auto)",
-        "Intervallo fisso": "Fixed interval",
-        "Ogni quanti minuti?": "Every how many minutes?",
-        "Scene threshold": "Scene threshold",
-        "Soglia (0.0–1.0):": "Threshold (0.0–1.0):",
-        "Impossibile aprire la cartella output:": "Unable to open output folder:",
-        "Scegli cartella output": "Choose output folder",
-        "Tutti i file (*.*);;Video (*.mkv *.mp4 *.m4v *.mov *.avi *.ts *.m2ts);;Audio (*.aac *.ac3 *.eac3 *.dts *.flac *.mp3 *.m4a *.wav *.ogg *.opus *.truehd *.mka);;Sottotitoli (*.srt *.ass *.ssa *.vtt *.sup *.idx *.sub);;Capitoli (*.xml *.txt)": "All files (*.*);;Video (*.mkv *.mp4 *.m4v *.mov *.avi *.ts *.m2ts);;Audio (*.aac *.ac3 *.eac3 *.dts *.flac *.mp3 *.m4a *.wav *.ogg *.opus *.truehd *.mka);;Subtitles (*.srt *.ass *.ssa *.vtt *.sup *.idx *.sub);;Chapters (*.xml *.txt)",
-        "Aggiungi file": "Add files",
-        "Hai selezionato un file capitoli.\nSelezionalo dalla scheda 'Capitoli'.\n\nFile ignorati:": "You selected a chapters file.\nSelect it from the 'Chapters' tab.\n\nIgnored files:",
-        "Impossibile aprire l'editor sottotitoli:": "Unable to open subtitle editor:",
-        "Scrive subito nel file MKV originale i metadati (titolo, nomi tracce, lingue, default/forced). Non fa remux e non crea un nuovo file.": "Writes metadata (title, track names, languages, default/forced) directly to the original MKV file. It does not remux and does not create a new file.",
-        "Premi 'Applica Tag' per scrivere nel file originale, oppure 'Crea MKV' per creare un nuovo file.": "Click 'Apply Tags' to write to the original file, or 'Remux' to create a new file.",
-        "Interrompe l'operazione in corso.": "Stops the current operation.",
-        "Aggiunge file sorgenti alla lista.": "Adds source files to the list.",
-        "Rimuove il file selezionato dalla lista (non dal disco).": "Removes the selected file from the list (not from disk).",
-        "Apre la cartella output della sessione.": "Opens the session output folder.",
-        "Campo di testo.": "Text field.",
-        "Seleziona un valore dall'elenco.": "Select a value from the list.",
-        "Imposta un valore.": "Set a value.",
-        "Tabella dati. Doppio click per modifiche dove supportato.": "Data table. Double-click to edit where supported.",
-        "Seleziona (o aggiungi) almeno un file MKV per Applica Tag.": "Select (or add) at least one MKV file for Apply Tags.",
-        "Inserisci almeno un Titolo (e opzionalmente l’Anno).": "Enter at least a Title (and optionally the Year).",
-        "Seleziona (o aggiungi) un file MKV per Estrai.": "Select (or add) an MKV file for Extract.",
-        "[OK] Estrazione completata.": "[OK] Extraction completed.",
-        "Operazione in corso. Premi Stop o attendi.": "Operation in progress. Press Stop or wait.",
-        "Vuoi annullare e pulire tutto?\n(I dati non salvati andranno persi)": "Do you want to cancel and clean everything?\n(Unsaved data will be lost)",
-        "Vuoi davvero uscire da Strumenti MKV?": "Do you really want to exit MKV Tools?",
-        "C'è un'operazione in corso.\nVuoi uscire comunque?": "There is an operation in progress.\nDo you still want to exit?",
-
-        # ui/concat_batch_tab.py (label principali)
-        "Questo strumento si apre in una finestra separata, così hai più spazio per lavorare (file, gruppi, anteprima e log).": "This tool opens in a separate window, so you have more space to work (files, groups, preview and log).",
-        "Usa la finestra dedicata per unire più MKV in sequenza senza ricodifica, in automatico oppure con Gruppi manuali.": "Use the dedicated window to merge multiple MKVs in sequence without re-encoding, automatically or with Manual groups.",
-        "Apri finestra Unisci episodi": "Open Merge Episodes window",
-        "Apre lo strumento completo in una finestra separata.": "Opens the full tool in a separate window.",
-        "Suggerimento: lascia aperta la finestra dedicata mentre lavori, così qui la scheda resta pulita e semplice.": "Tip: keep the dedicated window open while working, so this tab stays clean and simple.",
-        "Impossibile aprire la finestra 'Unisci episodi'.": "Unable to open the 'Merge Episodes' window.",
-
-        # ui/concat_batch_dialog.py (label principali / colonne / pulsanti)
-        "Manuale: scrivi tu il numero Gruppo in ogni riga (stesso numero = stesso file finale).": "Manual: write the Group number for each row (same number = same final file).",
-        "Automatico: usa i tag/nomi episodio. Se incoerenti, controlla l'anteprima o passa a Manuale.": "Automatic: uses episode tags/names. If inconsistent, check the preview or switch to Manual.",
-        "Modalità Manuale attiva: nessun raggruppamento automatico.": "Manual mode active: no automatic grouping.",
-        "Automatico (default): aggiungi file e vedrai qui eventuali avvisi sui tag episodio.": "Automatic (default): add files and you will see any episode-tag warnings here.",
-        "Automatico: tag episodio letti correttamente. Controlla comunque l'anteprima prima di unire.": "Automatic: episode tags read correctly. Still check the preview before merging.",
-        "episodi non letti": "episodes not read",
-        "episodi duplicati": "duplicate episodes",
-        "stagione non uniforme": "non-uniform season",
-        "sequenza non continua": "non-continuous sequence",
-        "tag incoerenti": "inconsistent tags",
-        "Avviso automatico: ": "Automatic warning: ",
-        "Controlla l'anteprima oppure usa Gruppi manuali.": "Check the preview or use Manual groups.",
-        "Unisci più MKV in sequenza senza ricodifica.": "Merge multiple MKVs in sequence without re-encoding.",
-        "Aggiungi MKV…": "Add MKV…",
-        "Svuota": "Clear",
-        "Ordina": "Sort",
-        "Modalità": "Mode",
-        "Automatico": "Automatic",
-        "Gruppi manuali": "Manual groups",
-        "Automatico (default) oppure Gruppi manuali.": "Automatic (default) or Manual groups.",
-        "Quante puntate per file": "Episodes per file",
-        "Usato solo in Automatico. Esempio: 2 crea 1+2, 3+4, 5+6...": "Used only in Automatic mode. Example: 2 creates 1+2, 3+4, 5+6...",
-        "Nome serie / prefisso": "Series name / prefix",
-        "es. La Freccia Nera": "e.g. The Black Arrow",
-        "Nome base dei file finali (es. La Freccia Nera).": "Base name for final files (e.g. The Black Arrow).",
-        "Prepara anteprima": "Prepare preview",
-        "Aggiorna l'anteprima dei file finali che verranno creati.": "Refreshes the preview of the final files that will be created.",
-        "Elenco episodi / file sorgenti": "Episode list / source files",
-        "#": "#",
-        "Compat": "Compat",
-        "Durata": "Duration",
-        "Ep": "Ep",
-        "Gruppo": "Group",
-        "S": "S",
-        "Titolo tag": "Tag title",
-        "Anteprima output (nomi dei file che verranno creati).": "Output preview (names of files that will be created).",
-        "N file": "N files",
-        "Output (anteprima)": "Output (preview)",
-        "Range": "Range",
-        "Unisci gruppo selezionato": "Merge selected group",
-        "Unisci tutti": "Merge all",
-
-        # ui/user_manual_dialog.py (label + manual headings + pulsanti)
-        "Cos'è MKV Suite": "What MKV Suite is",
-        "Uso rapido (3 passi)": "Quick usage (3 steps)",
-        "Scheda Tracce": "Tracks tab",
-        "Scheda Capitoli": "Chapters tab",
-        "Unisci episodi - Automatico": "Merge Episodes - Automatic",
-        "Unisci episodi - Gruppi manuali": "Merge Episodes - Manual groups",
-        "Menu Visualizza": "View menu",
-        "Problemi comuni": "Common issues",
-        "Stampa o salva in PDF": "Print or save as PDF",
-        "MKV Suite - User manual": "MKV Suite - User manual",
-        "Guida rapida interna. Testi semplici, esempi pratici.": "Built-in quick guide. Simple text, practical examples.",
-        "Indice": "Index",
-        "Torna all’indice": "Back to index",
-        "Stampa…": "Print…",
-        "Esporta PDF…": "Export PDF…",
-        "Apre il dialog di stampa (puoi usare anche una stampante PDF di sistema).": "Opens the print dialog (you can also use a system PDF printer).",
-        "Salva direttamente il manuale in un file PDF.": "Saves the manual directly to a PDF file.",
-        "Chiude il mini manuale.": "Closes the mini manual.",
-        "Stampa manuale": "Print manual",
-        "Stampa non disponibile: {e}": "Printing not available: {e}",
-        "Esporta PDF": "Export PDF",
-        "PDF (*.pdf)": "PDF (*.pdf)",
-        "Manuale salvato in PDF:\n{path}": "Manual saved as PDF:\n{path}",
-        "Esportazione PDF non riuscita: {e}": "PDF export failed: {e}",
-    })
-    # --- end MKV fallback extra batch 1 ---
-
-    # --- MKV fallback extra batch 2 (warnings + notifications) ---
-    _MAP_EN.update({
-        # embedded_app notifications / view navigation / log
-        "Pannello log non trovato in questa schermata.": "Log panel not found in this view.",
-        "Vai alla scheda": "Go to tab",
-        "Log ": "Log ",
-        "Layout ripristinato (toolbar/log).": "Layout restored (toolbar/log).",
-        "Schede non trovate in questa schermata.": "Tabs not found in this view.",
-        "Scheda attivata: ": "Tab activated: ",
-        "Scheda non disponibile in questa schermata.": "Tab not available in this view.",
-        "Impossibile caricare il manuale interno: {e}": "Unable to load the built-in manual: {e}",
-        "Impossibile aprire il manuale interno: {e}": "Unable to open the built-in manual: {e}",
-
-        # concat_batch_dialog warnings / info / tooltip/help
-        "Manuale: scrivi tu il numero Gruppo in ogni riga (stesso numero = stesso file finale).": "Manual: write the Group number for each row (same number = same final file).",
-        "Automatico: usa i tag/nomi episodio. Se incoerenti, controlla l'anteprima o passa a Manuale.": "Automatic: use episode tags/names. If inconsistent, check the preview or switch to Manual.",
-        "Modalità Manuale attiva: nessun raggruppamento automatico.": "Manual mode active: no automatic grouping.",
-        "episodi non letti": "episodes not read",
-        "stagione non uniforme": "non-uniform season",
-        "sequenza non continua": "non-continuous sequence",
-        "Unisci gruppo selezionato": "Merge selected group",
-        "Log": "Log",
-        "Rimuove dalla lista i file selezionati (non cancella i file dal disco).": "Removes selected files from the list (does not delete files from disk).",
-        "Seleziona la modalità di raggruppamento: Automatico oppure Gruppi manuali.": "Select grouping mode: Automatic or Manual groups.",
-        "Suggerimenti rapidi sulla modalità selezionata.": "Quick tips for the selected mode.",
-        "Elenco gruppi da creare. Puoi selezionare un gruppo e modificare il nome file di output nella colonna anteprima.": "List of groups to create. You can select a group and edit the output filename in the preview column.",
-        "Avvia l'unione del solo gruppo selezionato nell'anteprima.": "Starts merging only the selected group in the preview.",
-        "Interrompe l'operazione di unione in corso.": "Stops the current merge operation.",
-        "Progressione dell'operazione di unione corrente (0-100%).": "Progress of the current merge operation (0-100%).",
-        "Log operativo della finestra 'Unisci episodi'.": "Operational log for the 'Merge Episodes' window.",
-        "Numero gruppo manuale. Stesso numero = stesso file finale (usato solo in 'Gruppi manuali').": "Manual group number. Same number = same final file (used only in 'Manual groups').",
-        "Indice gruppo (o ID manuale in modalità manuale).": "Group index (or manual ID in manual mode).",
-        "Stato dell'operazione (in attesa, in corso, ok, errore, saltato...).": "Operation status (waiting, running, ok, error, skipped...).",
-        "Manuale: stesso numero = stesso file finale (es. 1,1,2,2,3,3,3).": "Manual: same number = same final file (e.g. 1,1,2,2,3,3,3).",
-        "Info": "Info",
-        "Seleziona un gruppo da unire.": "Select a group to merge.",
-        "Prepara prima l'anteprima (gruppi).": "Prepare the preview first (groups).",
-        "Attendi": "Please wait",
-        "La MKV Suite sta già eseguendo un'operazione (Estrai/Crea MKV).": "MKV Suite is already running an operation (Extract/Remux).",
-        "[INFO] Alcuni gruppi con 1 solo file sono stati saltati.": "[INFO] Some groups with only 1 file were skipped.",
-        "Non ci sono gruppi validi da unire (servono almeno 2 file per gruppo).": "There are no valid groups to merge (at least 2 files per group are required).",
-
-        # concat_batch_tab
-        "Questo strumento si apre in una finestra separata, così hai più spazio per lavorare (file, gruppi, anteprima e log).": "This tool opens in a separate window, so you have more room to work (files, groups, preview and log).",
-        "Suggerimento: lascia aperta la finestra dedicata mentre lavori, così qui la scheda resta pulita e semplice.": "Tip: keep the dedicated window open while you work, so this tab stays clean and simple.",
-        "Impossibile aprire la finestra 'Unisci episodi'.": "Unable to open the 'Merge Episodes' window.",
-
-        # main_widget warnings / dialogs / tooltips
-        "Capitoli nel video: nessun MKV selezionato.": "Chapters in video: no MKV selected.",
-        "Nessun file capitoli esterno selezionato": "No external chapters file selected",
-        "Cartella output": "Output folder",
-        "Seleziona capitoli": "Select chapters",
-        "Aggiungi o seleziona un MKV per generare i capitoli.": "Add or select an MKV to generate chapters.",
-        "Il file contiene già capitoli.\nVuoi generarli comunque?": "The file already contains chapters.\nDo you want to generate them anyway?",
-        "Impossibile aprire la cartella output:": "Unable to open output folder:",
-        "Scegli cartella output": "Choose output folder",
-        "Hai selezionato un file capitoli.\nSelezionalo dalla scheda 'Capitoli'.\n\nFile ignorati:": "You selected a chapters file.\nSelect it from the 'Chapters' tab.\n\nIgnored files:",
-        "Impossibile aprire l'editor sottotitoli:": "Unable to open the subtitle editor:",
-        "Scrive subito nel file MKV originale i metadati (titolo, nomi tracce, lingue, default/forced). Non fa remux e non crea un nuovo file.": "Writes metadata (title, track names, languages, default/forced) directly into the original MKV file. It does not remux and does not create a new file.",
-        "Estrae le tracce selezionate nella cartella extract/.": "Extracts selected tracks into the extract/ folder.",
-        "Interrompe l'operazione in corso.": "Stops the current operation.",
-        "Rimuove il file selezionato dalla lista (non dal disco).": "Removes the selected file from the list (not from disk).",
-        "Apre la cartella output della sessione.": "Opens the session output folder.",
-        "Seleziona un valore dall'elenco.": "Select a value from the list.",
-        "Seleziona (o aggiungi) almeno un file MKV per Applica Tag.": "Select (or add) at least one MKV file for Apply Tags.",
-        "Seleziona (o aggiungi) un file MKV per Estrai.": "Select (or add) an MKV file for Extract.",
-        "[OK] Estrazione completata.": "[OK] Extraction completed.",
-        "Operazione in corso. Premi Stop o attendi.": "Operation in progress. Press Stop or wait.",
-        "Vuoi annullare e pulire tutto?\n(I dati non salvati andranno persi)": "Do you want to cancel and clean everything?\n(Unsaved data will be lost)",
-        "Vuoi davvero uscire da Strumenti MKV?": "Do you really want to exit MKV Tools?",
-        "C'è un'operazione in corso.\nVuoi uscire comunque?": "There is an operation in progress.\nDo you want to exit anyway?",
-
-        # user_manual_dialog remaining runtime strings
-        "Scheda Tracce": "Tracks tab",
-        "Scheda Capitoli": "Chapters tab",
-        "Mini manuale interno di MKV Suite (spiegazioni semplici + stampa/esporta PDF).": "Built-in MKV Suite mini manual (simple explanations + print/export PDF).",
-        "Apre il dialog di stampa (puoi usare anche una stampante PDF di sistema).": "Opens the print dialog (you can also use a system PDF printer).",
-        "Salva direttamente il manuale in un file PDF.": "Saves the manual directly to a PDF file.",
-        "Chiude il mini manuale.": "Closes the mini manual.",
-        "Stampa manuale": "Print manual",
-        "Stampa non disponibile: {e}": "Printing not available: {e}",
-        "Manuale salvato in PDF:\n{path}": "Manual saved to PDF:\n{path}",
-        "Esportazione PDF non riuscita: {e}": "PDF export failed: {e}",
-    })
-    # --- end MKV fallback extra batch 2 ---
-
-    # --- MKV fallback extra batch 3 (merge tooltips) ---
-    _MAP_EN.update({
-        "serie": "series",
-
-        # popup / info merge
-        "Prepara prima l'anteprima (gruppi).": "Prepare the preview first (groups).",
-
-        # concat_batch_dialog tooltip/help rimasti
-        "Unisce episodi MKV in sequenza senza ricodifica video/audio.": "Merges MKV episodes in sequence without re-encoding video/audio.",
-        "Aggiunge uno o più file MKV alla lista sorgente.": "Adds one or more MKV files to the source list.",
-        "Svuota la lista file, l'anteprima gruppi e lo stato della progressione.": "Clears the file list, group preview and progress state.",
-        "Ordina i file per stagione/episodio e poi per nome file.": "Sorts files by season/episode and then by file name.",
-        "Numero di episodi da unire in ogni file finale (solo modalità Automatico).": "Number of episodes to merge into each final file (Automatic mode only).",
-        "Usato solo in Automatico. Esempio: 2 crea gruppi 1+2, 3+4, 5+6...": "Used only in Automatic mode. Example: 2 creates groups 1+2, 3+4, 5+6...",
-        "Prefisso/nome serie usato per generare i nomi dei file finali in anteprima.": "Series prefix/name used to generate preview output filenames.",
-        "Aggiorna l'anteprima dei gruppi e dei nomi output in base alle impostazioni correnti.": "Updates the groups and output filename preview based on current settings.",
-        "Diagnostica automatica sui tag episodio per aiutare il raggruppamento.": "Automatic diagnostics on episode tags to help grouping.",
-        "Elenco file sorgenti. In 'Gruppi manuali' puoi modificare la colonna Gruppo per decidere quali episodi finiscono nello stesso file.": "Source file list. In 'Manual groups' you can edit the Group column to decide which episodes end up in the same file.",
-        "Anteprima dei file output che verranno creati dall'unione.": "Preview of output files that will be created by the merge.",
-        "Avvia l'unione di tutti i gruppi validi mostrati in anteprima.": "Starts merging all valid groups shown in the preview.",
-        "Posizione corrente del file nella lista.": "Current position of the file in the list.",
-        "Stagione rilevata dai tag/nome file (se disponibile).": "Season detected from tags/file name (if available).",
-        "Numero episodio rilevato dai tag/nome file (se disponibile).": "Episode number detected from tags/file name (if available).",
-        "Nome del file sorgente MKV.": "Name of the source MKV file.",
-        "Titolo embedded rilevato nel file MKV (se presente).": "Embedded title detected in the MKV file (if present).",
-        "Durata del file sorgente.": "Duration of the source file.",
-        "Compatibilità append rispetto al primo file (OK/MIX).": "Append compatibility compared to the first file (OK/MIX).",
-        "Intervallo episodi del gruppo (range).": "Group episode interval (range).",
-        "Numero di file contenuti nel gruppo.": "Number of files in the group.",
-        "Nome file di output in anteprima (modificabile).": "Preview output filename (editable).",
-        "Compatibilità complessiva del gruppo (OK/MIX).": "Overall group compatibility (OK/MIX).",
-        "Layout tracce differente dal primo file (mkvmerge potrebbe rifiutare l'append).": "Track layout differs from the first file (mkvmerge may refuse append).",
-        "Ignorato in Automatico. Passa a 'Gruppi manuali' per usarlo.": "Ignored in Automatic mode. Switch to 'Manual groups' to use it.",
-        "Colonna ignorata in modalità Automatico. Passa a 'Gruppi manuali' per usarla.": "Column ignored in Automatic mode. Switch to 'Manual groups' to use it.",
-        "Elenco file sorgenti. In modalità Automatico la colonna Gruppo è ignorata.": "Source file list. In Automatic mode the Group column is ignored.",
-        "Aggiungi file MKV da unire": "Add MKV files to merge",
-        "Aggiungi prima dei file MKV.": "Add MKV files first.",
-        "La MKV Suite sta già eseguendo un'operazione (Estrai/Crea MKV).": "MKV Suite is already running an operation (Extract/Remux).",
-        "saltato (1 file)": "skipped (1 file)",
-    })
-    # --- end MKV fallback extra batch 3 ---
-    def _L_mkv_fallback(s, *args, **kwargs):
-        out = _orig_L(s, *args, **kwargs)
+    def get_lang(self) -> None:
+        """Finestra Informazioni (standalone)."""
+        from pathlib import Path
+        # import runtime (PyQt5 / PyQt5)
         try:
-            try:
-                lang = (_i18n.get_lang() or "").lower()
-            except Exception:
-                lang = (os.environ.get("HEVC_LANG", "") or "").lower()
-            if lang.startswith("en") and isinstance(s, str) and isinstance(out, str):
-                # Applica fallback SOLO se il catalogo non ha tradotto (out == sorgente IT)
-                if out == s and s in _MAP_EN:
-                    return _MAP_EN[s]
+            from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox
+            from PyQt5.QtGui import QPixmap, QIcon
+            from PyQt5.QtCore import Qt
+        except Exception:
+            from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox
+            from PyQt5.QtGui import QPixmap, QIcon
+            from PyQt5.QtCore import Qt
+    
+        # versione da file (fallback)
+        ver = '1.0.0.0'
+        try:
+            vf = Path(__file__).resolve().parents[2] / 'VERSION'  # mkv_tools/VERSION
+            if vf.is_file():
+                ver = (vf.read_text(encoding='utf-8').strip() or ver)
         except Exception:
             pass
-        return out
-
+    
+        dlg = QDialog(self)
+        dlg.setWindowTitle(L('Informazioni'))
+        dlg.setModal(True)
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(26, 18, 26, 18)
+        lay.setSpacing(10)
+    
+        # icona sopra (centrata)
+        try:
+            icon_path = Path(__file__).resolve().parent.parent / 'assets' / 'icons' / 'ph_mkv.png'
+            if icon_path.is_file():
+                pm = QPixmap(str(icon_path)).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                lab_icon = QLabel(dlg)
+                lab_icon.setPixmap(pm)
+                lab_icon.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+                lay.addWidget(lab_icon)
+                try:
+                    dlg.setWindowIcon(QIcon(str(icon_path)))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    
+        title = L('Strumenti MKV')
+        desc  = L('Suite standalone per estrazione, remux, capitoli e strumenti MKV.')
+        html = (
+            "<div align='center'>"
+            + "<b>" + title + "</b><br>"
+            + L('Versione') + " " + ver + "<br><br>"
+            + desc + "<br><br>"
+            + "LorisPaganiniHomeStudio - 2026<br>"
+            + "<a href='mailto:loris.paganini@gmail.com'>mailto: loris.paganini@gmail.com</a>"
+            + "</div>"
+        )
+        lab = QLabel(html, dlg)
+        lab.setTextFormat(Qt.RichText)
+        try:
+            lab.setOpenExternalLinks(True)
+        except Exception:
+            pass
+        lab.setAlignment(Qt.AlignCenter)
+        lay.addWidget(lab)
+    
+        bb = QDialogButtonBox(QDialogButtonBox.Ok, parent=dlg)
+        bb.accepted.connect(dlg.accept)
+        lay.addWidget(bb, alignment=Qt.AlignHCenter)
+    
+        try:
+            dlg.exec()
+        except Exception:
+            dlg.exec_()
+    def _L_mkv_fallback(s, *args, **kwargs):
+        return s
     try:
-        _i18n.L = _L_mkv_fallback
+# _i18n.L = _L_mkv_fallback
         globals()["L"] = _L_mkv_fallback
         _i18n._MKV_EN_FALLBACKS_PATCHED = True
     except Exception:
         pass
 
-_install_mkv_en_fallbacks()
+# SAFE_INSTALL_MKV_EN_FALLBACKS (disabled in standalone)
+# legacy fallback removed to avoid recursion
 # --- end MKV Suite EN fallback ---
 
 from hevc_gui.mkv_suite.ui.main_widget import MainWidget
@@ -391,7 +164,7 @@ from hevc_gui.mkv_suite.ui.main_widget import MainWidget
 
 def _require_embedded_flag(argv: list[str]) -> None:
     if "--embedded" not in argv:
-        print("[MKV Suite] Avviabile solo da HEVC (manca --embedded).", file=sys.stderr)
+        # (removed noisy message)
         raise SystemExit(2)
 
 
@@ -399,6 +172,10 @@ class EmbeddedWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(L("Strumenti MKV"))
+        # --- window icon (standalone) ---
+        _icon_path = Path(__file__).resolve().parent.parent / 'assets' / 'icons' / 'mkv-tools.png'
+        if _icon_path.is_file():
+            self.setWindowIcon(QIcon(str(_icon_path)))
         self.setMinimumSize(1100, 650)
 
         self.w = MainWidget(self)
@@ -410,8 +187,11 @@ class EmbeddedWindow(QMainWindow):
             "add": self.actAdd,
             "remove": self.actRemove,
             "outdir": self.actOutDir,
+            "open_outdir": self.actOpenOutDir,
             "tag": self.actTag,
             "extract": self.actExtract,
+            "cut": self.actCut,
+            "insert_clip": self.actInsertClip,
             "remux": self.actRemux,
             "stop": self.actStop,
         })
@@ -428,14 +208,58 @@ class EmbeddedWindow(QMainWindow):
         except Exception:
             pass
         try:
+            _tt_cut = L("Taglio")
+            self.actCut.setToolTip(_tt_cut)
+            self.actCut.setStatusTip(_tt_cut)
+            self.actCut.setWhatsThis(_tt_cut)
+        except Exception:
+            pass
+        try:
+            _tt_ins = L("Inserisci una o più clip nel file selezionato.")
+            self.actInsertClip.setToolTip(_tt_ins)
+            self.actInsertClip.setStatusTip(_tt_ins)
+            self.actInsertClip.setWhatsThis(_tt_ins)
+        except Exception:
+            pass
+        try:
             self._sync_view_menu_state()
         except Exception:
             pass
 
     # --- geometry persistence (auto patch) ---
+        # --- ENSURE USER MANUAL ACTION (standalone) ---
+        try:
+            _icons = Path(__file__).resolve().parent.parent / 'assets' / 'icons'
+            _p = _icons / 'ph_help.png'
+            _ic = QIcon(str(_p)) if _p.is_file() else self.style().standardIcon(QStyle.SP_DialogHelpButton)
+            if hasattr(self, 'actUserManual') and self.actUserManual:
+                if not _ic.isNull():
+                    self.actUserManual.setIcon(_ic)
+                self.actUserManual.setVisible(True)
+                self.actUserManual.setEnabled(True)
+                # menu Aiuto/Help
+                mb = self.menuBar()
+                help_menu = None
+                for a in mb.actions():
+                    t = (a.text() or '').replace('&','').strip().lower()
+                    if t in ('aiuto','help'):
+                        help_menu = a.menu()
+                        break
+                if help_menu and self.actUserManual not in help_menu.actions():
+                    help_menu.addSeparator()
+                    help_menu.addAction(self.actUserManual)
+                # toolbar (prima trovata)
+                tbs = self.findChildren(QToolBar)
+                if tbs:
+                    tb = tbs[0]
+                    if self.actUserManual not in tb.actions():
+                        tb.addSeparator()
+                        tb.addAction(self.actUserManual)
+        except Exception:
+            pass
     def _restore_window_geometry_prefs(self) -> None:
         try:
-            st = QSettings("HEVC-GUI", "MKVSuiteEmbedded")
+            st = QSettings("MKV-Tools", "MKVTools")
             geo = st.value("main/geometry")
             if geo:
                 self.restoreGeometry(geo)
@@ -447,7 +271,7 @@ class EmbeddedWindow(QMainWindow):
 
     def _save_window_geometry_prefs(self) -> None:
         try:
-            st = QSettings("HEVC-GUI", "MKVSuiteEmbedded")
+            st = QSettings("MKV-Tools", "MKVTools")
             st.setValue("main/geometry", self.saveGeometry())
             st.setValue("main/windowState", self.saveState())
         except Exception:
@@ -473,13 +297,10 @@ class EmbeddedWindow(QMainWindow):
         s = self.style()
 
         self.actAdd = QAction(s.standardIcon(QStyle.SP_DialogOpenButton), L("Aggiungi file…"), self)
-        self.actAdd.triggered.connect(self.w.on_add_files)
 
         self.actRemove = QAction(s.standardIcon(QStyle.SP_TrashIcon), L("Rimuovi selezionati"), self)
-        self.actRemove.triggered.connect(self.w.on_remove_selected)
 
         self.actOutDir = QAction(s.standardIcon(QStyle.SP_DirOpenIcon), L("Cartella output…"), self)
-        self.actOutDir.triggered.connect(self.w.on_choose_outdir)
 
 
         self.actOpenOutDir = QAction(
@@ -497,20 +318,50 @@ class EmbeddedWindow(QMainWindow):
         )
 
 
-        self.actOpenOutDir.triggered.connect(self.w.open_output_folder)
         self.actTag = QAction(s.standardIcon(QStyle.SP_FileDialogDetailedView), L("Applica Tag"), self)
-        self.actTag.triggered.connect(self.w.apply_tags)
 
         self.actExtract = QAction(s.standardIcon(QStyle.SP_ArrowDown), L("Estrai tracce…"), self)
-        self.actExtract.triggered.connect(self.w.extract_selected)
+
+        self.actCut = QAction(s.standardIcon(QStyle.SP_FileDialogContentsView), L(L("Taglio…")), self)
+        self.actInsertClip = QAction(s.standardIcon(QStyle.SP_FileDialogNewFolder), L("Inserisci clip…"), self)
+        try:
+            _ic_cut = QIcon(":/icons/ph_trim.png")
+            if _ic_cut.isNull():
+                _p_cut = (Path(__file__).resolve().parent.parent / "assets" / "icons" / "ph_trim.png")
+                if _p_cut.is_file():
+                    _ic_cut = QIcon(str(_p_cut))
+            if not _ic_cut.isNull():
+                self.actCut.setIcon(_ic_cut)
+        except Exception:
+            pass
+        try:
+            _ic_ins = QIcon(":/icons/ph_insert_clip.png")
+            if _ic_ins.isNull():
+                _p_ins = (Path(__file__).resolve().parent.parent / "assets" / "icons" / "ph_insert_clip.png")
+                if _p_ins.is_file():
+                    _ic_ins = QIcon(str(_p_ins))
+            if not _ic_ins.isNull():
+                self.actInsertClip.setIcon(_ic_ins)
+        except Exception:
+            pass
 
         self.actRemux = QAction(s.standardIcon(QStyle.SP_BrowserReload), L("Crea MKV"), self)
-        self.actRemux.triggered.connect(self.w.remux_selected)
 
         self.actStop = QAction(s.standardIcon(QStyle.SP_BrowserStop), L("Stop"), self)
-        self.actStop.triggered.connect(self.w.stop_jobs)
 
         self.actExit = QAction(L("Esci"), self)
+        # --- RESTART ACTION (standalone) ---
+        try:
+            _tr = L if 'L' in globals() else (lambda x: x)
+            self.actRestart = build_restart_action(self, s, tr=_tr, log=getattr(self, '_log', None))
+        except Exception:
+            self.actRestart = QAction(s.standardIcon(QStyle.SP_BrowserReload), L('Riavvia'), self)
+        if _is_hevc_embedded():
+            try:
+                self.actRestart.setVisible(False)
+                self.actRestart.setEnabled(False)
+            except Exception:
+                pass
         self.actExit.triggered.connect(self.close)
 
         self.actAbout = QAction(L("Informazioni…"), self)
@@ -518,16 +369,45 @@ class EmbeddedWindow(QMainWindow):
 
         # Aiuto
         self.actUserManual = QAction(L("User manual"), self)
+        # --- force actUserManual (standalone) ---
+        try:
+            self.actUserManual.setVisible(True)
+            self.actUserManual.setEnabled(True)
+            _icons = Path(__file__).resolve().parent.parent / 'assets' / 'icons'
+            _p = _icons / 'ph_help.png'
+            _ic = QIcon(str(_p)) if _p.is_file() else self.style().standardIcon(QStyle.SP_DialogHelpButton)
+            if not _ic.isNull():
+                self.actUserManual.setIcon(_ic)
+        except Exception:
+            pass
+        # --- force user manual icon to ph_help ---
+        try:
+            _icons = Path(__file__).resolve().parent.parent / 'assets' / 'icons'
+            _p = _icons / 'ph_help.png'
+            _ic = QIcon(str(_p)) if _p.is_file() else self.style().standardIcon(QStyle.SP_DialogHelpButton)
+            if not _ic.isNull():
+                self.actUserManual.setIcon(_ic)
+        except Exception:
+            pass
         self.actUserManual.triggered.connect(self._user_manual)
 
         try:
-            _ic_manual = QIcon(":/icons/ph_user_manual.png")
+            _ic_manual = QIcon(":/icons/ph_help.png")
             if _ic_manual.isNull():
                 _ic_manual = QIcon(":/icons/ph_help.png")
             self.actUserManual.setIcon(_ic_manual)
         except Exception:
             pass
-        self.actUserManual.setIcon(QIcon(":/icons/ph_user_manual.png"))
+        try:
+            _um = QIcon(":/icons/ph_help.png")
+            if _um.isNull():
+                _p = (Path(__file__).resolve().parent.parent / "assets" / "icons" / "ph_help.png")
+                if _p.is_file():
+                    _um = QIcon(str(_p))
+            if not _um.isNull():
+                self.actUserManual.setIcon(_um)
+        except Exception:
+            pass
 
         # Visualizza
         self.actViewToolbar = QAction(L("Barra strumenti"), self)
@@ -554,6 +434,30 @@ class EmbeddedWindow(QMainWindow):
         )
 
         self.actViewGoConcat = QAction(L("Vai a Unisci episodi"), self)
+        # --- icon override (standalone assets) ---
+        try:
+            from pathlib import Path
+            _icons = Path(__file__).resolve().parent.parent / 'assets' / 'icons'
+            def _ic(name: str):
+                p = _icons / name
+                return QIcon(str(p)) if p.is_file() else None
+            for _act, _name in (
+                (self.actOutDir, 'ph_out_folder.png'),
+                (self.actOpenOutDir, 'ph_out_folder.png'),
+                (self.actExtract, 'ph_extract.png'),
+                (self.actCut, 'ph_trim.png'),
+                (self.actInsertClip, 'ph_insert_clip.png'),
+                (self.actRemux, 'ph_mkv.png'),
+                (self.actTag, 'ph_tag.png'),
+                (self.actStop, 'ph_stop.png'),
+                (self.actViewGoChapters, 'ph_chapters.png'),
+                (self.actViewGoConcat, 'ph_concat.png'),
+            ):
+                ic = _ic(_name)
+                if ic:
+                    _act.setIcon(ic)
+        except Exception:
+            pass
         self.actViewGoConcat.triggered.connect(
             lambda: self._goto_tab_by_names([
                 "unisci episodi", "merge episodes", "merge", "concat", "batch", "episodi"
@@ -561,16 +465,25 @@ class EmbeddedWindow(QMainWindow):
         )
 
         # --- icone QAction (menu + toolbar) ---
+        # (standalone) prova prima assets/icons, poi (se esiste) qrc :/icons
+        _icons = Path(__file__).resolve().parent.parent / 'assets' / 'icons'
         def _set_icon(action, res_path: str) -> None:
             try:
                 if action is None:
                     return
-                ic = QIcon(res_path)
+                rp = (res_path or '').strip()
+                name = rp.split('/')[-1] if rp.startswith(':/icons/') else ''
+                ic = None
+                if name:
+                    p = _icons / name
+                    if p.is_file():
+                        ic = QIcon(str(p))
+                if ic is None:
+                    ic = QIcon(rp)
                 if not ic.isNull():
                     action.setIcon(ic)
             except Exception:
                 pass
-
         # File
         _set_icon(self.actAdd, ":/icons/ph_list-add.png")
         _set_icon(self.actRemove, ":/icons/ph_list-remove.png")
@@ -581,6 +494,7 @@ class EmbeddedWindow(QMainWindow):
         # Operazioni
         _set_icon(self.actTag, ":/icons/ph_edit_queue.png")
         _set_icon(self.actExtract, ":/icons/ph_send.png")
+        _set_icon(self.actCut, ":/icons/ph_trim.png")
         _set_icon(self.actRemux, ":/icons/ph_view-refresh.png")
         _set_icon(self.actStop, ":/icons/ph_process-stop.png")
 
@@ -595,7 +509,7 @@ class EmbeddedWindow(QMainWindow):
         _set_icon(self.actViewGoConcat, ":/icons/ph_mkv.png")
 
         # Aiuto
-        _set_icon(self.actUserManual, ":/icons/ph_user_manual.png")
+        _set_icon(self.actUserManual, ":/icons/ph_help.png")
         _set_icon(self.actAbout, ":/icons/ph_info.png")
 
     def _build_menus(self) -> None:
@@ -608,11 +522,15 @@ class EmbeddedWindow(QMainWindow):
         m_file.addAction(self.actOutDir)
         m_file.addAction(self.actOpenOutDir)
         m_file.addSeparator()
+        if not _is_hevc_embedded():
+            m_file.addAction(self.actRestart)
         m_file.addAction(self.actExit)
 
         m_ops = mb.addMenu(L("Operazioni"))
         m_ops.addAction(self.actTag)
         m_ops.addAction(self.actExtract)
+        m_ops.addAction(self.actCut)
+        m_ops.addAction(self.actInsertClip)
         m_ops.addAction(self.actRemux)
         m_ops.addSeparator()
         m_ops.addAction(self.actStop)
@@ -628,9 +546,17 @@ class EmbeddedWindow(QMainWindow):
         m_view_tabs.addAction(self.actViewGoConcat)
 
         m_help = mb.addMenu(L("Aiuto"))
+        # --- LANGUAGE MENU (standalone only) ---
+        if not _is_hevc_embedded():
+            try:
+                _tr = L if 'L' in globals() else (lambda x: x)
+                _log = getattr(self, '_log', None)
+                install_language_menu(self, mb, m_help.menuAction(), tr=_tr, log=_log)
+            except Exception:
+                pass
         m_help.addAction(self.actUserManual)
         try:
-            _um_icon = QIcon(":/icons/ph_user_manual.png")
+            _um_icon = QIcon(":/icons/ph_help.png")
             if _um_icon.isNull():
                 _um_icon = QIcon(":/icons/ph_help.png")
             self.actUserManual.setIcon(_um_icon)
@@ -642,8 +568,24 @@ class EmbeddedWindow(QMainWindow):
 
     def _build_toolbar(self) -> None:
         tb = QToolBar(L("Azioni rapide"), self)
+        # --- force toolbar icons ---
+        tb.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        try:
+            tb.setIconSize(QSize(32, 32))
+        except Exception:
+            pass
+        # --- force toolbar style (standalone) ---
+        tb.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        try:
+            tb.setIconSize(QSize(32, 32))
+        except Exception:
+            pass
+        # --- toolbar icons visible ---
+        tb.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        tb.setIconSize(QSize(32, 32))
+        tb.setObjectName("toolbar_azioni_rapide")
         tb.setMovable(False)
-        tb.setIconSize(QSize(40, 40))
+        tb.setIconSize(QSize(32, 32))
         self.addToolBar(Qt.TopToolBarArea, tb)
 
         tb.addAction(self.actAdd)
@@ -653,9 +595,21 @@ class EmbeddedWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self.actTag)
         tb.addAction(self.actExtract)
+        tb.addAction(self.actCut)
+        tb.addAction(self.actInsertClip)
         tb.addAction(self.actRemux)
         tb.addSeparator()
         tb.addAction(self.actStop)
+        tb.addSeparator()
+        tb.addAction(self.actUserManual)
+        # --- force toolbar icons (late) ---
+        try:
+            QTimer.singleShot(0, lambda tb=tb: (
+                tb.setToolButtonStyle(Qt.ToolButtonIconOnly),
+                tb.setIconSize(QSize(32, 32)),
+            ))
+        except Exception:
+            pass
 
 
     def _sync_view_menu_state(self) -> None:
@@ -954,73 +908,194 @@ class EmbeddedWindow(QMainWindow):
         super().closeEvent(event)
 
     def _about(self) -> None:
-        dlg = QDialog(self)
-        dlg.setWindowTitle(L("Informazioni"))
-        dlg.setModal(True)
-        dlg.resize(400, 300)
+        """Finestra Informazioni (standalone)."""
+        from PyQt5.QtWidgets import QTextBrowser
 
-        root = QVBoxLayout(dlg)
-        root.setContentsMargins(14, 14, 14, 14)
-        root.setSpacing(10)
-
-        # icona in alto centrata
-        lbl_icon = QLabel(dlg)
-        lbl_icon.setFixedSize(120, 120)
-        lbl_icon.setAlignment(Qt.AlignCenter)
-        pm = QPixmap(":/icons/ph_mkv.png")
-        if not pm.isNull():
-            lbl_icon.setPixmap(pm.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        root.addWidget(lbl_icon, 0, Qt.AlignHCenter)
-
-        # testo
-        lbl_title = QLabel("<b>" + L("Strumenti MKV") + "</b>", dlg)
-        lbl_title.setAlignment(Qt.AlignHCenter)
-
-        lbl_sub = QLabel(L("Versione embedded"), dlg)
-        lbl_sub.setAlignment(Qt.AlignHCenter)
-
-        lbl_msg = QLabel(L("Suite interna per estrazione, rimux, capitoli e strumenti MKV."), dlg)
-        lbl_msg.setWordWrap(True)
-        lbl_msg.setAlignment(Qt.AlignHCenter)
-
-        root.addWidget(lbl_title)
-        root.addWidget(lbl_sub)
-        root.addWidget(lbl_msg)
-        root.addStretch(1)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok, parent=dlg)
-        buttons.accepted.connect(dlg.accept)
-        root.addWidget(buttons, 0, Qt.AlignHCenter)
-
-        dlg.exec_()
-
-
-def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv if argv is None else argv)
-    _require_embedded_flag(argv)
-
-    try:
-        get_lang()
-    except Exception:
-        pass
-
-    app = QApplication(argv)
-
-    if _APPLY_APPEARANCE is not None:
+        ver = '1.0.0.0'
         try:
-            _APPLY_APPEARANCE(app)
-        except TypeError:
-            try:
-                _APPLY_APPEARANCE()
-            except Exception:
-                pass
+            vf = Path(__file__).resolve().parents[2] / 'VERSION'  # mkv_tools/VERSION
+            if vf.is_file():
+                ver = (vf.read_text(encoding='utf-8').strip() or ver)
         except Exception:
             pass
 
-    w = EmbeddedWindow()
-    w.show()
-    return app.exec_()
+        is_en = False
+        try:
+            from hevc_gui.mkv_suite.i18n import get_lang, LANG_EN
+            is_en = (get_lang() == LANG_EN)
+        except Exception:
+            pass
 
+        if is_en:
+            app_title = "MKV Tools Suite"
+            version_label = "Version"
+            desc = "Standalone suite for MKV workflows based on MKVToolNix and FFmpeg."
+            tools_title = "Included tools"
+            tools = [
+                "Remux / Create MKV",
+                "Track extraction",
+                "Chapter handling",
+                "Apply Tags",
+                "Merge Episodes",
+                "Trim",
+                "Insert Clip",
+            ]
+            notes_title = "Current notes"
+            notes = [
+                "Trim and Insert Clip are available from toolbar and menubar.",
+                "Trim and Insert Clip can open even when the main file list is empty.",
+                "Both tools can choose the source file directly from their own dialog.",
+            ]
+            footer = "Personal standalone build and local development workspace."
+        else:
+            app_title = "Strumenti MKV"
+            version_label = "Versione"
+            desc = "Suite standalone per flussi MKV basata su MKVToolNix e FFmpeg."
+            tools_title = "Tool inclusi"
+            tools = [
+                "Crea MKV",
+                "Estrai tracce",
+                "Gestione capitoli",
+                "Applica Tag",
+                "Unisci episodi",
+                "Trim",
+                "Insert Clip",
+            ]
+            notes_title = "Note attuali"
+            notes = [
+                "Trim e Insert Clip sono disponibili da toolbar e menubar.",
+                "Trim e Insert Clip si aprono anche con lista file principale vuota.",
+                "Entrambi i tool permettono di scegliere il file sorgente direttamente dal proprio dialog.",
+            ]
+            footer = "Build standalone personale e workspace locale di sviluppo."
+
+        tools_html = "".join(f"<li>{t}</li>" for t in tools)
+        notes_html = "".join(f"<li>{n}</li>" for n in notes)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(L('Informazioni'))
+        dlg.setModal(True)
+        try:
+            dlg.resize(640, 560)
+            dlg.setMinimumSize(580, 500)
+        except Exception:
+            pass
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(22, 18, 22, 18)
+        lay.setSpacing(10)
+
+        try:
+            icon_path = Path(__file__).resolve().parent.parent / 'assets' / 'icons' / 'ph_mkv.png'
+            if icon_path.is_file():
+                pm = QPixmap(str(icon_path)).scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                li = QLabel(dlg)
+                li.setAlignment(Qt.AlignCenter)
+                li.setPixmap(pm)
+                lay.addWidget(li, 0, Qt.AlignHCenter)
+                try:
+                    dlg.setWindowIcon(QIcon(str(icon_path)))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        html = (
+            "<div style='font-family: sans-serif; font-size: 10.5pt;'>"
+            "<div align='center'>"
+            f"<div style='font-size: 15pt; font-weight: 700;'>{app_title}</div>"
+            f"<div style='margin-top: 4px;'><b>{version_label}</b> {ver}</div>"
+            f"<div style='margin-top: 10px;'>{desc}</div>"
+            "</div>"
+            "<hr>"
+            f"<div style='margin-top: 8px;'><b>{tools_title}</b></div>"
+            f"<ul>{tools_html}</ul>"
+            f"<div style='margin-top: 10px;'><b>{notes_title}</b></div>"
+            f"<ul>{notes_html}</ul>"
+            "<hr>"
+            "<div align='center' style='margin-top: 8px;'>"
+            "LorisPaganiniHomeStudio - 2026<br>"
+            "<a href='mailto:loris.paganini@gmail.com'>loris.paganini@gmail.com</a><br>"
+            f"<span style='color: #666;'>{footer}</span>"
+            "</div>"
+            "</div>"
+        )
+
+        view = QTextBrowser(dlg)
+        view.setOpenExternalLinks(True)
+        view.setReadOnly(True)
+        view.setHtml(html)
+        try:
+            view.setStyleSheet("QTextBrowser { border: 0; background: transparent; }")
+        except Exception:
+            pass
+        lay.addWidget(view, 1)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok, parent=dlg)
+        bb.accepted.connect(dlg.accept)
+        lay.addWidget(bb, 0, Qt.AlignHCenter)
+
+        try:
+            dlg.exec()
+        except Exception:
+            dlg.exec_()
+
+
+# --- I18N OVERRIDE (standalone) ---
+L = _i18n.L
+# --- STANDALONE MAIN ENTRYPOINT (restored) ---
+def main(argv=None):
+    """Entry point per mkv-tools (standalone)."""
+    import sys
+    argv = list(argv) if argv is not None else sys.argv[1:]
+
+    # Qt binding (PyQt5 / PyQt5)
+    try:
+        from PyQt5.QtWidgets import QApplication
+    except Exception:
+        from PyQt5.QtWidgets import QApplication
+
+    embedded = _is_hevc_embedded(argv)
+    if embedded:
+        _lang = _embedded_lang_env()
+        if _lang:
+            os.environ["MKV_LANG"] = _lang
+
+    app = QApplication([sys.argv[0]] + argv)
+    install_auto_translator(app)
+
+    if embedded:
+        try:
+            from hevc_gui.gui.appearance_settings import apply_appearance
+            apply_appearance(app)
+        except Exception:
+            pass
+        try:
+            from PyQt5.QtGui import QIcon
+            _theme_name = (os.environ.get("HEVC_QT_ICON_THEME_NAME", "") or "").strip()
+            _theme_paths = [x for x in (os.environ.get("HEVC_QT_ICON_THEME_SEARCH_PATHS", "") or "").split(os.pathsep) if x]
+            if _theme_paths:
+                QIcon.setThemeSearchPaths(_theme_paths)
+            if _theme_name:
+                QIcon.setThemeName(_theme_name)
+        except Exception:
+            pass
+
+    # opzionale: applica appearance se esiste
+    try:
+        if (not embedded) and '_APPLY_APPEARANCE' in globals() and callable(_APPLY_APPEARANCE):
+            _APPLY_APPEARANCE(app)
+    except Exception:
+        pass
+
+    w = EmbeddedWindow()
+    apply_to_widget_tree(w)
+    w.show()
+
+    try:
+        return int(app.exec())
+    except Exception:
+        return int(app.exec_())
 
 if __name__ == "__main__":
     raise SystemExit(main())

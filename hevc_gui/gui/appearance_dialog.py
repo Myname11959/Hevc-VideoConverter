@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # hevc_gui/gui/appearance_dialog.py
-from hevc_gui.i18n import L, restart_app
+from hevc_gui.i18n import L, restart_app, get_lang
+import os
 from PyQt5.QtWidgets import (
     QMessageBox,
     QDialog,
@@ -206,31 +207,72 @@ class AppearanceDialog(QDialog):
         except Exception:
             pass
 
+    def _appearance_restart_needed(self, values) -> bool:
+        """
+        Riavvio richiesto se cambiano elementi di aspetto globale:
+          0 = style
+          3 = theme_mode
+          4 = icon_theme
+        """
+        try:
+            old = self.original
+        except Exception:
+            old = load_appearance()
+
+        try:
+            old_style = str(old[0] or "").strip()
+            old_theme_mode = str(old[3] or "").strip()
+            old_icon_theme = str(old[4] or "").strip()
+
+            new_style = str(values[0] or "").strip()
+            new_theme_mode = str(values[3] or "").strip()
+            new_icon_theme = str(values[4] or "").strip()
+
+            return (
+                old_style != new_style
+                or old_theme_mode != new_theme_mode
+                or old_icon_theme != new_icon_theme
+            )
+        except Exception:
+            return False
+
+    def _is_en_ui(self) -> bool:
+        try:
+            v = str(get_lang() or "").strip().lower()
+            if v:
+                return v.startswith("en")
+        except Exception:
+            pass
+        return (os.environ.get("HEVC_LANG", "") or "").strip().lower().startswith("en")
+
+    def _restart_notice_title(self) -> str:
+        return "Restart required" if self._is_en_ui() else "Riavvio necessario"
+
+    def _restart_notice_text(self) -> str:
+        if self._is_en_ui():
+            return "Appearance changes will be applied after restarting the app.\n\nRestart now…"
+        return "Le modifiche di aspetto verranno applicate dopo il riavvio dell'app.\n\nRiavvio ora…"
+
     def on_ok(self):
         values = self.get_values()
-        # se cambia il tema icone → riavvio obbligatorio su OK
-        try:
-            old_icon = (self.original[4] or '').strip()
-        except Exception:
-            old_icon = ''
-        new_icon = (values[4] or '').strip()
 
         save_appearance(*values)
+
+        if self._appearance_restart_needed(values):
+            QMessageBox.information(
+                self,
+                self._restart_notice_title(),
+                self._restart_notice_text()
+            )
+            restart_app()
+            return
+
         apply_appearance(QApplication.instance())
         try:
             if self.parent() and hasattr(self.parent(), 'refresh_icons'):
                 self.parent().refresh_icons()
         except Exception:
             pass
-
-        if old_icon != new_icon:
-            QMessageBox.information(
-                self,
-                L('Riavvio necessario'),
-                L("Il cambio delle icone verrà applicato dopo il riavvio dell'app.\n\nRiavvio ora…")
-            )
-            restart_app()
-            return
 
         self.accept()
 

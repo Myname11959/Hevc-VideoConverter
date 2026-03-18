@@ -19,6 +19,7 @@ Questa versione:
 """
 
 from __future__ import annotations
+import os
 import sys
 from pathlib import Path
 from hevc_gui.i18n import apply_i18n
@@ -29,15 +30,17 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 from hevc_gui.i18n import L, init_qt_i18n, get_lang
 
+try:
+    import hevc_gui.resources.icons_rc  # noqa: F401
+except Exception:
+    pass
+
 
 def _t(it: str, en: str) -> str:
     """Fallback i18n:
     - se lingua EN: prova L(it); se non traduce, usa en
     - altrimenti: ritorna it
     """
-    import os
-
-    # PRIORITÀ: env (quando la GUI madre lancia questo script in inglese)
     lang = (os.environ.get("HEVC_LANG") or "").strip().lower()
     if not lang:
         try:
@@ -56,7 +59,55 @@ def _t(it: str, en: str) -> str:
     return it
 
 
+_HEVC_SAG_DEBUG = str(os.environ.get("HEVC_SAG_DEBUG", "")).strip().lower() in ("1", "true", "yes", "on")
+_HEVC_SAG_WARN_ONCE = set()
+
+
+def _sag_dbg(*args, **kwargs):
+    if _HEVC_SAG_DEBUG:
+        print(*args, **kwargs)
+
+
+def _sag_warn_once(key, *args, **kwargs):
+    global _HEVC_SAG_WARN_ONCE
+    if key in _HEVC_SAG_WARN_ONCE:
+        return
+    _HEVC_SAG_WARN_ONCE.add(key)
+    print(*args, **kwargs)
+
+
 import os
+
+# ───────────────────────────────────────────────────────────────
+# HEVC_SAG_UNIQUE_CONV_OUTPUT_V1
+# Evita sovrascrittura quando si esportano più tracce (…_conv.m4a)
+# Prima traccia:  *_conv.m4a
+# Seconda:        *_conv_1.m4a
+# Terza:          *_conv_2.m4a
+# … e così via, senza dipendere dall’esistenza su disco nel momento della build.
+# ───────────────────────────────────────────────────────────────
+_SAG_CONV_SEQ = {}
+
+
+def sag_make_conv_target(src_path: str, base_noext: str, ext: str = ".m4a") -> str:
+    import os
+
+    out_dir = os.path.dirname(src_path)
+    key = (out_dir, base_noext, ext)
+
+    n = _SAG_CONV_SEQ.get(key, 0)
+    while True:
+        name = (base_noext + "_conv" + ext) if n == 0 else f"{base_noext}_conv_{n}{ext}"
+        cand = os.path.join(out_dir, name)
+
+        # Non sovrascrivere file già esistenti (run precedenti)
+        # e non riusare lo stesso nome nello stesso run (contatore)
+        if not os.path.exists(cand):
+            _SAG_CONV_SEQ[key] = n + 1
+            return cand
+        n += 1
+
+
 import re
 import sys
 import json
@@ -79,15 +130,18 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QTextEdit,
     QPlainTextEdit,
+    QTextBrowser,
     QFileDialog,
     QProgressBar,
     QTimeEdit,
     QWidget,
     QAbstractSpinBox,
     QSizePolicy,
+    QDialogButtonBox,
+    QStyle,
 )
-from PyQt5.QtCore import Qt, pyqtSlot, QProcess, QTimer, QCoreApplication
-from PyQt5.QtGui import QFontMetrics
+from PyQt5.QtCore import Qt, pyqtSlot, QProcess, QTimer, QCoreApplication, QFile, QSize
+from PyQt5.QtGui import QFontMetrics, QIcon
 
 
 # --- UI helper: avoid truncated combobox contents ---
@@ -114,6 +168,7 @@ def _tr_sag(text: str) -> str:
 
 
 from hevc_gui.core import constants as C
+from hevc_gui.gui.sag_noise_reduction_dialog import SAGNoiseReductionDialog
 
 try:
     from conversion_thread_external import ConversionThreadExternal
@@ -553,6 +608,10 @@ class AudioConverter(QDialog):
         self._ensure_preview_wiring()
         self._connect_pan_preset_signals()
         self._update_pan_preset_label()
+        try:
+            self._apply_stereo_help_icon()
+        except Exception:
+            pass
 
         # progress bar nascosta
         self.progress_bar = QProgressBar(self)
@@ -981,6 +1040,7 @@ class AudioConverter(QDialog):
             self.cmb_lang.addItem(f"{name} ({code})", code)
 
         _tune_combo(self.cmb_lang, min_chars=18, max_items=30)
+        self.cmb_lang.setFixedHeight(M["H_EDIT"])
 
         # default: prima prova "und", poi "ita"
         def _select_default_lang():
@@ -1010,12 +1070,16 @@ class AudioConverter(QDialog):
 
         # ---------- R4: NR + Gain ----------
         x = M["X0"]
-        self.chk_nr = lone(QCheckBox(L("Noise-Reduction"), self), 170)
-        self.in_nr = QLineEdit(self)
-        self.in_nr.setPlaceholderText(L("0–30 dB"))
-        self.in_nr.setEnabled(False)
-        self.chk_nr.toggled.connect(self.in_nr.setEnabled)
-        pairL(L("Denoise nr:"), self.in_nr, M["W_NUM"])
+        self._nr_cfg = None
+        self.chk_nr = lone(QCheckBox(L("Noise reduction"), self), 170)
+        try:
+            self.chk_nr.toggled.connect(self._on_nr_toggled)
+        except Exception:
+            pass
+        try:
+            self._update_nr_tooltip()
+        except Exception:
+            pass
         self.cmb_gain = QComboBox(self)
         self.cmb_gain.addItems(getattr(C, "AUD_GAIN_RANGE", ["0"]))
         self.cmb_gain.setCurrentText("0")
@@ -1049,7 +1113,47 @@ class AudioConverter(QDialog):
             self.cmb_stereo.addItems(list(getattr(C, "AUD_STEREO_ENHANCERS", {}).keys()))
         except Exception:
             pass
-        pairL(L("Stereo Enh:"), self.cmb_stereo, M["W_FX"])
+        self.cmb_stereo.setFixedHeight(M["H_EDIT"])
+
+        self.btn_stereo_help = QPushButton("", self)
+        try:
+            self.btn_stereo_help.setToolTip(
+                _t(
+                    "Spiega in modo semplice la differenza tra Pan stereo e Stereo Widen.",
+                    "Explains in simple words the difference between Stereo Pan and Stereo Widen.",
+                )
+            )
+        except Exception:
+            pass
+
+        try:
+            side = int(M["H_EDIT"])
+            icon_side = max(12, side - 8)
+            self.btn_stereo_help.setFixedSize(side, side)
+            self.btn_stereo_help.setIconSize(QSize(icon_side, icon_side))
+
+            _ic = QIcon(":/icons/ph_info.png")
+            if _ic.isNull():
+                info_icon_path = _ROOT / "hevc_gui" / "resources" / "icons" / "ph_info.png"
+                if info_icon_path.is_file():
+                    _ic = QIcon(str(info_icon_path))
+
+            if not _ic.isNull():
+                self.btn_stereo_help.setIcon(_ic)
+            else:
+                self.btn_stereo_help.setText("i")
+        except Exception:
+            self.btn_stereo_help.setText("i")
+
+        self.w_stereo = QWidget(self)
+        self.w_stereo.setFixedHeight(M["H_EDIT"])
+        self.w_stereo_lay = QHBoxLayout(self.w_stereo)
+        self.w_stereo_lay.setContentsMargins(0, 0, 0, 0)
+        self.w_stereo_lay.setSpacing(4)
+        self.w_stereo_lay.addWidget(self.cmb_stereo, 1)
+        self.w_stereo_lay.addWidget(self.btn_stereo_help, 0, Qt.AlignVCenter)
+
+        pairL(L("Stereo Enh:"), self.w_stereo, M["W_FX"])
         self.cmb_comp_soft = QComboBox(self)
         # i18n: testo localizzato ma chiave stabile in itemData (logica non dipende dal testo)
         self.cmb_comp_soft.clear()
@@ -1097,13 +1201,20 @@ class AudioConverter(QDialog):
 
         self.cmb_prev.ensurePolished()
         self.cmb_prev.adjustSize()
-        combo_h = max(self.cmb_prev.height(), M["H_EDIT"])
-        BTN_H_FIX = 2
-        BTN_Y_FIX = -1
+        try:
+            self.cmb_prev.setFixedHeight(M["H_EDIT"])
+        except Exception:
+            pass
+        combo_h = M["H_EDIT"]
+        BTN_Y_FIX = 0
         self.btn_prev = QPushButton(L("Preview"), self)
+        try:
+            self.btn_prev.setFixedHeight(M["H_EDIT"])
+        except Exception:
+            pass
         btn_w = max(M["W_BTN"], self.btn_prev.sizeHint().width() + 20)
         self.btn_prev.setParent(self.canvas)
-        self.btn_prev.setGeometry(int(x), int(y + BTN_Y_FIX), int(btn_w), int(combo_h + BTN_H_FIX))
+        self.btn_prev.setGeometry(int(x), int(y + BTN_Y_FIX), int(btn_w), int(combo_h))
         new_line()
 
         # ---------- R10: Lista comandi ----------
@@ -1154,7 +1265,7 @@ class AudioConverter(QDialog):
         self.btn_ok = QPushButton(L("OK / Esci"), self)
         self.btn_add.setEnabled(bool(_hevc_sag_input_present(self)))
         for b in (self.btn_add, self.btn_cancel, self.btn_ok):
-            b.setFixedHeight(M["H_BTN"])
+            b.setFixedHeight(M["H_EDIT"])
 
         BTN_GAP = 8
         BTN_SHIFT_RIGHT = 12
@@ -1176,10 +1287,29 @@ class AudioConverter(QDialog):
         place(self.btn_cancel, x_btn_grp + w_add + BTN_GAP, w_cancel, M["H_BTN"])
         place(self.btn_ok, x_btn_grp + w_add + BTN_GAP + w_cancel + BTN_GAP, w_ok, M["H_BTN"])
 
-        # Canvas height
-        path_h = path_row.sizeHint().height()
-        avail_h = M["WIN_H"] - (M["MARG"] * 2 + path_h + vmain.spacing())
-        self.canvas.setFixedHeight(max(120, avail_h))
+        # Canvas height: calcolata sul contenuto reale, non su una formula fissa
+        try:
+            footer_bottom = self.btn_ok.geometry().bottom()
+        except Exception:
+            footer_bottom = y + M["H_BTN"]
+
+        try:
+            pan_bottom = self.lbl_pan_preset.geometry().bottom()
+        except Exception:
+            pan_bottom = footer_bottom
+
+        content_bottom = max(footer_bottom, pan_bottom)
+        canvas_h = max(120, int(content_bottom + 10))
+        self.canvas.setFixedHeight(canvas_h)
+
+        try:
+            path_h = path_row.sizeHint().height()
+            total_h = int((M["MARG"] * 2) + path_h + vmain.spacing() + canvas_h + 6)
+            self.setMinimumHeight(total_h)
+            if self.height() < total_h:
+                self.resize(self.width(), total_h)
+        except Exception:
+            pass
 
         # Anti-troncatura combo
         def _fix_combo(w, minw):
@@ -1194,14 +1324,19 @@ class AudioConverter(QDialog):
 
         for w in (self.cmb_eq_bass, self.cmb_eq_mid, self.cmb_eq_treb, self.cmb_gain):
             _fix_combo(w, M["W_NUM"])
-        for w in (self.cmb_rev, self.cmb_stereo, self.cmb_comp_soft):
+        for w in (self.cmb_rev, self.cmb_comp_soft):
             _fix_combo(w, M["W_FX"])
+        _fix_combo(self.cmb_stereo, max(70, M["W_FX"] - 30))
         for w in (self.cmb_br, self.cmb_sr):
             _fix_combo(w, M["W_MED"])
         _fix_combo(self.cmb_prev, M["W_DUR"])
 
         # Wiring base
         self.btn_prev.clicked.connect(self.make_preview)
+        try:
+            self.btn_stereo_help.clicked.connect(self._show_stereo_filter_help)
+        except Exception:
+            pass
         self.btn_add.clicked.connect(self.add_seg)
         self.btn_cancel.clicked.connect(self._reset_defaults)
         self.chk_force_mute.toggled.connect(self._on_force_mute_toggled)
@@ -2296,7 +2431,7 @@ class AudioConverter(QDialog):
             f"[AUDIO] Combo tracce: {self.cmb_track.count() - 1} tracce caricate",
             flush=True,
         )
-        print("[DEBUG] Combo tracce:", flush=True)
+        _sag_dbg("[DEBUG] Combo tracce:", flush=True)
         for i in range(self.cmb_track.count()):
             txt = self.cmb_track.itemText(i)
             data = self.cmb_track.itemData(i)
@@ -2616,6 +2751,18 @@ class AudioConverter(QDialog):
             # >2 canali: serve un downmix esplicito
             return force_st or is_samsung_stereo
 
+    def _known_internal_track_channels(self, track_idx: int) -> int:
+        """
+        Ritorna i canali REALI già cacheati per la traccia interna.
+        Fonte: _orig_channels popolato durante il caricamento tracce.
+        Nessuna deduzione da label/testo UI.
+        """
+        try:
+            ch = int(getattr(self, "_orig_channels", {}).get(int(track_idx)) or 0)
+        except Exception:
+            ch = 0
+        return ch if ch > 0 else 0
+
     def _current_detected_channels(self) -> int:
         """
         Ritorna i canali della traccia correntemente selezionata
@@ -2632,7 +2779,9 @@ class AudioConverter(QDialog):
             else:
                 if not self.file:
                     return 2
-                ch = self._probe_audio_channels(str(self.file), int(idx))
+                ch = self._known_internal_track_channels(int(idx))
+                if ch <= 0:
+                    ch = self._probe_audio_channels(str(self.file), int(idx))
 
             return ch if ch > 0 else 2
         except Exception:
@@ -2778,7 +2927,9 @@ class AudioConverter(QDialog):
             else:
                 if not self.file:
                     return 2
-                ch = self._probe_audio_channels(str(self.file), a_idx)
+                ch = self._known_internal_track_channels(a_idx)
+                if ch <= 0:
+                    ch = self._probe_audio_channels(str(self.file), a_idx)
 
             return ch if ch > 0 else 2
         except Exception:
@@ -2873,8 +3024,262 @@ class AudioConverter(QDialog):
         except Exception:
             pass
 
+    def _show_stereo_filter_help(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_t("Aiuto: Pan stereo / Stereo Widen", "Help: Stereo Pan / Stereo Widen"))
+        dlg.setModal(True)
+        dlg.resize(760, 560)
+        try:
+            dlg.setMinimumSize(700, 500)
+        except Exception:
+            pass
+
+        lay = QVBoxLayout(dlg)
+        view = QTextBrowser(dlg)
+        view.setOpenExternalLinks(True)
+        view.setReadOnly(True)
+        view.setHtml(f"""
+        <div style="font-family: sans-serif; font-size: 10.5pt;">
+          <h2>{_t("Pan stereo e Stereo Widen: differenza semplice", "Stereo Pan and Stereo Widen: simple difference")}</h2>
+
+          <p><b>{_t("Idea veloce:", "Quick idea:")}</b>
+          {
+            _t(
+                "Pan stereo rende il suono più pieno e presente. Stereo Widen rende il suono più aperto e largo.",
+                "Stereo Pan makes the sound fuller and more present. Stereo Widen makes the sound more open and wide.",
+            )
+        }</p>
+
+          <h3>{_t("Pan stereo", "Stereo Pan")}</h3>
+          <ul>
+            <li>{
+            _t(
+                "Di solito dà più corpo, più presenza e spesso anche più volume percepito.",
+                "Usually gives more body, more presence and often more perceived loudness.",
+            )
+        }</li>
+            <li>{
+            _t(
+                "È spesso la scelta migliore per film di guerra, thriller, noir tesi, azione e dialoghi importanti.",
+                "It is often the better choice for war movies, thrillers, tense noirs, action and important dialogue.",
+            )
+        }</li>
+            <li>{_t("Se sei indeciso, parti da qui.", "If you are unsure, start here.")}</li>
+          </ul>
+
+          <h3>{_t("Stereo Widen", "Stereo Widen")}</h3>
+          <ul>
+            <li>{_t("Allarga il suono e lo rende più arioso.", "Makes the sound wider and more airy.")}</li>
+            <li>{_t("Può però sembrare un po' meno pieno o meno forte.", "But it can also feel a bit less full or less strong.")}</li>
+            <li>{
+            _t(
+                "Ha più senso su film più atmosferici, più leggeri o molto dialogati.",
+                "It makes more sense on more atmospheric, lighter or heavily dialogue-driven movies.",
+            )
+        }</li>
+          </ul>
+
+          <h3>{_t("Esempi pratici", "Practical examples")}</h3>
+          <ul>
+            <li><b>{_t("Film di guerra / thriller / noir teso", "War / thriller / tense noir")}</b> → <b>{
+            _t("meglio Pan stereo", "better Stereo Pan")
+        }</b></li>
+            <li><b>{
+            _t("Film più leggeri, urbani, dialogati, tipo Woody Allen", "Lighter, urban, dialogue-heavy movies, Woody Allen style")
+        }</b> → <b>{_t("può avere più senso Stereo Widen", "Stereo Widen may make more sense")}</b></li>
+          </ul>
+
+          <h3>{_t("Riassunto terra-terra", "Very simple summary")}</h3>
+          <p><b>{_t("Pan stereo", "Stereo Pan")}</b> = {_t("più pieno", "fuller")}<br>
+             <b>{_t("Stereo Widen", "Stereo Widen")}</b> = {_t("più largo", "wider")}</p>
+
+          <p>{
+            _t(
+                "In questo programma i due filtri non si usano insieme: scegli uno oppure l'altro.",
+                "In this program the two filters are not used together: choose one or the other.",
+            )
+        }</p>
+        </div>
+        """)
+        lay.addWidget(view, 1)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok, parent=dlg)
+        try:
+            bb.button(QDialogButtonBox.Ok).setText(_t("Chiudi", "Close"))
+        except Exception:
+            pass
+        bb.accepted.connect(dlg.accept)
+        lay.addWidget(bb)
+
+        try:
+            dlg.exec()
+        except Exception:
+            dlg.exec_()
+
+    def _apply_stereo_help_icon(self):
+        try:
+            btn = getattr(self, "btn_stereo_help", None)
+            if btn is None:
+                return
+
+            btn.setText("")
+            try:
+                btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
+            except Exception:
+                pass
+            try:
+                btn.setAutoRaise(False)
+            except Exception:
+                pass
+            try:
+                h = int(btn.height() or 22)
+            except Exception:
+                h = 22
+            try:
+                btn.setFixedSize(h, h)
+            except Exception:
+                pass
+            try:
+                btn.setIconSize(QSize(max(12, h - 8), max(12, h - 8)))
+            except Exception:
+                pass
+
+            ic = QIcon()
+            try:
+                if QFile.exists(":/icons/ph_info.png"):
+                    ic = QIcon(":/icons/ph_info.png")
+            except Exception:
+                pass
+
+            if ic.isNull():
+                try:
+                    p = _ROOT / "hevc_gui" / "resources" / "icons" / "ph_info.png"
+                    if p.is_file():
+                        ic = QIcon(str(p))
+                except Exception:
+                    pass
+
+            if ic.isNull():
+                try:
+                    ic = self.style().standardIcon(QStyle.SP_MessageBoxInformation)
+                except Exception:
+                    ic = QIcon()
+
+            if not ic.isNull():
+                btn.setIcon(ic)
+                btn.setText("")
+            else:
+                btn.setText("i")
+        except Exception:
+            pass
+
     # ──────────────────────────── Costruzione catena filtri ───────────────────
     # (tutto identico alla tua versione, solo incollato qui per intero)
+
+    def _nr_cfg_summary(self) -> str:
+        cfg = getattr(self, "_nr_cfg", None) or {}
+        parts = []
+        if cfg.get("nr") not in (None, "", "None"):
+            parts.append(f"nr={cfg.get('nr')}")
+        if cfg.get("nf") not in (None, "", "None"):
+            parts.append(f"nf={cfg.get('nf')}")
+        return ", ".join(parts) if parts else L("non configurato")
+
+    def _update_nr_tooltip(self):
+        try:
+            cfg_txt = self._nr_cfg_summary()
+            if self.chk_nr.isChecked():
+                self.chk_nr.setToolTip(
+                    L("Noise reduction attiva:") + " " + cfg_txt + "\n" + L("Togli e rimetti la spunta per riconfigurare.")
+                )
+            else:
+                self.chk_nr.setToolTip(L("Noise reduction disattiva.") + " " + L("Config corrente:") + " " + cfg_txt)
+        except Exception:
+            pass
+
+    def _nr_source_and_map(self):
+        src = ""
+        try:
+            src = (self.path.text() or "").strip()
+        except Exception:
+            src = ""
+        if not src:
+            return None, None, L("Nessun input selezionato.")
+        try:
+            if getattr(self, "chk_force_mute", None) and self.chk_force_mute.isChecked():
+                return None, None, L("Input impostato come muto.")
+        except Exception:
+            pass
+
+        map_spec = None
+        try:
+            if not getattr(self, "audio_externo", False):
+                data = self.cmb_track.currentData()
+                if isinstance(data, (tuple, list)) and len(data) >= 1:
+                    tid = int(data[0])
+                    if tid >= 0:
+                        map_spec = f"0:a:{tid}"
+        except Exception:
+            map_spec = None
+
+        return src, map_spec, None
+
+    def _nr_start_and_duration(self):
+        start_sec = 0
+        dur_sec = 20
+        try:
+            t = self.te_prev_start.time()
+            start_sec = int(t.hour()) * 3600 + int(t.minute()) * 60 + int(t.second())
+        except Exception:
+            start_sec = 0
+        try:
+            dur_sec = int(self.cmb_prev.currentData() or 20)
+        except Exception:
+            dur_sec = 20
+        if dur_sec <= 0:
+            dur_sec = 20
+        dur_sec = max(5, min(60, dur_sec))
+        return start_sec, dur_sec
+
+    def _open_nr_dialog(self) -> bool:
+        src, map_spec, err = self._nr_source_and_map()
+        if err:
+            QMessageBox.information(self, L("Info"), err)
+            return False
+
+        start_sec, dur_sec = self._nr_start_and_duration()
+        try:
+            track_label = (self.cmb_track.currentText() or "").strip()
+        except Exception:
+            track_label = ""
+
+        dlg = SAGNoiseReductionDialog(
+            self,
+            source_path=src,
+            map_spec=map_spec,
+            track_label=track_label,
+            start_sec=start_sec,
+            duration_sec=dur_sec,
+            existing=getattr(self, "_nr_cfg", None),
+        )
+        if dlg.exec_() != QDialog.Accepted:
+            return False
+
+        self._nr_cfg = dlg.get_config()
+        self._update_nr_tooltip()
+        return True
+
+    def _on_nr_toggled(self, checked: bool):
+        if checked:
+            ok = self._open_nr_dialog()
+            if not ok:
+                try:
+                    self.chk_nr.blockSignals(True)
+                    self.chk_nr.setChecked(False)
+                    self.chk_nr.blockSignals(False)
+                except Exception:
+                    pass
+        self._update_nr_tooltip()
 
     def _build_filters_chain_from_ui(self, *, for_preview: bool, channels_hint: int) -> list[str]:
         from hevc_gui.core import constants as C
@@ -2947,11 +3352,29 @@ class AudioConverter(QDialog):
 
         try:
             if getattr(self, "chk_nr", None) and self.chk_nr.isChecked():
-                nr_txt = (self.in_nr.text() or "").strip()
-                if nr_txt:
-                    val = float(nr_txt.replace(",", "."))
-                    if 1 <= val <= 30:
-                        filters.append(f"afftdn=nf=-{val:.1f}")
+                cfg = getattr(self, "_nr_cfg", None) or {}
+                dn_args = []
+
+                nr_val = cfg.get("nr")
+                if nr_val not in (None, "", "None"):
+                    try:
+                        nr_val = float(str(nr_val).replace(",", "."))
+                    except Exception:
+                        nr_val = None
+                    if nr_val is not None and 0.01 <= nr_val <= 97:
+                        dn_args.append(f"nr={nr_val:.1f}")
+
+                nf_val = cfg.get("nf")
+                if nf_val not in (None, "", "None"):
+                    try:
+                        nf_val = float(str(nf_val).replace(",", "."))
+                    except Exception:
+                        nf_val = None
+                    if nf_val is not None and -80 <= nf_val <= -20:
+                        dn_args.append(f"nf={nf_val:.1f}")
+
+                if dn_args:
+                    filters.append("afftdn=" + ":".join(dn_args))
         except Exception:
             pass
 
@@ -3214,7 +3637,11 @@ class AudioConverter(QDialog):
         self.cmb_track.setItemData(self.cmb_track.currentIndex(), (audio_idx, lang, br))
 
         # canali rilevati
-        detected_ch = self._probe_audio_channels(src_path, sidx) or 2
+        detected_ch = self._known_internal_track_channels(sidx)
+        if detected_ch <= 0:
+            detected_ch = self._probe_audio_channels(src_path, sidx) or 0
+        if detected_ch <= 0:
+            detected_ch = 2
 
         keep_mono = bool(getattr(self, "chk_keep_mono", None) and self.chk_keep_mono.isChecked())
         if detected_ch == 1 and not keep_mono:
@@ -3372,12 +3799,11 @@ class AudioConverter(QDialog):
             if not target:
                 base = Path(src_path).name
                 base_noext = os.path.splitext(base)[0]
-                target = os.path.join(os.path.dirname(src_path), base_noext + "_conv.m4a")
+                target = sag_make_conv_target(src_path, base_noext)
         else:
             base = Path(src_path).name
             base_noext = os.path.splitext(base)[0]
-            target = os.path.join(os.path.dirname(src_path), base_noext + "_conv.m4a")
-
+            target = sag_make_conv_target(src_path, base_noext)
         # HEVC: marker univoco per tracce esterne (no euristiche su nome/estensione)
 
         forced_mute = False
@@ -3549,7 +3975,7 @@ class AudioConverter(QDialog):
         self.cmb_br.setCurrentIndex(0)
         self.cmb_sr.setCurrentIndex(0)
         self.chk_nr.setChecked(False)
-        self.in_nr.clear()
+        self._nr_cfg = None
         self.cmb_gain.setCurrentText("0")
         self.cmb_eq_bass.setCurrentText("0")
         self.cmb_eq_mid.setCurrentText("0")
@@ -3878,7 +4304,7 @@ def _hevc_sag_install_btn_add_logic(ac) -> None:
         QtCore.QTimer.singleShot(0, resync)
     except Exception:
         pass
-    # resync su cambi testo/track
+    # resync su cambi testo/track/flag
     try:
         for w in ac.findChildren(QtWidgets.QLineEdit):
             try:
@@ -3888,6 +4314,16 @@ def _hevc_sag_install_btn_add_logic(ac) -> None:
         for w in ac.findChildren(QtWidgets.QComboBox):
             try:
                 w.currentIndexChanged.connect(resync)
+            except Exception:
+                pass
+        for w in ac.findChildren(QtWidgets.QCheckBox):
+            try:
+                w.toggled.connect(resync)
+            except Exception:
+                pass
+        for w in ac.findChildren(QtWidgets.QRadioButton):
+            try:
+                w.toggled.connect(resync)
             except Exception:
                 pass
     except Exception:

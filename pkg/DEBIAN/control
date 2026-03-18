@@ -1,5 +1,5 @@
 Package: hevc-video-converter
-Version: 2.2.0.0-1
+Version: 2.3.0.0
 Section: video
 Priority: optional
 Architecture: all

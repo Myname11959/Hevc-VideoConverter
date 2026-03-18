@@ -697,6 +697,7 @@ class DVDExtractorView(QMainWindow):
             L("Esci"),
             self,
         )
+        self.actExit.triggered.connect(self.request_exit.emit)
 
     def _build_menubar(self) -> None:
         mb: QMenuBar = self.menuBar()
