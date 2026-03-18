@@ -1,11 +1,25 @@
 extend = "pyproject.toml"
-[lint.extend-per-file-ignores]
-"hevc_gui/dvd_ripper/controller.py" = ["E402"]
-"hevc_gui/dvd_ripper/srt_ocr.py" = ["E402"]
-"hevc_gui/dvd_ripper/vob_sidecar.py" = ["E402"]
-"hevc_gui/gui/sag_noise_reduction_dialog.py" = ["E402"]
-"hevc_gui/i18n.py" = ["E402", "F811"]
-"hevc_gui/i18n_sinks_msgbox.py" = ["E402"]
-"hevc_gui/mkv_suite/shells/embedded_app.py" = ["E402", "F401", "F811"]
-"hevc_gui/mkv_suite/ui/concat_batch_dialog.py" = ["F811"]
-"hevc_gui/mkv_suite/ui/main_widget.py" = ["F811"]
+
+exclude = [
+  ".git",
+  "__pycache__",
+  "_repo_cleanup",
+  "build",
+  "dist",
+  ".venv",
+  "venv",
+  "env",
+  "hevc_gui/core",
+  "hevc_gui/dvd_ripper",
+  "hevc_gui/gui",
+  "hevc_gui/i18n.py",
+  "hevc_gui/i18n_sinks.py",
+  "hevc_gui/i18n_sinks_msgbox.py",
+  "hevc_gui/mkv_suite",
+  "hevc_gui/resources/i18n",
+  "hevc_gui/resources/icons_rc.py",
+  "hevc_gui/video",
+  "main.py",
+  "scripts",
+  "tools",
+]
