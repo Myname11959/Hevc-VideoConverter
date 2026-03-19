@@ -157,3 +157,14 @@ _repo_cleanup/
 !**/__init__.py
 
 !hevc_gui/resources/icons_rc.py
+
+# pattume locale da ignorare
+backup/
+backupall/
+logs/
+tmp/
+_repo_cleanup/
+.ruff_cache/
+__pycache__/
+*.bak
+*.bak_*
