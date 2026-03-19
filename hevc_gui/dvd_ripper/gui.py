@@ -17,6 +17,7 @@ Nessuna logica di dominio qui dentro.
 """
 
 from __future__ import annotations
+import re
 import hevc_gui.resources.icons_rc  # noqa: F401
 from hevc_gui.i18n import L
 
