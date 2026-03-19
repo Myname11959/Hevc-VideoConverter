@@ -3818,7 +3818,7 @@ Costanti e dizionari condivisi dall’interfaccia HEVC-GUI
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="315" />
-        <source>Estrai audio</source>
+        <source>Audio</source>
         <translation type="unfinished" />
     </message>
     <message>
@@ -4836,6 +4836,10 @@ Costanti e dizionari condivisi dall’interfaccia HEVC-GUI
         <source>🔨 Ricodifica video…</source>
         <translation type="unfinished" />
     </message>
+    <message>
+        <source>Apre il modulo audio (SAG) per preparare la traccia audio e la stringa di ricodifica, con preview e impostazioni dedicate.</source>
+        <translation>Apre il modulo audio (SAG) per preparare la traccia audio e la stringa di ricodifica, con preview e impostazioni dedicate.</translation>
+    </message>
 </context>
 <context>
     <name>hevc_gui.gui.menubar</name>
@@ -5006,7 +5010,7 @@ Costanti e dizionari condivisi dall’interfaccia HEVC-GUI
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="689" />
-        <source>Estrai audio</source>
+        <source>Audio</source>
         <translation type="unfinished" />
     </message>
     <message>

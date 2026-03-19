@@ -684,9 +684,10 @@ class MainWindow(QMainWindow):
         hfr.addStretch()
         vbox.addLayout(hfr)
 
-        # Pulsanti Estrai audio, Sottotitoli, Capitoli, Preview
+        # Pulsanti Audio, Sottotitoli, Capitoli, Preview
         haudio_prev = QHBoxLayout()
-        self.btn_audio = QPushButton(L("Estrai audio"))
+        self.btn_audio = QPushButton(L("Audio"))
+        self.btn_audio.setToolTip(L("Apre il modulo audio (SAG) per preparare la traccia audio e la stringa di ricodifica, con preview e impostazioni dedicate."))
         self.btn_audio.clicked.connect(self.extract_audio)
 
         self.btn_subtitle = QPushButton(L("Sottotitoli"))

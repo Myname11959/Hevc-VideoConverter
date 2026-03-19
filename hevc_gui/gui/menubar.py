@@ -218,14 +218,17 @@ def setup_menubar(win: "MainWindow") -> QMenuBar:
 
     # — AZIONI —
     m_actions = menubar.addMenu(L("&Azioni"))
+    m_actions.setToolTipsVisible(True)
 
     act_convert = QAction(_themed_icon_with_aliases("convert"), L("Converti"), win,
                           shortcut="Ctrl+Return", triggered=lambda: _safe_call(win, "on_convert_clicked"))
     act_convert.setProperty("icon_name", "convert")
 
-    act_extract = QAction(_themed_icon_with_aliases("extract"), L("Estrai audio"), win,
+    act_extract = QAction(_themed_icon_with_aliases("extract"), L("Audio"), win,
                           triggered=lambda: _safe_call(win, "extract_audio"))
     act_extract.setProperty("icon_name", "extract")
+    act_extract.setToolTip(L("Apre il modulo audio (SAG) per preparare la traccia audio e la stringa di ricodifica, con preview e impostazioni dedicate."))
+    act_extract.setStatusTip(L("Apre il modulo audio (SAG) per preparare la traccia audio e la stringa di ricodifica, con preview e impostazioni dedicate."))
 
     act_subs = QAction(_themed_icon_with_aliases("subs"), L("Sottotitoli…"), win,
                        triggered=lambda: _safe_call(win, "on_subtitle_clicked"))

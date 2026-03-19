@@ -741,8 +741,8 @@ The current state (file/queue) will be lost.</translation>
     </message>
     <message>
         <location filename="../../gui/main_window.py" line="672"/>
-        <source>Estrai audio</source>
-        <translation>Extract audio</translation>
+        <source>Audio</source>
+        <translation>Audio</translation>
     </message>
     <message>
         <location filename="../../gui/menubar.py" line="235"/>
@@ -4801,8 +4801,8 @@ Sends VOBs to HEVC for conversion.</translation>
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="315"/>
-        <source>Estrai audio</source>
-        <translation>Extract audio</translation>
+        <source>Audio</source>
+        <translation>Audio</translation>
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="320"/>
@@ -7454,6 +7454,10 @@ Shared constants and dictionaries
         <source>&gt; Avvio DVD Ripperâ¦</source>
         <translation>&amp;gt; Starting DVD Ripper</translation>
     </message>
+    <message>
+        <source>Apre il modulo audio (SAG) per preparare la traccia audio e la stringa di ricodifica, con preview e impostazioni dedicate.</source>
+        <translation>Opens the audio module (SAG) to prepare the audio track and the encoding string, with preview and dedicated settings.</translation>
+    </message>
 </context>
 <context>
     <name>hevc_gui.gui.menubar</name>
@@ -7999,8 +8003,8 @@ Shared constants and dictionaries
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="689"/>
-        <source>Estrai audio</source>
-        <translation>Extract audio</translation>
+        <source>Audio</source>
+        <translation>Audio</translation>
     </message>
     <message>
         <location filename="marks_ui_auto.py" line="690"/>
