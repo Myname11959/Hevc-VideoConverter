@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 from __future__ import annotations
 
 from pathlib import Path
@@ -196,8 +197,7 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
         self._pending_seek_sec: Optional[float] = None
         self._preview_stop_sec: Optional[float] = None
 
-        self._repo_root = Path(__file__).resolve().parents[2]
-        self._tmp_dir = self._repo_root / "tmp" / "sag_noise_reduction"
+        self._tmp_dir = self._resolve_tmp_dir() / "sag_noise_reduction"
         self._tmp_dir.mkdir(parents=True, exist_ok=True)
         self._tmp_preview_file = self._tmp_dir / "nr_preview.mkv"
 
@@ -217,6 +217,42 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
             self.ed_nr.setText(str(self._cfg.get("nr")))
         if self._cfg.get("nf") not in (None, "", "None"):
             self.ed_nf.setText(str(self._cfg.get("nf")))
+
+
+    def _resolve_tmp_dir(self) -> Path:
+        # 1) sessione HEVC esplicita
+        try:
+            sess = (os.environ.get("HEVC_SESSION_DIR") or "").strip()
+            if sess:
+                p = Path(sess)
+                p.mkdir(parents=True, exist_ok=True)
+                return p
+        except Exception:
+            pass
+
+        # 2) TMPDIR dell'app
+        try:
+            tmpdir = (os.environ.get("TMPDIR") or "").strip()
+            if tmpdir:
+                p = Path(tmpdir)
+                p.mkdir(parents=True, exist_ok=True)
+                return p
+        except Exception:
+            pass
+
+        # 3) Linux: tmp RAM-backed del progetto
+        try:
+            if os.name == "posix" and Path("/dev/shm").is_dir():
+                p = Path("/dev/shm/hevc_gui/tmp")
+                p.mkdir(parents=True, exist_ok=True)
+                return p
+        except Exception:
+            pass
+
+        # 4) fallback finale
+        p = Path("/tmp/hevc_gui/tmp")
+        p.mkdir(parents=True, exist_ok=True)
+        return p
 
     def _build_ui(self, start_sec: int, duration_sec: int) -> None:
         root = QtWidgets.QVBoxLayout(self)
@@ -487,6 +523,17 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
         bb.rejected.connect(self.reject)
         root.addWidget(bb)
 
+
+    def _stop_ui_timers(self) -> None:
+        try:
+            self._poll_timer.stop()
+        except Exception:
+            pass
+        try:
+            self._seek_timer.stop()
+        except Exception:
+            pass
+
     def showEvent(self, event) -> None:
         super().showEvent(event)
         if not self._geom_restored:
@@ -518,10 +565,7 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
                 self._settings.setValue("window_height", int(self.height()))
         except Exception:
             pass
-        try:
-            self._poll_timer.stop()
-        except Exception:
-            pass
+        self._stop_ui_timers()
         try:
             if self._player is not None:
                 try:
@@ -689,7 +733,11 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
 
     def _on_slider_value_changed(self, value: int) -> None:
         if self._slider_dragging:
-            self.lbl_pos.setText(f"{self._fmt_sec(value)} / {self._fmt_sec(self._duration_sec())}")
+            try:
+                self.lbl_pos.setText(f"{self._fmt_sec(value)} / {self._fmt_sec(self._duration_sec())}")
+            except RuntimeError:
+                self._stop_ui_timers()
+                return
             self._pending_seek_sec = float(value)
             try:
                 self._seek_timer.start()
@@ -704,9 +752,13 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
         self._seek_to_sec(float(sec))
 
     def _on_poll_timer(self) -> None:
-        cur = self._current_sec()
-        dur = self._duration_sec()
-        self.lbl_pos.setText(f"{self._fmt_sec(cur)} / {self._fmt_sec(dur)}")
+        try:
+            cur = self._current_sec()
+            dur = self._duration_sec()
+            self.lbl_pos.setText(f"{self._fmt_sec(cur)} / {self._fmt_sec(dur)}")
+        except RuntimeError:
+            self._stop_ui_timers()
+            return
         if not self._slider_dragging:
             try:
                 self.sld_pos.blockSignals(True)
@@ -939,6 +991,7 @@ class SAGNoiseReductionDialog(QtWidgets.QDialog):
         }
 
     def _on_accept(self) -> None:
+        self._stop_ui_timers()
         try:
             self._cfg = self._cfg_from_ui()
         except Exception as e:

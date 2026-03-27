@@ -2620,6 +2620,7 @@ class MainWindow(QMainWindow):
         # - rimuovi -map (con TRIM useremo [aout], senza TRIM mappiamo 0:a:0)
         # ───────────────────────────────────────────────────────────────
         cleaned: list[str] = []
+        source_af: str | None = None
         it = iter(spec)
         while True:
             try:
@@ -2628,7 +2629,7 @@ class MainWindow(QMainWindow):
                 break
 
             if tok == "-af":
-                _ = next(it, "")
+                source_af = next(it, "")
                 continue
 
             if tok == "-map":
@@ -2650,9 +2651,10 @@ class MainWindow(QMainWindow):
         except Exception:
             gui_filters = []
 
-        if gui_filters:
+        if source_af:
+            post_chain = source_af
+        elif gui_filters:
             post_chain = ("aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,") + join_filters(gui_filters)
-
         else:
             post_chain = ("aresample," if sys.platform == "darwin" else "aresample=resampler=soxr,") + "dynaudnorm=f=250:g=31:p=0.95:m=50"
         # ───────────────────────────────────────────────────────────────
@@ -3021,8 +3023,8 @@ class MainWindow(QMainWindow):
                     copied_opts += [tok, val]
 
                 elif tok == "-af":
-                    # se arriva già, lo ignoriamo: la chain la ricostruiamo noi
-                    _ = next(it, "")
+                    # se arriva dal SAG, lo preserviamo pari pari
+                    source_af = next(it, "")
                     continue
 
                 else:
@@ -3042,7 +3044,9 @@ class MainWindow(QMainWindow):
             except Exception:
                 gui_filters = []
 
-            if gui_filters:
+            if source_af:
+                post_chain = source_af
+            elif gui_filters:
                 post_chain = "aresample=resampler=soxr," + join_filters(gui_filters)
             else:
                 # fallback “default”
@@ -3084,6 +3088,7 @@ class MainWindow(QMainWindow):
                 cmd += ["-af", post_chain]
 
                 try:
+                    self.txt_info.append(f"[DBG] source_af = {source_af or '(none)'}")
                     self.txt_info.append(f"[DBG] Audio TRIM OFF: -af = {post_chain}")
                 except Exception:
                     pass
@@ -3370,7 +3375,9 @@ class MainWindow(QMainWindow):
             m = re.match(r"^(-)?(\d+):(\d+):(\d+(?:\.\d+)?)$", s)
             if m:
                 sign = -1 if m.group(1) else 1
-                hh = int(m.group(2)); mm = int(m.group(3)); ss = float(m.group(4))
+                hh = int(m.group(2))
+                mm = int(m.group(3))
+                ss = float(m.group(4))
                 return int(round(sign * (hh*3600 + mm*60 + ss) * 1000.0))
 
             # "3 s 200 ms"
