@@ -1680,6 +1680,166 @@ class MainWindow(QMainWindow):
         else:
             vf_parts.append(flt)
 
+    def _warn_if_risky_resize_choice(self, action_label: str = "encode") -> bool:
+        """
+        Guardrail anti-aspect:
+        avvisa quando un contenuto molto largo/scope viene mandato in un target SD stretto
+        come 720x576. Non blocca: chiede conferma.
+        """
+        import re
+
+        if not getattr(self, "_current_file", None):
+            return True
+
+        def _ratio_float(value) -> float | None:
+            s = str(value or "").strip()
+            if not s:
+                return None
+            for sep in (":", "/"):
+                if sep in s:
+                    a, b = s.split(sep, 1)
+                    try:
+                        n = float(a.strip())
+                        d = float(b.strip())
+                        if d:
+                            return n / d
+                    except Exception:
+                        return None
+            try:
+                v = float(s)
+                return v if v > 0 else None
+            except Exception:
+                return None
+
+        # Target resize scelto nella GUI.
+        try:
+            cmb = getattr(self, "cmb_resize", None)
+            if cmb is None:
+                return True
+
+            resize_key = cmb.currentText()
+            try:
+                ROLE = int(Qt.UserRole) + 999
+                idx = cmb.currentIndex()
+                resize_key = cmb.itemData(idx, ROLE) or cmb.itemData(idx) or resize_key
+            except Exception:
+                pass
+
+            resize_filter = C.RESOLUTIONS.get(resize_key)
+            if resize_filter is None:
+                resize_filter = C.RESOLUTIONS.get(cmb.currentText(), "")
+        except Exception:
+            return True
+
+        m = re.search(r"scale\s*=\s*(\d+)\s*:\s*(-?\d+)", str(resize_filter or "").replace(" ", ""))
+        if not m:
+            return True
+
+        target_w = int(m.group(1))
+        target_h = int(m.group(2))
+
+        # scale=720:-2 è già una scelta "mantieni proporzioni": niente popup.
+        if target_w <= 0 or target_h <= 0:
+            return True
+
+        # Il caso veramente pericoloso qui è SD/PAL stretto.
+        is_sd_narrow_target = target_w <= 720 and target_h >= 480
+        if not is_sd_narrow_target:
+            return True
+
+        # DAR del contenuto effettivo: se c'è crop attivo uso il crop,
+        # altrimenti uso DAR/SAR sorgente.
+        content_dar = None
+        crop_enabled = False
+        try:
+            ret = load_crop_settings()
+            spec = ret[0] if len(ret) >= 1 else None
+            crop_enabled = bool(ret[1]) if len(ret) >= 2 else False
+            if crop_enabled and spec and getattr(spec, "w", 0) and getattr(spec, "h", 0):
+                content_dar = float(spec.w) / float(spec.h)
+        except Exception:
+            crop_enabled = False
+            content_dar = None
+
+        if content_dar is None:
+            try:
+                from hevc_gui.core.aspect import probe_aspect
+                info = probe_aspect(str(self._current_file))
+                content_dar = _ratio_float(getattr(info, "dar", None))
+                if content_dar is None and getattr(info, "w", 0) and getattr(info, "h", 0):
+                    sar_n, sar_d = info.sar_tuple()
+                    if sar_d:
+                        content_dar = (float(info.w) * float(sar_n) / float(sar_d)) / float(info.h)
+            except Exception:
+                content_dar = None
+
+        if not content_dar or content_dar < 1.90:
+            return True
+
+        target_ratio = target_w / target_h
+        estimated_h = int(round(target_w / content_dar)) if content_dar else target_h
+        if estimated_h % 2:
+            estimated_h += 1
+        band_px = max(0, int(round((target_h - estimated_h) / 2)))
+
+        # Se non è davvero un caso brutto, non disturbare.
+        visible_ratio = estimated_h / target_h if target_h else 1.0
+        if visible_ratio >= 0.70:
+            return True
+
+        ack_key = (
+            str(self._current_file),
+            int(target_w),
+            int(target_h),
+            round(float(content_dar), 2),
+            bool(crop_enabled),
+        )
+        try:
+            acknowledged = getattr(self, "_risky_resize_ack", set())
+            if ack_key in acknowledged:
+                return True
+        except Exception:
+            acknowledged = set()
+
+        msg = (
+            "Il video/crop è molto più largo del formato scelto.\n\n"
+            f"Immagine: circa {content_dar:.2f}:1\n"
+            f"Formato scelto: {target_w}x{target_h} ({target_ratio:.2f}:1)\n\n"
+            "Se vuoi mantenere tutta l'immagine, dentro questo formato verrà un letterbox pesante:\n"
+            f"immagine utile circa {target_w}x{estimated_h}, con bande sopra/sotto di circa {band_px} px.\n\n"
+            "Se invece vuoi riempire il quadro, devi tagliare i lati oppure deformare l'immagine.\n\n"
+            "Scelta consigliata per un cinemascope pulito: 720p (1280x720) con Crop OFF."
+        )
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle(L("Scelta formato rischiosa"))
+        box.setText(L("Questa impostazione può produrre un'immagine piccola, tagliata o deformata."))
+        box.setInformativeText(msg)
+        btn_continue = box.addButton(L("Continua comunque"), QMessageBox.AcceptRole)
+        btn_cancel = box.addButton(L("Annulla e correggo"), QMessageBox.RejectRole)
+        box.setDefaultButton(btn_cancel)
+        box.exec_()
+
+        if box.clickedButton() is btn_continue:
+            try:
+                acknowledged.add(ack_key)
+                self._risky_resize_ack = acknowledged
+                self.txt_info.append(
+                    f"[WARN] Resize rischioso confermato: DAR≈{content_dar:.2f}, target={target_w}x{target_h}"
+                )
+            except Exception:
+                pass
+            return True
+
+        try:
+            self.txt_info.append(
+                f"[INFO] Resize rischioso annullato: DAR≈{content_dar:.2f}, target={target_w}x{target_h}"
+            )
+        except Exception:
+            pass
+        return False
+
     @pyqtSlot()
     def preview_raw(self):
         """
@@ -1737,6 +1897,17 @@ class MainWindow(QMainWindow):
                 w.hide()
         except Exception:
             self._preview_restore_widget = None
+
+        if filtered and not self._warn_if_risky_resize_choice("preview"):
+            try:
+                if self._preview_restore_widget is not None:
+                    self._preview_restore_widget.show()
+                    self._preview_restore_widget.raise_()
+                    self._preview_restore_widget.activateWindow()
+            except Exception:
+                pass
+            self._preview_restore_widget = None
+            return
 
         ffplay = getattr(C, "FFPLAY_BIN", "ffplay")
         args = [
@@ -1808,15 +1979,36 @@ class MainWindow(QMainWindow):
                 target_w = int(m.group(1))
                 target_h = int(m.group(2))
                 if not force_scope:
-                    pad_str = (f"pad={target_w}:{target_h}:( {target_w}-iw )/2:( {target_h}-ih )/2").replace(" ", "")
+                    # Preview coerente con encode: la scale deve preservare le proporzioni,
+                    # poi il pad crea le bande nere. Senza FOAR, scale=1280:720 stirerebbe.
+                    scale_txt = vf_parts[scale_idx]
+                    if "force_original_aspect_ratio=" not in scale_txt.replace(" ", ""):
+                        vf_parts[scale_idx] = scale_txt + ":force_original_aspect_ratio=decrease"
+
+                    pad_str = (f"pad={target_w}:{target_h}:( {target_w}-iw )/2:( {target_h}-ih )/2:color=black").replace(" ", "")
                     if not any(s.startswith(f"pad={target_w}:{target_h}:") for s in vf_parts):
                         vf_parts.insert(scale_idx + 1, pad_str)
+                    if (target_w >= 1024 or target_h >= 720) and not any(
+                        c.strip().startswith(("setsar=", "setdar="))
+                        for f in vf_parts
+                        for c in str(f).split(",")
+                    ):
+                        vf_parts.append("setsar=1")
 
         # Colore globale (eq=...)
+        # Deve stare PRIMA del pad, altrimenti schiarisce anche le bande nere.
         try:
             color_eq = build_color_eq_filter()
-            if color_eq:
-                vf_parts.append(color_eq)
+            if color_eq and color_eq not in vf_parts:
+                pad_idx = -1
+                for i, f in enumerate(vf_parts):
+                    if any(c.strip().startswith("pad=") for c in str(f).split(",")):
+                        pad_idx = i
+                        break
+                if pad_idx >= 0:
+                    vf_parts.insert(pad_idx, color_eq)
+                else:
+                    vf_parts.append(color_eq)
         except Exception:
             pass
 
@@ -2325,15 +2517,33 @@ class MainWindow(QMainWindow):
                     already_same_pad = True
                     break
             if not already_same_pad:
-                vf_parts.insert(scale_idx + 1, f"pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2")
+                vf_parts.insert(scale_idx + 1, f"pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2:color=black")
+
+            # Canvas moderni 720p/1080p: pixel quadrati espliciti.
+            # Esempio cinemascope 1920x816 → 1280x544 dentro 1280x720.
+            if (target_w >= 1024 or target_h >= 720) and not any(
+                c.strip().startswith(("setsar=", "setdar="))
+                for f in vf_parts
+                for c in str(f).split(",")
+            ):
+                vf_parts.append("setsar=1")
 
         # ─────────────────────────────────────────────────────────────
         # 7) Colore (consume=True)
         # ─────────────────────────────────────────────────────────────
         try:
             color_eq = build_color_eq_filter(consume=True)
-            if color_eq:
-                vf_parts.append(color_eq)
+            if color_eq and color_eq not in vf_parts:
+                # Il colore va applicato all'immagine, non alle bande nere create dal pad.
+                pad_idx = -1
+                for i, f in enumerate(vf_parts):
+                    if any(c.strip().startswith("pad=") for c in str(f).split(",")):
+                        pad_idx = i
+                        break
+                if pad_idx >= 0:
+                    vf_parts.insert(pad_idx, color_eq)
+                else:
+                    vf_parts.append(color_eq)
         except Exception:
             pass
 
@@ -3803,6 +4013,9 @@ class MainWindow(QMainWindow):
         if not self._current_file:
             return
 
+        if not self._warn_if_risky_resize_choice("encode"):
+            return
+
         if not self._audio_opts and not getattr(self, "audio_externo", False):
             reply = QMessageBox.question(
                 self,
@@ -4191,6 +4404,9 @@ class MainWindow(QMainWindow):
         self._last_output = out
 
         qid = self._video_idx_queue
+        if not self._warn_if_risky_resize_choice("queue"):
+            return
+
         video_tmp = self.video_dir / f"video_temp_QUEUE_{qid}.mkv"
         video_cmd = self.build_ffmpeg_video_cmd(video_tmp)
 

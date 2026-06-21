@@ -76,31 +76,32 @@ def _i18n_mark_crop_help():
 
     for ctx in ctxs:
         QCoreApplication.translate(ctx, "Guida rapida: finestra Crop")
-        QCoreApplication.translate(ctx, "Queste opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.")
+        QCoreApplication.translate(ctx, "Questa finestra serve a tagliare davvero l'immagine. Crop e ridimensionamento non sono la stessa cosa: il crop elimina pezzi del fotogramma, il resize sceglie il quadro finale.")
         QCoreApplication.translate(ctx, "Significato delle checkbox")
-        QCoreApplication.translate(ctx, "Crop attivo: applica davvero il crop (crop=W:H:X:Y).")
-        QCoreApplication.translate(ctx, "Forza DAR 16:9: blocca il rettangolo di crop a 16:9 (solo come vincolo di selezione).")
-        QCoreApplication.translate(ctx, "Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1 (solo come vincolo di selezione).")
+        QCoreApplication.translate(ctx, "Crop attivo: applica davvero il crop (crop=W:H:X:Y). Se lo accendi, ciò che resta fuori dal rettangolo viene perso.")
+        QCoreApplication.translate(ctx, "Forza DAR 16:9: blocca il rettangolo di crop a 16:9. Usalo solo se accetti un taglio reale dell'immagine.")
+        QCoreApplication.translate(ctx, "Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1. Utile per togliere bande nere già presenti dentro un video 16:9.")
 
         QCoreApplication.translate(ctx, "Combinazioni consigliate")
-        QCoreApplication.translate(ctx, "Film già cinemascope “pulito” (es. 1280×544, senza bande):")
-        QCoreApplication.translate(ctx, "→ Non serve crop: lascia tutto OFF (Crop attivo OFF, Forza 16:9 OFF, Forza 2.35 OFF).")
+        QCoreApplication.translate(ctx, "Film cinemascope pulito, senza bande interne (es. 1920×816 o 1280×544):")
+        QCoreApplication.translate(ctx, "→ Se vuoi mantenere anche i dettagli all'estrema destra/sinistra, lascia Crop OFF.")
+        QCoreApplication.translate(ctx, "→ Per output 1280×720 scegli 720p: il programma mantiene tutta l'immagine e aggiunge solo bande nere sopra/sotto.")
 
-        QCoreApplication.translate(ctx, "Film 16:9 che ha già bande nere sopra/sotto (letterbox già presente):")
-        QCoreApplication.translate(ctx, "→ Devi togliere le bande esistenti: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
-        QCoreApplication.translate(ctx, "Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande.")
+        QCoreApplication.translate(ctx, "Film 16:9 che ha già bande nere sopra/sotto incorporate:")
+        QCoreApplication.translate(ctx, "→ Se vuoi eliminare quelle bande già presenti nel file: Crop attivo ON + Forza DAR 2.35:1 ON.")
+        QCoreApplication.translate(ctx, "Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande interne.")
 
-        QCoreApplication.translate(ctx, "Creare un cinemascope “finto” partendo da un video senza bande (16:9 pieno):")
-        QCoreApplication.translate(ctx, "→ È un taglio reale: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
-        QCoreApplication.translate(ctx, "Poi scegli l'inquadratura spostando Y (per non tagliare facce/azioni).")
+        QCoreApplication.translate(ctx, "Portare un cinemascope pulito a 16:9 pieno:")
+        QCoreApplication.translate(ctx, "→ È un taglio laterale reale: Crop attivo ON + Forza DAR 16:9 ON.")
+        QCoreApplication.translate(ctx, "→ Non è consigliato se ai lati ci sono particolari importanti, scritte o persone.")
 
-        QCoreApplication.translate(ctx, "Creare/forzare un crop 16:9 (es. da 4:3 o da materiale con barre laterali):")
-        QCoreApplication.translate(ctx, "→ Crop attivo ON + Forza DAR 16:9 ON, Forza DAR 2.35 OFF.")
-        QCoreApplication.translate(ctx, "Decidi se togliere barre laterali (tagliando W/X) o bande sopra/sotto (tagliando H/Y).")
+        QCoreApplication.translate(ctx, "Creare un cinemascope “finto” partendo da un video 16:9 pieno:")
+        QCoreApplication.translate(ctx, "→ È un taglio sopra/sotto reale: Crop attivo ON + Forza DAR 2.35:1 ON.")
+        QCoreApplication.translate(ctx, "Poi scegli l'inquadratura spostando Y, per non tagliare facce o azioni importanti.")
 
         QCoreApplication.translate(ctx, "Note tecniche (anti-problemi)")
         QCoreApplication.translate(ctx, "Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.")
-        QCoreApplication.translate(ctx, "Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni.")
+        QCoreApplication.translate(ctx, "Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni, tagli indesiderati o bande laterali.")
 
         QCoreApplication.translate(ctx, "Aiuto")
         QCoreApplication.translate(ctx, "Chiudi")
@@ -778,32 +779,33 @@ class CropDialog(QDialog):
             return f"<li>{esc(x)}</li>"
 
         title = L("Guida rapida: finestra Crop")
-        intro = L("Queste opzioni servono a: (1) tagliare l'immagine (crop reale) e (2) aiutarti a mantenere un rapporto corretto (16:9 o 2.35:1) senza distorsioni.")
+        intro = L("Questa finestra serve a tagliare davvero l'immagine. Crop e ridimensionamento non sono la stessa cosa: il crop elimina pezzi del fotogramma, il resize sceglie il quadro finale.")
 
         sec_chk = L("Significato delle checkbox")
-        chk1 = L("Crop attivo: applica davvero il crop (crop=W:H:X:Y).")
-        chk2 = L("Forza DAR 16:9: blocca il rettangolo di crop a 16:9 (solo come vincolo di selezione).")
-        chk3 = L("Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1 (solo come vincolo di selezione).")
+        chk1 = L("Crop attivo: applica davvero il crop (crop=W:H:X:Y). Se lo accendi, ciò che resta fuori dal rettangolo viene perso.")
+        chk2 = L("Forza DAR 16:9: blocca il rettangolo di crop a 16:9. Usalo solo se accetti un taglio reale dell'immagine.")
+        chk3 = L("Forza DAR 2.35:1: blocca il rettangolo di crop a 2.35:1. Utile per togliere bande nere già presenti dentro un video 16:9.")
 
         sec_combo = L("Combinazioni consigliate")
-        c1 = L("Film già cinemascope “pulito” (es. 1280×544, senza bande):")
-        c1a = L("→ Non serve crop: lascia tutto OFF (Crop attivo OFF, Forza 16:9 OFF, Forza 2.35 OFF).")
+        c1 = L("Film cinemascope pulito, senza bande interne (es. 1920×816 o 1280×544):")
+        c1a = L("→ Se vuoi mantenere anche i dettagli all'estrema destra/sinistra, lascia Crop OFF.")
+        c1b = L("→ Per output 1280×720 scegli 720p: il programma mantiene tutta l'immagine e aggiunge solo bande nere sopra/sotto.")
 
-        c2 = L("Film 16:9 che ha già bande nere sopra/sotto (letterbox già presente):")
-        c2a = L("→ Devi togliere le bande esistenti: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
-        c2b = L("Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande.")
+        c2 = L("Film 16:9 che ha già bande nere sopra/sotto incorporate:")
+        c2a = L("→ Se vuoi eliminare quelle bande già presenti nel file: Crop attivo ON + Forza DAR 2.35:1 ON.")
+        c2b = L("Consiglio: metti X=0 e W=larghezza piena; regola H e Y finché spariscono le bande interne.")
 
-        c3 = L("Creare un cinemascope “finto” partendo da un video senza bande (16:9 pieno):")
-        c3a = L("→ È un taglio reale: Crop attivo ON + Forza DAR 2.35:1 ON, Forza DAR 16:9 OFF.")
-        c3b = L("Poi scegli l'inquadratura spostando Y (per non tagliare facce/azioni).")
+        c3 = L("Portare un cinemascope pulito a 16:9 pieno:")
+        c3a = L("→ È un taglio laterale reale: Crop attivo ON + Forza DAR 16:9 ON.")
+        c3b = L("→ Non è consigliato se ai lati ci sono particolari importanti, scritte o persone.")
 
-        c4 = L("Creare/forzare un crop 16:9 (es. da 4:3 o da materiale con barre laterali):")
-        c4a = L("→ Crop attivo ON + Forza DAR 16:9 ON, Forza DAR 2.35 OFF.")
-        c4b = L("Decidi se togliere barre laterali (tagliando W/X) o bande sopra/sotto (tagliando H/Y).")
+        c4 = L("Creare un cinemascope “finto” partendo da un video 16:9 pieno:")
+        c4a = L("→ È un taglio sopra/sotto reale: Crop attivo ON + Forza DAR 2.35:1 ON.")
+        c4b = L("Poi scegli l'inquadratura spostando Y, per non tagliare facce o azioni importanti.")
 
         sec_note = L("Note tecniche (anti-problemi)")
         n1 = L("Tieni W e H pari (molti codec/pipeline lo richiedono). Questa finestra arrotonda già a valori pari quando salvi.")
-        n2 = L("Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni.")
+        n2 = L("Usa 'Preview filtrata' per controllare subito che non ci siano distorsioni, tagli indesiderati o bande laterali.")
 
         parts = []
         parts.append(H1(title))
@@ -818,7 +820,7 @@ class CropDialog(QDialog):
 
         parts.append(H2(sec_combo))
         parts.append("<ul>")
-        parts.append(f"<li><b>{esc(c1)}</b><ul>{li_bold_prefix(c1a)}</ul></li>")
+        parts.append(f"<li><b>{esc(c1)}</b><ul>{li_bold_prefix(c1a)}{li_bold_prefix(c1b)}</ul></li>")
         parts.append(f"<li><b>{esc(c2)}</b><ul>{li_bold_prefix(c2a)}{li_bold_prefix(c2b)}</ul></li>")
         parts.append(f"<li><b>{esc(c3)}</b><ul>{li_bold_prefix(c3a)}{li_bold_prefix(c3b)}</ul></li>")
         parts.append(f"<li><b>{esc(c4)}</b><ul>{li_bold_prefix(c4a)}{li_bold_prefix(c4b)}</ul></li>")
