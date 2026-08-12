@@ -3205,6 +3205,7 @@ class MainWindow(QMainWindow):
             # opzioni che possiamo copiare pari pari
             copied_opts: list[str] = []
             copied_meta: list[str] = []
+            source_af: Optional[str] = None
 
             it = iter(toks)
             while True:
@@ -3809,19 +3810,34 @@ class MainWindow(QMainWindow):
             track_idx += 1
 
         # metadata globali + opzioni container
+        out_ext = Path(output_mkv).suffix.lower()
+
         cmd += [
             "-metadata",
             f"title={clean_name}",
             *getattr(self, '_subtitle_out_opts', []),
-            '-default_mode', 'passthrough',
-            "-cluster_time_limit",
-            "5000",
-            "-cluster_size_limit",
-            "5242880",
-            "-f",
-            "matroska",
-            str(output_mkv),
         ]
+
+        if out_ext == ".mp4":
+            cmd += [
+                "-movflags",
+                "+faststart",
+                "-f",
+                "mp4",
+            ]
+        else:
+            cmd += [
+                "-default_mode",
+                "passthrough",
+                "-cluster_time_limit",
+                "5000",
+                "-cluster_size_limit",
+                "5242880",
+                "-f",
+                "matroska",
+            ]
+
+        cmd += [str(output_mkv)]
         return cmd
 
     def _build_apply_reverb_and_af(self, cmd: list[str], filters: list[str], *, for_shell: bool = False) -> None:
